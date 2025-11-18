@@ -77,6 +77,10 @@ func _init():
             list_connections(params)
         "connect_signal":
             connect_signal(params)
+        "disconnect_signal":
+            disconnect_signal(params)
+        "validate_connection":
+            validate_connection(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -1621,3 +1625,275 @@ func connect_signal(params):
     # Output the result
     print(JSON.stringify(result))
     log_info("connect_signal operation completed successfully")
+
+# Disconnect signal operation
+func disconnect_signal(params):
+    log_info("Starting disconnect_signal operation")
+
+    # Validate required parameters
+    if not params.has("scenePath"):
+        log_error("scenePath parameter is required")
+        quit(1)
+        return
+
+    if not params.has("sourceNodePath"):
+        log_error("sourceNodePath parameter is required")
+        quit(1)
+        return
+
+    if not params.has("signalName"):
+        log_error("signalName parameter is required")
+        quit(1)
+        return
+
+    if not params.has("targetNodePath"):
+        log_error("targetNodePath parameter is required")
+        quit(1)
+        return
+
+    if not params.has("methodName"):
+        log_error("methodName parameter is required")
+        quit(1)
+        return
+
+    var scene_path = params["scenePath"]
+    var source_node_path = params["sourceNodePath"]
+    var signal_name = params["signalName"]
+    var target_node_path = params["targetNodePath"]
+    var method_name = params["methodName"]
+
+    log_debug("Scene path: " + scene_path)
+    log_debug("Source node: " + source_node_path)
+    log_debug("Signal: " + signal_name)
+    log_debug("Target node: " + target_node_path)
+    log_debug("Method: " + method_name)
+
+    # Load the scene to validate that nodes exist
+    var scene = load(scene_path)
+    if scene == null:
+        log_error("Failed to load scene: " + scene_path)
+        quit(1)
+        return
+
+    # Instantiate the scene
+    var scene_instance = scene.instantiate()
+    if scene_instance == null:
+        log_error("Failed to instantiate scene: " + scene_path)
+        quit(1)
+        return
+
+    log_debug("Scene instantiated successfully")
+
+    # Validate source node exists
+    var source_node = scene_instance.get_node(NodePath(source_node_path))
+    if source_node == null:
+        log_error("Failed to find source node: " + source_node_path)
+        scene_instance.free()
+        quit(1)
+        return
+
+    log_debug("Source node found: " + str(source_node))
+
+    # Validate target node exists
+    var target_node = scene_instance.get_node(NodePath(target_node_path))
+    if target_node == null:
+        log_error("Failed to find target node: " + target_node_path)
+        scene_instance.free()
+        quit(1)
+        return
+
+    log_debug("Target node found: " + str(target_node))
+
+    # Clean up the scene instance
+    scene_instance.free()
+
+    # Read the scene file
+    var file = FileAccess.open(scene_path, FileAccess.READ)
+    if file == null:
+        log_error("Failed to open scene file for reading: " + scene_path)
+        quit(1)
+        return
+
+    var file_content = file.get_as_text()
+    file.close()
+
+    log_debug("Scene file read successfully")
+
+    # Build the connection line patterns to search for
+    # We need to handle both with and without optional parameters
+    var base_connection = '[connection signal="' + signal_name + '" from="' + source_node_path + '" to="' + target_node_path + '" method="' + method_name + '"'
+
+    # Split the file into lines
+    var lines = file_content.split("\n")
+    var modified = false
+    var new_lines = []
+
+    for line in lines:
+        # Check if this line is the connection we want to remove
+        if line.begins_with(base_connection):
+            log_info("Found connection to remove: " + line)
+            modified = true
+            # Skip this line (don't add it to new_lines)
+        else:
+            new_lines.append(line)
+
+    if not modified:
+        log_error("Connection not found in scene file")
+        log_error("Expected connection starting with: " + base_connection)
+        quit(1)
+        return
+
+    # Rebuild the file content
+    var new_content = "\n".join(new_lines)
+
+    # Write the modified content back
+    file = FileAccess.open(scene_path, FileAccess.WRITE)
+    if file == null:
+        log_error("Failed to open scene file for writing: " + scene_path)
+        quit(1)
+        return
+
+    file.store_string(new_content)
+    file.close()
+
+    log_info("Scene file updated - connection removed")
+
+    # Build success message
+    var result = {
+        "scene_path": scene_path,
+        "disconnected": {
+            "source_node": source_node_path,
+            "signal": signal_name,
+            "target_node": target_node_path,
+            "method": method_name
+        }
+    }
+
+    # Output the result
+    print(JSON.stringify(result))
+    log_info("disconnect_signal operation completed successfully")
+
+# Validate connection operation
+func validate_connection(params):
+    log_info("Starting validate_connection operation")
+
+    # Validate required parameters
+    if not params.has("scenePath"):
+        log_error("scenePath parameter is required")
+        quit(1)
+        return
+
+    if not params.has("sourceNodePath"):
+        log_error("sourceNodePath parameter is required")
+        quit(1)
+        return
+
+    if not params.has("signalName"):
+        log_error("signalName parameter is required")
+        quit(1)
+        return
+
+    if not params.has("targetNodePath"):
+        log_error("targetNodePath parameter is required")
+        quit(1)
+        return
+
+    if not params.has("methodName"):
+        log_error("methodName parameter is required")
+        quit(1)
+        return
+
+    var scene_path = params["scenePath"]
+    var source_node_path = params["sourceNodePath"]
+    var signal_name = params["signalName"]
+    var target_node_path = params["targetNodePath"]
+    var method_name = params["methodName"]
+
+    log_debug("Scene path: " + scene_path)
+    log_debug("Source node: " + source_node_path)
+    log_debug("Signal: " + signal_name)
+    log_debug("Target node: " + target_node_path)
+    log_debug("Method: " + method_name)
+
+    # Load the scene
+    var scene = load(scene_path)
+    if scene == null:
+        log_error("Failed to load scene: " + scene_path)
+        quit(1)
+        return
+
+    # Instantiate the scene
+    var scene_instance = scene.instantiate()
+    if scene_instance == null:
+        log_error("Failed to instantiate scene: " + scene_path)
+        quit(1)
+        return
+
+    log_debug("Scene instantiated successfully")
+
+    # Validation results
+    var is_valid = true
+    var errors = []
+    var warnings = []
+
+    # 1. Validate source node exists
+    var source_node = scene_instance.get_node_or_null(NodePath(source_node_path))
+    if source_node == null:
+        is_valid = false
+        errors.append("Source node not found: " + source_node_path)
+        log_error("Source node not found: " + source_node_path)
+    else:
+        log_debug("Source node found: " + str(source_node))
+
+        # 2. Validate signal exists on source node
+        if not source_node.has_signal(signal_name):
+            is_valid = false
+            errors.append("Signal '" + signal_name + "' not found on source node")
+            log_error("Signal '" + signal_name + "' not found on source node")
+        else:
+            log_debug("Signal exists on source node")
+
+    # 3. Validate target node exists
+    var target_node = scene_instance.get_node_or_null(NodePath(target_node_path))
+    if target_node == null:
+        is_valid = false
+        errors.append("Target node not found: " + target_node_path)
+        log_error("Target node not found: " + target_node_path)
+    else:
+        log_debug("Target node found: " + str(target_node))
+
+        # 4. Check if method exists on target node (warning only, not an error)
+        if target_node.has_method(method_name):
+            log_debug("Method exists on target node")
+        else:
+            warnings.append("Method '" + method_name + "' does not exist on target node yet. Make sure to add it to the target node's script.")
+            print("WARNING: Method '" + method_name + "' does not exist on target node yet.")
+
+    # Clean up
+    scene_instance.free()
+
+    # Build result
+    var result = {
+        "valid": is_valid,
+        "scene_path": scene_path,
+        "connection": {
+            "source_node": source_node_path,
+            "signal": signal_name,
+            "target_node": target_node_path,
+            "method": method_name
+        }
+    }
+
+    if errors.size() > 0:
+        result["errors"] = errors
+
+    if warnings.size() > 0:
+        result["warnings"] = warnings
+
+    # Output the result
+    print(JSON.stringify(result))
+
+    if is_valid:
+        log_info("validate_connection operation completed - connection is valid")
+    else:
+        log_info("validate_connection operation completed - connection is NOT valid")

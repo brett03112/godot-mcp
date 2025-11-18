@@ -10,7 +10,8 @@
       "Bash(claude mcp get:*)",
       "Bash(godot:*)",
       "Bash(npm run build:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []

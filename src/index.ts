@@ -1017,6 +1017,74 @@ class GodotServer {
             required: ['projectPath', 'scenePath', 'sourceNodePath', 'signalName', 'targetNodePath', 'methodName'],
           },
         },
+        {
+          name: 'disconnect_signal',
+          description: 'Disconnect an existing signal connection in a scene',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              sourceNodePath: {
+                type: 'string',
+                description: 'Path to the source node that emits the signal',
+              },
+              signalName: {
+                type: 'string',
+                description: 'Name of the signal to disconnect',
+              },
+              targetNodePath: {
+                type: 'string',
+                description: 'Path to the target node',
+              },
+              methodName: {
+                type: 'string',
+                description: 'Name of the method that was connected',
+              },
+            },
+            required: ['projectPath', 'scenePath', 'sourceNodePath', 'signalName', 'targetNodePath', 'methodName'],
+          },
+        },
+        {
+          name: 'validate_connection',
+          description: 'Validate if a signal connection is valid before attempting to create it. Checks if nodes exist, signal exists, and method exists (warning if not)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              sourceNodePath: {
+                type: 'string',
+                description: 'Path to the source node that emits the signal',
+              },
+              signalName: {
+                type: 'string',
+                description: 'Name of the signal to validate',
+              },
+              targetNodePath: {
+                type: 'string',
+                description: 'Path to the target node',
+              },
+              methodName: {
+                type: 'string',
+                description: 'Name of the method to call on the target node',
+              },
+            },
+            required: ['projectPath', 'scenePath', 'sourceNodePath', 'signalName', 'targetNodePath', 'methodName'],
+          },
+        },
       ],
     }));
 
@@ -1058,6 +1126,10 @@ class GodotServer {
           return await this.handleListConnections(request.params.arguments);
         case 'connect_signal':
           return await this.handleConnectSignal(request.params.arguments);
+        case 'disconnect_signal':
+          return await this.handleDisconnectSignal(request.params.arguments);
+        case 'validate_connection':
+          return await this.handleValidateConnection(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -2621,6 +2693,268 @@ class GodotServer {
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify all node paths and signal names are correct',
           'Use list_signals and list_connections to inspect the scene',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle disconnect_signal tool - Remove an existing signal connection
+   */
+  private async handleDisconnectSignal(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide a valid path to a scene file (relative to project)']
+      );
+    }
+
+    if (!args.sourceNodePath) {
+      return this.createErrorResponse(
+        'Source node path is required',
+        ['Provide the path to the node that emits the signal']
+      );
+    }
+
+    if (!args.signalName) {
+      return this.createErrorResponse(
+        'Signal name is required',
+        ['Provide the name of the signal to disconnect']
+      );
+    }
+
+    if (!args.targetNodePath) {
+      return this.createErrorResponse(
+        'Target node path is required',
+        ['Provide the path to the target node']
+      );
+    }
+
+    if (!args.methodName) {
+      return this.createErrorResponse(
+        'Method name is required',
+        ['Provide the name of the method that was connected']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Disconnecting signal ${args.signalName} from ${args.sourceNodePath} to ${args.targetNodePath}.${args.methodName}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scenePath: args.scenePath,
+        sourceNodePath: args.sourceNodePath,
+        signalName: args.signalName,
+        targetNodePath: args.targetNodePath,
+        methodName: args.methodName,
+      };
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('disconnect_signal', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to disconnect signal: ${stderr}`,
+          [
+            'Check if the connection exists using list_connections',
+            'Verify the scene file is valid and loadable',
+            'Ensure all node paths and signal names are correct',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Successfully disconnected signal!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to disconnect signal: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the connection exists before trying to disconnect it',
+          'Use list_connections to inspect existing connections',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the validate_connection tool
+   * @param args Tool arguments
+   */
+  private async handleValidateConnection(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide a valid path to a scene file (relative to project)']
+      );
+    }
+
+    if (!args.sourceNodePath) {
+      return this.createErrorResponse(
+        'Source node path is required',
+        ['Provide the path to the node that emits the signal']
+      );
+    }
+
+    if (!args.signalName) {
+      return this.createErrorResponse(
+        'Signal name is required',
+        ['Provide the name of the signal to validate']
+      );
+    }
+
+    if (!args.targetNodePath) {
+      return this.createErrorResponse(
+        'Target node path is required',
+        ['Provide the path to the target node']
+      );
+    }
+
+    if (!args.methodName) {
+      return this.createErrorResponse(
+        'Method name is required',
+        ['Provide the name of the method to validate']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Validating connection ${args.signalName} from ${args.sourceNodePath} to ${args.targetNodePath}.${args.methodName}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scenePath: args.scenePath,
+        sourceNodePath: args.sourceNodePath,
+        signalName: args.signalName,
+        targetNodePath: args.targetNodePath,
+        methodName: args.methodName,
+      };
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('validate_connection', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Validation failed: ${stderr}`,
+          [
+            'Check if the source node exists',
+            'Verify the signal name is correct using list_signals',
+            'Ensure the target node exists',
+            'Verify method name matches the target node\'s script',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Validation complete!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to validate connection: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the scene file exists and is valid',
+          'Use list_signals to check available signals on the source node',
         ]
       );
     }
