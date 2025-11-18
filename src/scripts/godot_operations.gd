@@ -73,6 +73,10 @@ func _init():
             resave_resources(params)
         "list_signals":
             list_signals(params)
+        "list_connections":
+            list_connections(params)
+        "connect_signal":
+            connect_signal(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -1321,3 +1325,299 @@ func type_string(type_enum):
         TYPE_PACKED_VECTOR3_ARRAY: return "PackedVector3Array"
         TYPE_PACKED_COLOR_ARRAY: return "PackedColorArray"
         _: return "Unknown"
+
+# List connections operation
+func list_connections(params):
+    log_info("Starting list_connections operation")
+    
+    if not params.has("scenePath"):
+        log_error("scenePath parameter is required")
+        quit(1)
+        return
+    
+    var scene_path = params["scenePath"]
+    log_debug("Scene path: " + scene_path)
+    
+    # Load the scene
+    var scene = load(scene_path)
+    if scene == null:
+        log_error("Failed to load scene: " + scene_path)
+        quit(1)
+        return
+    
+    # Instantiate the scene to get connections
+    var scene_instance = scene.instantiate()
+    if scene_instance == null:
+        log_error("Failed to instantiate scene: " + scene_path)
+        quit(1)
+        return
+    
+    log_debug("Scene instantiated successfully")
+    
+    var connections_list = []
+    var filter_node_path = params.get("nodePath", "")
+    
+    # Get all connections from the scene
+    # We need to traverse all nodes and get their incoming connections
+    var nodes_to_check = [scene_instance]
+    var processed_nodes = []
+    
+    while nodes_to_check.size() > 0:
+        var current_node = nodes_to_check.pop_front()
+        if current_node in processed_nodes:
+            continue
+        processed_nodes.append(current_node)
+        
+        # Get the node's path relative to the scene root
+        var node_path = scene_instance.get_path_to(current_node)
+        var node_path_str = str(node_path)
+        
+        # If filtering by node path, check if this node matches
+        var should_process = true
+        if filter_node_path != "":
+            # Check if this node matches the filter (either exact match or is a child)
+            should_process = (node_path_str == filter_node_path or 
+                            node_path_str.begins_with(filter_node_path + "/"))
+        
+        if should_process:
+            # Get all incoming connections for this node
+            var incoming_connections = current_node.get_incoming_connections()
+            
+            for connection_info in incoming_connections:
+                var source = connection_info["signal"].get_object()
+                var signal_name = connection_info["signal"].get_name()
+                var callable_info = connection_info["callable"]
+                var target = callable_info.get_object()
+                var method_name = callable_info.get_method()
+                
+                # Get the paths for source and target nodes
+                var source_path = scene_instance.get_path_to(source) if source else NodePath(".")
+                var target_path = scene_instance.get_path_to(target) if target else NodePath(".")
+                
+                var connection_data = {
+                    "source_node": str(source_path),
+                    "signal": signal_name,
+                    "target_node": str(target_path),
+                    "method": method_name,
+                    "flags": connection_info.get("flags", 0),
+                    "binds": []
+                }
+                
+                # Try to get binds if available
+                if connection_info.has("binds"):
+                    for bind_value in connection_info["binds"]:
+                        connection_data["binds"].append(str(bind_value))
+                
+                connections_list.append(connection_data)
+        
+        # Add children to the list to check
+        for child in current_node.get_children():
+            if not child in processed_nodes:
+                nodes_to_check.append(child)
+    
+    # Build the result
+    var result = {
+        "scene_path": scene_path,
+        "connections": connections_list
+    }
+    
+    # If filtering was applied, include that in the result
+    if filter_node_path != "":
+        result["filtered_by"] = filter_node_path
+    
+    # Clean up
+    scene_instance.free()
+    
+    # Output the result as JSON
+    print(JSON.stringify(result))
+    log_info("list_connections operation completed successfully")
+
+# Connect signal operation
+func connect_signal(params):
+    log_info("Starting connect_signal operation")
+    
+    # Validate required parameters
+    if not params.has("scenePath"):
+        log_error("scenePath parameter is required")
+        quit(1)
+        return
+    
+    if not params.has("sourceNodePath"):
+        log_error("sourceNodePath parameter is required")
+        quit(1)
+        return
+    
+    if not params.has("signalName"):
+        log_error("signalName parameter is required")
+        quit(1)
+        return
+    
+    if not params.has("targetNodePath"):
+        log_error("targetNodePath parameter is required")
+        quit(1)
+        return
+    
+    if not params.has("methodName"):
+        log_error("methodName parameter is required")
+        quit(1)
+        return
+    
+    var scene_path = params["scenePath"]
+    var source_node_path = params["sourceNodePath"]
+    var signal_name = params["signalName"]
+    var target_node_path = params["targetNodePath"]
+    var method_name = params["methodName"]
+    var connection_flags = params.get("flags", 0)
+    var binds = params.get("binds", [])
+    
+    log_debug("Scene path: " + scene_path)
+    log_debug("Source node: " + source_node_path)
+    log_debug("Signal: " + signal_name)
+    log_debug("Target node: " + target_node_path)
+    log_debug("Method: " + method_name)
+    
+    # Load the scene
+    var scene = load(scene_path)
+    if scene == null:
+        log_error("Failed to load scene: " + scene_path)
+        quit(1)
+        return
+    
+    # Instantiate the scene
+    var scene_instance = scene.instantiate()
+    if scene_instance == null:
+        log_error("Failed to instantiate scene: " + scene_path)
+        quit(1)
+        return
+    
+    log_debug("Scene instantiated successfully")
+    
+    # Get the source node
+    var source_node = scene_instance.get_node(NodePath(source_node_path))
+    if source_node == null:
+        log_error("Failed to find source node: " + source_node_path)
+        scene_instance.free()
+        quit(1)
+        return
+    
+    log_debug("Source node found: " + str(source_node))
+    
+    # Validate that the source node has the specified signal
+    var has_signal = source_node.has_signal(signal_name)
+    if not has_signal:
+        log_error("Source node does not have signal: " + signal_name)
+        log_error("Use list_signals to see available signals on this node")
+        scene_instance.free()
+        quit(1)
+        return
+    
+    log_debug("Signal exists on source node")
+    
+    # Get the target node
+    var target_node = scene_instance.get_node(NodePath(target_node_path))
+    if target_node == null:
+        log_error("Failed to find target node: " + target_node_path)
+        scene_instance.free()
+        quit(1)
+        return
+    
+    log_debug("Target node found: " + str(target_node))
+    
+    # Check if the method exists on the target node (warning only, not a hard error)
+    if target_node.has_method(method_name):
+        log_debug("Method exists on target node")
+    else:
+        print("WARNING: Method '" + method_name + "' does not exist on target node yet.")
+        print("Make sure to add this method to the target node's script.")
+    
+    # Create the connection
+    var callable = Callable(target_node, method_name)
+    
+    # Add binds if provided
+    if binds.size() > 0:
+        # Convert binds array to proper types
+        var bind_values = []
+        for bind_value in binds:
+            bind_values.append(bind_value)
+        callable = callable.bindv(bind_values)
+    
+    # Connect the signal
+    var connect_result = source_node.connect(signal_name, callable, connection_flags)
+    
+    if connect_result != OK:
+        log_error("Failed to connect signal. Error code: " + str(connect_result))
+        scene_instance.free()
+        quit(1)
+        return
+    
+    log_info("Signal connected successfully in runtime")
+
+    # Now we need to save this connection to the scene file
+    # PackedScene.pack() doesn't preserve runtime connections, so we'll edit the .tscn file directly
+
+    # Clean up the scene instance first
+    scene_instance.free()
+
+    # Read the scene file
+    var file = FileAccess.open(scene_path, FileAccess.READ)
+    if file == null:
+        log_error("Failed to open scene file for reading: " + scene_path)
+        quit(1)
+        return
+
+    var file_content = file.get_as_text()
+    file.close()
+
+    log_debug("Scene file read successfully")
+
+    # Build the connection line
+    # Format: [connection signal="signal_name" from="source_path" to="target_path" method="method_name"]
+    var connection_line = '[connection signal="' + signal_name + '" from="' + source_node_path + '" to="' + target_node_path + '" method="' + method_name + '"'
+
+    # Add flags if non-zero
+    if connection_flags != 0:
+        connection_line += ' flags=' + str(connection_flags)
+
+    # Add binds if present
+    if binds.size() > 0:
+        connection_line += ' binds=' + str(binds)
+
+    connection_line += ']'
+
+    # Check if this connection already exists
+    if connection_line in file_content:
+        log_info("Connection already exists in scene file")
+    else:
+        # Add the connection line to the end of the file
+        file_content += "\n" + connection_line + "\n"
+        log_debug("Connection line added: " + connection_line)
+
+        # Write the modified content back
+        file = FileAccess.open(scene_path, FileAccess.WRITE)
+        if file == null:
+            log_error("Failed to open scene file for writing: " + scene_path)
+            quit(1)
+            return
+
+        file.store_string(file_content)
+        file.close()
+
+        log_info("Scene file updated with connection")
+
+    
+    # Build success message
+    var result = {
+        "scene_path": scene_path,
+        "connection": {
+            "source_node": source_node_path,
+            "signal": signal_name,
+            "target_node": target_node_path,
+            "method": method_name,
+            "flags": connection_flags,
+            "binds": binds
+        }
+    }
+
+    # Output the result
+    print(JSON.stringify(result))
+    log_info("connect_signal operation completed successfully")

@@ -950,6 +950,73 @@ class GodotServer {
             required: ['projectPath', 'nodeType'],
           },
         },
+        {
+          name: 'list_connections',
+          description: 'List all signal connections in a scene',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              nodePath: {
+                type: 'string',
+                description: 'Optional: Filter connections for a specific node path',
+              },
+            },
+            required: ['projectPath', 'scenePath'],
+          },
+        },
+        {
+          name: 'connect_signal',
+          description: 'Connect a signal from a source node to a target node method',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              sourceNodePath: {
+                type: 'string',
+                description: 'Path to the source node that emits the signal (e.g., "Button", "Player/Area2D")',
+              },
+              signalName: {
+                type: 'string',
+                description: 'Name of the signal to connect (e.g., "pressed", "body_entered")',
+              },
+              targetNodePath: {
+                type: 'string',
+                description: 'Path to the target node that receives the signal (e.g., ".", "Player")',
+              },
+              methodName: {
+                type: 'string',
+                description: 'Name of the method to call on the target node (e.g., "_on_button_pressed")',
+              },
+              binds: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+                description: 'Optional: Array of values to bind to the signal',
+              },
+              flags: {
+                type: 'number',
+                description: 'Optional: Connection flags (e.g., CONNECT_DEFERRED = 1, CONNECT_PERSIST = 2, CONNECT_ONE_SHOT = 4)',
+              },
+            },
+            required: ['projectPath', 'scenePath', 'sourceNodePath', 'signalName', 'targetNodePath', 'methodName'],
+          },
+        },
       ],
     }));
 
@@ -987,6 +1054,10 @@ class GodotServer {
           return await this.handleUpdateProjectUids(request.params.arguments);
         case 'list_signals':
           return await this.handleListSignals(request.params.arguments);
+        case 'list_connections':
+          return await this.handleListConnections(request.params.arguments);
+        case 'connect_signal':
+          return await this.handleConnectSignal(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -2295,6 +2366,261 @@ class GodotServer {
           'Ensure Godot is installed correctly',
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify the node type is valid',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle list_connections tool - List all signal connections in a scene
+   */
+  private async handleListConnections(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide a valid path to a scene file (relative to project)']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Listing connections for scene: ${args.scenePath}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scenePath: args.scenePath,
+      };
+
+      // Add optional node path filter if provided
+      if (args.nodePath) {
+        params.nodePath = args.nodePath;
+      }
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('list_connections', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to list connections: ${stderr}`,
+          [
+            'Check if the scene path is valid',
+            'Verify the scene file exists and is loadable',
+            'Ensure the project is valid',
+          ]
+        );
+      }
+
+      // Parse the JSON output
+      let result;
+      try {
+        result = JSON.parse(stdout);
+      } catch (parseError) {
+        return this.createErrorResponse(
+          `Failed to parse connections output: ${stdout}`,
+          [
+            'Check Godot logs for errors',
+            'Ensure the operation completed successfully',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Connections in ${args.scenePath}:\n\n${JSON.stringify(result, null, 2)}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to list connections: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the scene path is valid',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle connect_signal tool - Connect a signal from source node to target node method
+   */
+  private async handleConnectSignal(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide a valid path to a scene file (relative to project)']
+      );
+    }
+
+    if (!args.sourceNodePath) {
+      return this.createErrorResponse(
+        'Source node path is required',
+        ['Provide the path to the node that emits the signal']
+      );
+    }
+
+    if (!args.signalName) {
+      return this.createErrorResponse(
+        'Signal name is required',
+        ['Provide the name of the signal to connect']
+      );
+    }
+
+    if (!args.targetNodePath) {
+      return this.createErrorResponse(
+        'Target node path is required',
+        ['Provide the path to the node that will receive the signal']
+      );
+    }
+
+    if (!args.methodName) {
+      return this.createErrorResponse(
+        'Method name is required',
+        ['Provide the name of the method to call when the signal is emitted']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Connecting signal ${args.signalName} from ${args.sourceNodePath} to ${args.targetNodePath}.${args.methodName}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scenePath: args.scenePath,
+        sourceNodePath: args.sourceNodePath,
+        signalName: args.signalName,
+        targetNodePath: args.targetNodePath,
+        methodName: args.methodName,
+      };
+
+      // Add optional parameters if provided
+      if (args.binds && Array.isArray(args.binds)) {
+        params.binds = args.binds;
+      }
+
+      if (args.flags !== undefined) {
+        params.flags = args.flags;
+      }
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('connect_signal', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to connect signal: ${stderr}`,
+          [
+            'Check if the source node exists and has the specified signal',
+            'Verify the target node exists',
+            'Ensure the scene file is valid and loadable',
+            'Use list_signals to see available signals on the source node',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Successfully connected signal!\n\nConnection details:\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to connect signal: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify all node paths and signal names are correct',
+          'Use list_signals and list_connections to inspect the scene',
         ]
       );
     }

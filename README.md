@@ -83,6 +83,11 @@ This direct feedback loop helps AI assistants like Claude understand what works 
   - List all signals available on any node type or instance
   - Inspect custom signals with parameter type information
   - Support for both built-in and custom script signals
+  - List all signal connections in a scene
+  - Filter connections by specific node paths
+  - **Connect signals to create functional interactive scenes**
+  - Validate signal and node existence before connecting
+  - Support for connection flags and bound parameters
 
 ## Requirements
 

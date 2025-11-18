@@ -81,7 +81,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 12 tools via the MCP protocol:
+The server exposes 15 tools via the MCP protocol:
 
 **Project Management**:
 - `launch_editor` - Open Godot editor for a project
@@ -102,6 +102,11 @@ The server exposes 12 tools via the MCP protocol:
 - `export_mesh_library` - Convert 3D scenes to MeshLibrary resources
 - `get_uid` - Retrieve UIDs for files (Godot 4.4+)
 - `update_project_uids` - Resave resources to update UID references (Godot 4.4+)
+
+**Signal & Event System** (NEW - Phase 1):
+- `list_signals` - List all signals available on a node type or instance with parameter info
+- `list_connections` - List all signal connections in a scene with filtering support
+- `connect_signal` - Connect signals to create functional interactive scenes (CORE)
 
 ## Configuration
 
