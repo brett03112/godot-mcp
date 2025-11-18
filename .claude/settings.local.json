@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(npm install:*)",
+      "Bash(node build/index.js:*)",
+      "Bash(claude mcp --help:*)",
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp list:*)",
+      "Bash(claude mcp get:*)",
+      "Bash(godot:*)",
+      "Bash(npm run build:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

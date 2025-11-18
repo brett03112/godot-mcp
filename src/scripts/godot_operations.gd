@@ -71,6 +71,8 @@ func _init():
             get_uid(params)
         "resave_resources":
             resave_resources(params)
+        "list_signals":
+            list_signals(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -1190,3 +1192,132 @@ func save_scene(params):
             printerr("Failed to save scene: " + str(error))
     else:
         printerr("Failed to pack scene: " + str(result))
+
+# List signals operation
+func list_signals(params):
+    log_info("Starting list_signals operation")
+    
+    if not params.has("nodeType"):
+        log_error("nodeType parameter is required")
+        quit(1)
+    
+    var node_type = params["nodeType"]
+    log_debug("Node type: " + node_type)
+    
+    var node_instance = null
+    var signals_list = []
+    
+    # Check if we need to load from a scene
+    if params.has("scenePath") and params.has("nodePath"):
+        var scene_path = params["scenePath"]
+        var node_path = params["nodePath"]
+        
+        log_debug("Loading scene: " + scene_path)
+        var scene = load(scene_path)
+        if scene == null:
+            log_error("Failed to load scene: " + scene_path)
+            quit(1)
+        
+        var scene_instance = scene.instantiate()
+        if scene_instance == null:
+            log_error("Failed to instantiate scene: " + scene_path)
+            quit(1)
+        
+        # Navigate to the specific node
+        node_instance = scene_instance.get_node(NodePath(node_path))
+        if node_instance == null:
+            log_error("Failed to find node at path: " + node_path)
+            scene_instance.free()
+            quit(1)
+    else:
+        # Instantiate the node type directly
+        log_debug("Instantiating node type: " + node_type)
+        node_instance = instantiate_class(node_type)
+        if node_instance == null:
+            log_error("Failed to instantiate node type: " + node_type)
+            quit(1)
+    
+    # Verify node_instance is valid
+    if node_instance == null:
+        log_error("Node instance is null, cannot get signal list")
+        quit(1)
+        return
+
+    # Get the signal list
+    log_debug("Getting signal list from node")
+    var signal_list = node_instance.get_signal_list()
+    
+    for signal_info in signal_list:
+        var signal_name = signal_info["name"]
+        var signal_params = []
+        
+        # Extract parameter information
+        if signal_info.has("args"):
+            for arg_info in signal_info["args"]:
+                var param_data = {
+                    "name": arg_info["name"],
+                    "type": type_string(arg_info["type"])
+                }
+                signal_params.append(param_data)
+        
+        signals_list.append({
+            "name": signal_name,
+            "parameters": signal_params
+        })
+    
+    # Build the result
+    var result = {
+        "nodeType": node_type,
+        "signals": signals_list
+    }
+    
+    # Clean up
+    if node_instance:
+        node_instance.free()
+    
+    # Output the result as JSON
+    print(JSON.stringify(result))
+    log_info("list_signals operation completed successfully")
+
+# Helper function to convert type enum to string
+func type_string(type_enum):
+    match type_enum:
+        TYPE_NIL: return "Nil"
+        TYPE_BOOL: return "bool"
+        TYPE_INT: return "int"
+        TYPE_FLOAT: return "float"
+        TYPE_STRING: return "String"
+        TYPE_VECTOR2: return "Vector2"
+        TYPE_VECTOR2I: return "Vector2i"
+        TYPE_RECT2: return "Rect2"
+        TYPE_RECT2I: return "Rect2i"
+        TYPE_VECTOR3: return "Vector3"
+        TYPE_VECTOR3I: return "Vector3i"
+        TYPE_TRANSFORM2D: return "Transform2D"
+        TYPE_VECTOR4: return "Vector4"
+        TYPE_VECTOR4I: return "Vector4i"
+        TYPE_PLANE: return "Plane"
+        TYPE_QUATERNION: return "Quaternion"
+        TYPE_AABB: return "AABB"
+        TYPE_BASIS: return "Basis"
+        TYPE_TRANSFORM3D: return "Transform3D"
+        TYPE_PROJECTION: return "Projection"
+        TYPE_COLOR: return "Color"
+        TYPE_STRING_NAME: return "StringName"
+        TYPE_NODE_PATH: return "NodePath"
+        TYPE_RID: return "RID"
+        TYPE_OBJECT: return "Object"
+        TYPE_CALLABLE: return "Callable"
+        TYPE_SIGNAL: return "Signal"
+        TYPE_DICTIONARY: return "Dictionary"
+        TYPE_ARRAY: return "Array"
+        TYPE_PACKED_BYTE_ARRAY: return "PackedByteArray"
+        TYPE_PACKED_INT32_ARRAY: return "PackedInt32Array"
+        TYPE_PACKED_INT64_ARRAY: return "PackedInt64Array"
+        TYPE_PACKED_FLOAT32_ARRAY: return "PackedFloat32Array"
+        TYPE_PACKED_FLOAT64_ARRAY: return "PackedFloat64Array"
+        TYPE_PACKED_STRING_ARRAY: return "PackedStringArray"
+        TYPE_PACKED_VECTOR2_ARRAY: return "PackedVector2Array"
+        TYPE_PACKED_VECTOR3_ARRAY: return "PackedVector3Array"
+        TYPE_PACKED_COLOR_ARRAY: return "PackedColorArray"
+        _: return "Unknown"

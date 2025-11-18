@@ -924,6 +924,32 @@ class GodotServer {
             required: ['projectPath'],
           },
         },
+        {
+          name: 'list_signals',
+          description: 'List all signals available on a node type or instance',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              nodeType: {
+                type: 'string',
+                description: 'Type of node to inspect (e.g., "Button", "Area2D")',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Optional: Path to scene file to inspect a specific node instance',
+              },
+              nodePath: {
+                type: 'string',
+                description: 'Optional: Path to specific node in scene (e.g., "root/Player")',
+              },
+            },
+            required: ['projectPath', 'nodeType'],
+          },
+        },
       ],
     }));
 
@@ -959,6 +985,8 @@ class GodotServer {
           return await this.handleGetUid(request.params.arguments);
         case 'update_project_uids':
           return await this.handleUpdateProjectUids(request.params.arguments);
+        case 'list_signals':
+          return await this.handleListSignals(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -2149,6 +2177,124 @@ class GodotServer {
           'Ensure Godot is installed correctly',
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify the project path is accessible',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle list_signals tool - List all signals available on a node type or instance
+   */
+  private async handleListSignals(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.nodeType) {
+      return this.createErrorResponse(
+        'Node type is required',
+        ['Provide a valid Godot node type (e.g., "Button", "Area2D")']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Listing signals for node type: ${args.nodeType}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        nodeType: args.nodeType,
+      };
+
+      // Add optional parameters if provided
+      if (args.scenePath) {
+        params.scenePath = args.scenePath;
+      }
+      if (args.nodePath) {
+        params.nodePath = args.nodePath;
+      }
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('list_signals', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to list signals: ${stderr}`,
+          [
+            'Check if the node type is valid',
+            'Verify the scene path and node path if provided',
+            'Ensure the project is valid and loadable',
+          ]
+        );
+      }
+
+      // Parse the JSON output
+      let result;
+      try {
+        result = JSON.parse(stdout);
+      } catch (parseError) {
+        return this.createErrorResponse(
+          `Failed to parse signal list output: ${stdout}`,
+          [
+            'Check Godot logs for errors',
+            'Ensure the operation completed successfully',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Signals for ${args.nodeType}:\n\n${JSON.stringify(result, null, 2)}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to list signals: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the node type is valid',
         ]
       );
     }

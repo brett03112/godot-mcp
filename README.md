@@ -79,6 +79,10 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 - **UID Management** (for Godot 4.4+):
   - Get UID for specific files
   - Update UID references by resaving resources
+- **Signal & Event System** (NEW):
+  - List all signals available on any node type or instance
+  - Inspect custom signals with parameter type information
+  - Support for both built-in and custom script signals
 
 ## Requirements
 
@@ -230,9 +234,9 @@ The bundled script accepts operation type and parameters as JSON, allowing for f
 - **Invalid Project Path**: Ensure the path points to a directory containing a project.godot file
 - **Build Issues**: Make sure all dependencies are installed by running `npm install`
 - **For Cursor Specifically**:
--   Ensure the MCP server shows up and is enabled in Cursor settings (Settings > MCP)
--   MCP tools can only be run using the Agent chat profile (Cursor Pro or Business subscription)
--   Use "Yolo Mode" to automatically run MCP tool requests
+- Ensure the MCP server shows up and is enabled in Cursor settings (Settings > MCP)
+- MCP tools can only be run using the Agent chat profile (Cursor Pro or Business subscription)
+- Use "Yolo Mode" to automatically run MCP tool requests
 
 ## License
 
