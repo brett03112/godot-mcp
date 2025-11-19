@@ -1264,6 +1264,119 @@ class GodotServer {
             required: ['projectPath', 'scriptPath'],
           },
         },
+        {
+          name: 'create_animation_player',
+          description: 'Add an AnimationPlayer node to a scene and optionally create an initial animation.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              parentNodePath: {
+                type: 'string',
+                description: 'Path to the parent node (e.g., "root" or "root/Player"). Default is "root".',
+                default: 'root',
+              },
+              animationPlayerName: {
+                type: 'string',
+                description: 'Name for the AnimationPlayer node. Default is "AnimationPlayer".',
+                default: 'AnimationPlayer',
+              },
+              initialAnimationName: {
+                type: 'string',
+                description: 'Optional: Name for an initial animation to create',
+              },
+            },
+            required: ['projectPath', 'scenePath'],
+          },
+        },
+        {
+          name: 'add_animation_track',
+          description: 'Add a track to an existing animation in an AnimationPlayer node. Supports position, rotation, scale, property, method call, and audio tracks.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              animationPlayerPath: {
+                type: 'string',
+                description: 'Path to the AnimationPlayer node (e.g., "root/AnimationPlayer")',
+              },
+              animationName: {
+                type: 'string',
+                description: 'Name of the animation to add the track to',
+              },
+              trackType: {
+                type: 'string',
+                description: 'Type of track: "position", "rotation", "scale", "property", "method", or "audio"',
+                enum: ['position', 'rotation', 'scale', 'property', 'method', 'audio'],
+              },
+              targetNodePath: {
+                type: 'string',
+                description: 'Path to the node the track will affect (relative to AnimationPlayer\'s parent)',
+              },
+              propertyPath: {
+                type: 'string',
+                description: 'For property tracks: the property path (e.g., "modulate:a" for alpha). For position/rotation/scale, use "position", "rotation", or "scale".',
+              },
+            },
+            required: ['projectPath', 'scenePath', 'animationPlayerPath', 'animationName', 'trackType', 'targetNodePath'],
+          },
+        },
+        {
+          name: 'add_keyframe',
+          description: 'Add a keyframe to an animation track at a specific time. Supports easing for smooth transitions.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              animationPlayerPath: {
+                type: 'string',
+                description: 'Path to the AnimationPlayer node (e.g., "root/AnimationPlayer")',
+              },
+              animationName: {
+                type: 'string',
+                description: 'Name of the animation',
+              },
+              trackIndex: {
+                type: 'number',
+                description: 'Index of the track to add the keyframe to (0-based)',
+              },
+              time: {
+                type: 'number',
+                description: 'Time in seconds where the keyframe should be placed',
+              },
+              value: {
+                description: 'Value for the keyframe (type depends on track type: number for property, Vector2/Vector3 for position, etc.)',
+              },
+              easing: {
+                type: 'number',
+                description: 'Optional: Easing value for the transition (default: 1.0 for linear). Use values like 0.5 for ease-in, 2.0 for ease-out.',
+                default: 1.0,
+              },
+            },
+            required: ['projectPath', 'scenePath', 'animationPlayerPath', 'animationName', 'trackIndex', 'time', 'value'],
+          },
+        },
       ],
     }));
 
@@ -1323,6 +1436,12 @@ class GodotServer {
           return await this.handleAttachScript(request.params.arguments);
         case 'validate_script':
           return await this.handleValidateScript(request.params.arguments);
+        case 'create_animation_player':
+          return await this.handleCreateAnimationPlayer(request.params.arguments);
+        case 'add_animation_track':
+          return await this.handleAddAnimationTrack(request.params.arguments);
+        case 'add_keyframe':
+          return await this.handleAddKeyframe(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -4201,6 +4320,245 @@ class GodotServer {
           'Ensure Godot is installed correctly',
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify the script file exists',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the create_animation_player tool
+   * Adds an AnimationPlayer node to a scene and optionally creates an initial animation
+   */
+  private async handleCreateAnimationPlayer(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.scenePath) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath and scenePath']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.scenePath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Execute the create_animation_player operation using the bundled script
+      const params = {
+        scene_path: args.scenePath,
+        parent_node_path: args.parentNodePath || 'root',
+        animation_player_name: args.animationPlayerName || 'AnimationPlayer',
+        initial_animation_name: args.initialAnimationName,
+      };
+
+      const { stdout, stderr } = await this.executeOperation('create_animation_player', params, args.projectPath);
+
+      // Check for errors in stderr
+      if (stderr && stderr.length > 0) {
+        return this.createErrorResponse(
+          `Error creating AnimationPlayer: ${stderr}`,
+          [
+            'Ensure the scene file exists',
+            'Check if the parent node path is valid',
+            'Verify you have write permissions to the scene file',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `AnimationPlayer node added successfully to: ${args.scenePath}\n\nOutput: ${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to create AnimationPlayer: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the scene file exists and is accessible',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the add_animation_track tool
+   * Adds a track to an existing animation in an AnimationPlayer node
+   */
+  private async handleAddAnimationTrack(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.scenePath || !args.animationPlayerPath || !args.animationName || !args.trackType || !args.targetNodePath) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath, scenePath, animationPlayerPath, animationName, trackType, and targetNodePath']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.scenePath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Execute the add_animation_track operation using the bundled script
+      const params = {
+        scene_path: args.scenePath,
+        animation_player_path: args.animationPlayerPath,
+        animation_name: args.animationName,
+        track_type: args.trackType,
+        target_node_path: args.targetNodePath,
+        property_path: args.propertyPath,
+      };
+
+      const { stdout, stderr } = await this.executeOperation('add_animation_track', params, args.projectPath);
+
+      // Check for errors in stderr
+      if (stderr && stderr.length > 0) {
+        return this.createErrorResponse(
+          `Error adding animation track: ${stderr}`,
+          [
+            'Ensure the scene file exists',
+            'Check if the AnimationPlayer node path is valid',
+            'Verify the animation exists in the AnimationPlayer',
+            'Ensure the target node path is correct',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Animation track added successfully to: ${args.animationName}\n\nOutput: ${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to add animation track: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the scene file and AnimationPlayer exist',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the add_keyframe tool
+   * Adds a keyframe to an animation track at a specific time
+   */
+  private async handleAddKeyframe(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.scenePath || !args.animationPlayerPath || !args.animationName ||
+        args.trackIndex === undefined || args.time === undefined || args.value === undefined) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath, scenePath, animationPlayerPath, animationName, trackIndex, time, and value']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.scenePath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Execute the add_keyframe operation using the bundled script
+      const params = {
+        scene_path: args.scenePath,
+        animation_player_path: args.animationPlayerPath,
+        animation_name: args.animationName,
+        track_index: args.trackIndex,
+        time: args.time,
+        value: args.value,
+        easing: args.easing !== undefined ? args.easing : 1.0,
+      };
+
+      const { stdout, stderr } = await this.executeOperation('add_keyframe', params, args.projectPath);
+
+      // Check for errors in stderr
+      if (stderr && stderr.length > 0) {
+        return this.createErrorResponse(
+          `Error adding keyframe: ${stderr}`,
+          [
+            'Ensure the scene file exists',
+            'Check if the AnimationPlayer node path is valid',
+            'Verify the animation and track index exist',
+            'Ensure the value type matches the track type',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Keyframe added successfully at time ${args.time}s\n\nOutput: ${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to add keyframe: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the scene file and AnimationPlayer exist',
         ]
       );
     }

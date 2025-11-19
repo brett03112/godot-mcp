@@ -22,7 +22,7 @@ The current implementation plan follows a phased approach:
 - **Phase 1:** Signal & Event Connection System (COMPLETE ✅)
 - **Phase 2:** GDScript Code Intelligence (COMPLETE ✅)
 - **Phase 3:** Enhanced Debugging & Error Analysis (COMPLETE ✅)
-- **Phase 4:** Animation & Timeline Orchestration
+- **Phase 4:** Animation & Timeline Orchestration (COMPLETE ✅)
 - **Phase 5:** Shader & Material Pipeline
 - **Phase 6:** Testing & Quality Assurance
 - Future phases cover asset management, build pipelines, and specialized workflows
@@ -54,9 +54,9 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~3800 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~4100 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
-**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3100 lines, ~110KB) that handles all complex Godot operations. This script:
+**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3560 lines, ~130KB) that handles all complex Godot operations. This script:
 
 - Accepts operation type and JSON parameters via command-line arguments
 - Executes operations directly within Godot's headless mode
@@ -88,7 +88,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 23 tools via the MCP protocol:
+The server exposes 26 tools via the MCP protocol:
 
 **Project Management**:
 
@@ -157,6 +157,24 @@ The server exposes 23 tools via the MCP protocol:
     - `raw_output` and `raw_errors`: unfiltered output for debugging
   - Catches syntax errors, undefined variables, type mismatches, and other parse-time issues
   - Ideal for pre-commit validation or CI/CD integration
+
+**Animation & Timeline Orchestration** (Phase 4 - COMPLETE):
+
+- `create_animation_player` - Add AnimationPlayer nodes to scenes with optional initial animations
+  - Creates AnimationPlayer nodes with parent path specification
+  - Automatically creates AnimationLibrary for Godot 4.x compatibility
+  - Optional initial animation name parameter
+- `add_animation_track` - Add tracks to existing animations
+  - Supports 6 track types: position, rotation, scale, property, method, audio
+  - Maps user-friendly names to Animation.TYPE_* enums
+  - Property paths with colons (e.g., "modulate:a")
+  - Method tracks for function calls during animation
+- `add_keyframe` - Add keyframes to animation tracks with easing support
+  - Supports all track types with appropriate value handling
+  - Custom easing curves (< 1.0 ease-in, = 1.0 linear, > 1.0 ease-out)
+  - Automatic Array-to-Vector3 conversion for 3D transform tracks
+  - Method call keyframes with arguments
+  - Professional animation workflow: Create → Track → Keyframe
 
 ## Configuration
 

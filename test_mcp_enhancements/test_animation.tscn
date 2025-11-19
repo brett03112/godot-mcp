@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3 uid="uid://soogqy0ya0ot"]
+
+[ext_resource type="Texture2D" uid="uid://c21ke644p7t73" path="res://icon.svg" id="1_e8uff"]
+
+[node name="root" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 504.0
+offset_top = 170.0
+offset_right = 504.0
+offset_bottom = 170.0
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="Icon" type="Sprite2D" parent="."]
+position = Vector2(1, 2)
+texture = ExtResource("1_e8uff")

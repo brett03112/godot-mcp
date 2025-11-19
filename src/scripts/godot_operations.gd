@@ -93,6 +93,12 @@ func _init():
             extract_dependencies(params)
         "attach_script":
             attach_script(params)
+        "create_animation_player":
+            create_animation_player(params)
+        "add_animation_track":
+            add_animation_track(params)
+        "add_keyframe":
+            add_keyframe(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -3130,3 +3136,434 @@ func attach_script(params):
     # Output the result as JSON
     print(JSON.stringify(result))
     log_info("attach_script operation completed successfully")
+
+# Add an AnimationPlayer node to a scene and optionally create an initial animation
+func create_animation_player(params):
+    log_info("Creating AnimationPlayer in scene: " + params.scene_path)
+
+    var full_scene_path = params.scene_path
+    if not full_scene_path.begins_with("res://"):
+        full_scene_path = "res://" + full_scene_path
+
+    var absolute_scene_path = ProjectSettings.globalize_path(full_scene_path)
+    if debug_mode:
+        log_debug("Scene path (with res://): " + full_scene_path)
+        log_debug("Absolute scene path: " + absolute_scene_path)
+
+    if not FileAccess.file_exists(absolute_scene_path):
+        log_error("Scene file does not exist at: " + absolute_scene_path)
+        quit(1)
+
+    var scene = load(full_scene_path)
+    if not scene:
+        log_error("Failed to load scene: " + full_scene_path)
+        quit(1)
+
+    if debug_mode:
+        log_debug("Scene loaded successfully")
+
+    var scene_root = scene.instantiate()
+    if debug_mode:
+        log_debug("Scene instantiated")
+
+    # Get parent node path (default to root)
+    var parent_path = "root"
+    if params.has("parent_node_path"):
+        parent_path = params.parent_node_path
+    if debug_mode:
+        log_debug("Parent path: " + parent_path)
+
+    var parent = scene_root
+    if parent_path != "root":
+        parent = scene_root.get_node(parent_path.replace("root/", ""))
+        if not parent:
+            log_error("Parent node not found: " + parent_path)
+            quit(1)
+    if debug_mode:
+        log_debug("Parent node found: " + parent.name)
+
+    # Create AnimationPlayer node
+    var animation_player_name = "AnimationPlayer"
+    if params.has("animation_player_name"):
+        animation_player_name = params.animation_player_name
+
+    if debug_mode:
+        log_debug("Creating AnimationPlayer node with name: " + animation_player_name)
+
+    var animation_player = AnimationPlayer.new()
+    animation_player.name = animation_player_name
+    parent.add_child(animation_player)
+    animation_player.owner = scene_root
+
+    if debug_mode:
+        log_debug("AnimationPlayer node created and added to parent")
+
+    # Optionally create an initial animation
+    var created_animation = false
+    if params.has("initial_animation_name") and params.initial_animation_name != null:
+        var anim_name = params.initial_animation_name
+        if debug_mode:
+            log_debug("Creating initial animation: " + anim_name)
+
+        var animation = Animation.new()
+        animation.length = 1.0  # Default 1 second length
+
+        # Add the animation to the AnimationPlayer's library
+        var library = animation_player.get_animation_library("")
+        if library == null:
+            # Create a new library if it doesn't exist
+            library = AnimationLibrary.new()
+            animation_player.add_animation_library("", library)
+
+        library.add_animation(anim_name, animation)
+        created_animation = true
+
+        if debug_mode:
+            log_debug("Animation created: " + anim_name)
+
+    # Pack the scene
+    var packed_scene = PackedScene.new()
+    var result = packed_scene.pack(scene_root)
+
+    if result == OK:
+        if debug_mode:
+            log_debug("Scene packed successfully")
+
+        # Save the scene
+        var save_error = ResourceSaver.save(packed_scene, full_scene_path)
+
+        if save_error == OK:
+            log_info("AnimationPlayer added successfully to scene: " + params.scene_path)
+
+            # Create result
+            var output = {
+                "scene_path": params.scene_path,
+                "animation_player_name": animation_player_name,
+                "parent_path": parent_path,
+                "created_animation": created_animation
+            }
+
+            if created_animation:
+                output["initial_animation_name"] = params.initial_animation_name
+
+            # Output the result as JSON
+            print(JSON.stringify(output))
+            log_info("create_animation_player operation completed successfully")
+        else:
+            log_error("Failed to save scene. Error code: " + str(save_error))
+            quit(1)
+    else:
+        log_error("Failed to pack scene: " + str(result))
+        quit(1)
+
+# Add a track to an existing animation in an AnimationPlayer node
+func add_animation_track(params):
+    log_info("Adding animation track to: " + params.animation_name)
+
+    var full_scene_path = params.scene_path
+    if not full_scene_path.begins_with("res://"):
+        full_scene_path = "res://" + full_scene_path
+
+    var absolute_scene_path = ProjectSettings.globalize_path(full_scene_path)
+    if debug_mode:
+        log_debug("Scene path (with res://): " + full_scene_path)
+        log_debug("Absolute scene path: " + absolute_scene_path)
+
+    if not FileAccess.file_exists(absolute_scene_path):
+        log_error("Scene file does not exist at: " + absolute_scene_path)
+        quit(1)
+
+    var scene = load(full_scene_path)
+    if not scene:
+        log_error("Failed to load scene: " + full_scene_path)
+        quit(1)
+
+    if debug_mode:
+        log_debug("Scene loaded successfully")
+
+    var scene_root = scene.instantiate()
+    if debug_mode:
+        log_debug("Scene instantiated")
+
+    # Get the AnimationPlayer node
+    var anim_player_path = params.animation_player_path
+    # Remove "root/" prefix if present
+    if anim_player_path.begins_with("root/"):
+        anim_player_path = anim_player_path.replace("root/", "")
+
+    var anim_player = scene_root.get_node(anim_player_path)
+    if not anim_player:
+        log_error("AnimationPlayer node not found: " + params.animation_player_path)
+        quit(1)
+
+    if not anim_player is AnimationPlayer:
+        log_error("Node is not an AnimationPlayer: " + params.animation_player_path)
+        quit(1)
+
+    if debug_mode:
+        log_debug("AnimationPlayer found: " + anim_player.name)
+
+    # Get the animation
+    var animation_name = params.animation_name
+    var library = anim_player.get_animation_library("")
+    if library == null:
+        log_error("AnimationPlayer has no default animation library")
+        quit(1)
+
+    if not library.has_animation(animation_name):
+        log_error("Animation not found: " + animation_name)
+        quit(1)
+
+    var animation = library.get_animation(animation_name)
+    if debug_mode:
+        log_debug("Animation found: " + animation_name)
+
+    # Determine track type and add the appropriate track
+    var track_type = params.track_type
+    var target_node_path = params.target_node_path
+    var track_index = -1
+
+    if debug_mode:
+        log_debug("Track type: " + track_type)
+        log_debug("Target node path: " + target_node_path)
+
+    # Map track types to Animation.TrackType enum
+    match track_type:
+        "position":
+            track_index = animation.add_track(Animation.TYPE_POSITION_3D)
+            animation.track_set_path(track_index, target_node_path + ":position")
+            if debug_mode:
+                log_debug("Added position track")
+        "rotation":
+            track_index = animation.add_track(Animation.TYPE_ROTATION_3D)
+            animation.track_set_path(track_index, target_node_path + ":rotation")
+            if debug_mode:
+                log_debug("Added rotation track")
+        "scale":
+            track_index = animation.add_track(Animation.TYPE_SCALE_3D)
+            animation.track_set_path(track_index, target_node_path + ":scale")
+            if debug_mode:
+                log_debug("Added scale track")
+        "property":
+            track_index = animation.add_track(Animation.TYPE_VALUE)
+            var property_path = params.get("property_path", "modulate")
+            animation.track_set_path(track_index, target_node_path + ":" + property_path)
+            if debug_mode:
+                log_debug("Added property track for: " + property_path)
+        "method":
+            track_index = animation.add_track(Animation.TYPE_METHOD)
+            animation.track_set_path(track_index, target_node_path)
+            if debug_mode:
+                log_debug("Added method track")
+        "audio":
+            track_index = animation.add_track(Animation.TYPE_AUDIO)
+            animation.track_set_path(track_index, target_node_path)
+            if debug_mode:
+                log_debug("Added audio track")
+        _:
+            log_error("Unknown track type: " + track_type)
+            quit(1)
+
+    if track_index < 0:
+        log_error("Failed to add track")
+        quit(1)
+
+    # Pack the scene
+    var packed_scene = PackedScene.new()
+    var result = packed_scene.pack(scene_root)
+
+    if result == OK:
+        if debug_mode:
+            log_debug("Scene packed successfully")
+
+        # Save the scene
+        var save_error = ResourceSaver.save(packed_scene, full_scene_path)
+
+        if save_error == OK:
+            log_info("Animation track added successfully")
+
+            # Create result
+            var output = {
+                "scene_path": params.scene_path,
+                "animation_player_path": params.animation_player_path,
+                "animation_name": animation_name,
+                "track_type": track_type,
+                "track_index": track_index,
+                "target_node_path": target_node_path
+            }
+
+            # Output the result as JSON
+            print(JSON.stringify(output))
+            log_info("add_animation_track operation completed successfully")
+        else:
+            log_error("Failed to save scene. Error code: " + str(save_error))
+            quit(1)
+    else:
+        log_error("Failed to pack scene: " + str(result))
+        quit(1)
+
+# Add a keyframe to an animation track
+func add_keyframe(params):
+    log_info("Adding keyframe to animation: " + params.animation_name)
+
+    var full_scene_path = params.scene_path
+    if not full_scene_path.begins_with("res://"):
+        full_scene_path = "res://" + full_scene_path
+
+    var absolute_scene_path = ProjectSettings.globalize_path(full_scene_path)
+    if debug_mode:
+        log_debug("Scene path (with res://): " + full_scene_path)
+        log_debug("Absolute scene path: " + absolute_scene_path)
+
+    if not FileAccess.file_exists(absolute_scene_path):
+        log_error("Scene file does not exist at: " + absolute_scene_path)
+        quit(1)
+
+    var scene = load(full_scene_path)
+    if not scene:
+        log_error("Failed to load scene: " + full_scene_path)
+        quit(1)
+
+    if debug_mode:
+        log_debug("Scene loaded successfully")
+
+    var scene_root = scene.instantiate()
+    if debug_mode:
+        log_debug("Scene instantiated")
+
+    # Get the AnimationPlayer node
+    var anim_player_path = params.animation_player_path
+    # Remove "root/" prefix if present
+    if anim_player_path.begins_with("root/"):
+        anim_player_path = anim_player_path.replace("root/", "")
+
+    var anim_player = scene_root.get_node(anim_player_path)
+    if not anim_player:
+        log_error("AnimationPlayer node not found: " + params.animation_player_path)
+        quit(1)
+
+    if not anim_player is AnimationPlayer:
+        log_error("Node is not an AnimationPlayer: " + params.animation_player_path)
+        quit(1)
+
+    if debug_mode:
+        log_debug("AnimationPlayer found: " + anim_player.name)
+
+    # Get the animation
+    var animation_name = params.animation_name
+    var library = anim_player.get_animation_library("")
+    if library == null:
+        log_error("AnimationPlayer has no default animation library")
+        quit(1)
+
+    if not library.has_animation(animation_name):
+        log_error("Animation not found: " + animation_name)
+        quit(1)
+
+    var animation = library.get_animation(animation_name)
+    if debug_mode:
+        log_debug("Animation found: " + animation_name)
+
+    # Get track index
+    var track_index = params.track_index
+    if track_index < 0 or track_index >= animation.get_track_count():
+        log_error("Invalid track index: " + str(track_index) + " (animation has " + str(animation.get_track_count()) + " tracks)")
+        quit(1)
+
+    if debug_mode:
+        log_debug("Track index: " + str(track_index))
+
+    # Get time and value
+    var time = params.time
+    var value = params.value
+    var easing = params.get("easing", 1.0)
+
+    if debug_mode:
+        log_debug("Time: " + str(time))
+        log_debug("Value: " + str(value))
+        log_debug("Easing: " + str(easing))
+
+    # Get the track type
+    var track_type = animation.track_get_type(track_index)
+
+    # Add keyframe based on track type
+    if track_type == Animation.TYPE_VALUE:
+        # For value tracks (properties)
+        var key_index = animation.track_insert_key(track_index, time, value)
+        animation.track_set_key_transition(track_index, key_index, easing)
+        if debug_mode:
+            log_debug("Added value keyframe at index: " + str(key_index))
+    elif track_type == Animation.TYPE_POSITION_3D or track_type == Animation.TYPE_ROTATION_3D or track_type == Animation.TYPE_SCALE_3D:
+        # For 3D transform tracks
+        # Convert array to Vector3 if needed
+        var vector_value = value
+        if value is Array and value.size() >= 3:
+            vector_value = Vector3(value[0], value[1], value[2])
+        elif value is Array and value.size() == 2:
+            # Handle 2D case (convert to Vector3 with z=1 for scale, z=0 for others)
+            var z_default = 1.0 if track_type == Animation.TYPE_SCALE_3D else 0.0
+            vector_value = Vector3(value[0], value[1], z_default)
+
+        var key_index = animation.track_insert_key(track_index, time, vector_value)
+        animation.track_set_key_transition(track_index, key_index, easing)
+        if debug_mode:
+            log_debug("Added 3D transform keyframe at index: " + str(key_index))
+    elif track_type == Animation.TYPE_METHOD:
+        # For method call tracks
+        # Value should be a dictionary with "method" and "args"
+        var method_name = value
+        var args_array = []
+        if value is Dictionary:
+            method_name = value.get("method", "")
+            args_array = value.get("args", [])
+
+        var key_index = animation.track_insert_key(track_index, time, {"method": method_name, "args": args_array})
+        if debug_mode:
+            log_debug("Added method call keyframe at index: " + str(key_index))
+    elif track_type == Animation.TYPE_AUDIO:
+        # For audio tracks
+        # Value should be an AudioStream resource path
+        var stream = null
+        if value is String and ResourceLoader.exists(value):
+            stream = load(value)
+        var key_index = animation.track_insert_key(track_index, time, stream)
+        if debug_mode:
+            log_debug("Added audio keyframe at index: " + str(key_index))
+    else:
+        log_error("Unsupported track type: " + str(track_type))
+        quit(1)
+
+    # Pack the scene
+    var packed_scene = PackedScene.new()
+    var result = packed_scene.pack(scene_root)
+
+    if result == OK:
+        if debug_mode:
+            log_debug("Scene packed successfully")
+
+        # Save the scene
+        var save_error = ResourceSaver.save(packed_scene, full_scene_path)
+
+        if save_error == OK:
+            log_info("Keyframe added successfully")
+
+            # Create result
+            var output = {
+                "scene_path": params.scene_path,
+                "animation_player_path": params.animation_player_path,
+                "animation_name": animation_name,
+                "track_index": track_index,
+                "time": time,
+                "value": value,
+                "easing": easing
+            }
+
+            # Output the result as JSON
+            print(JSON.stringify(output))
+            log_info("add_keyframe operation completed successfully")
+        else:
+            log_error("Failed to save scene. Error code: " + str(save_error))
+            quit(1)
+    else:
+        log_error("Failed to pack scene: " + str(result))
+        quit(1)

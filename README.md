@@ -187,6 +187,38 @@ This direct feedback loop helps AI assistants like Claude understand what works 
       }
       ```
 
+- **Animation & Timeline Orchestration** (Phase 4 - COMPLETE):
+  - **`create_animation_player`**: Add AnimationPlayer nodes to scenes
+    - Create AnimationPlayer nodes with optional initial animations
+    - Supports parent node path specification for flexible scene structure
+    - Automatically creates AnimationLibrary for Godot 4.x compatibility
+    - Optional animation name parameter creates ready-to-use animations
+  - **`add_animation_track`**: Add tracks to existing animations
+    - **6 Track Types**: position, rotation, scale, property, method, audio
+    - Maps user-friendly names to Godot's Animation.TYPE_* enums
+    - Property track support for animating any node property (e.g., "modulate:a", "position:x")
+    - Method tracks for triggering functions during animation playback
+    - Audio tracks for sound effect synchronization
+  - **`add_keyframe`**: Add keyframes to animation tracks with easing
+    - Supports all track types with appropriate value handling
+    - **Custom Easing Curves**: Control animation feel with easing values
+      - easing < 1.0: Ease-in (slow start, fast end)
+      - easing = 1.0: Linear (constant speed)
+      - easing > 1.0: Ease-out (fast start, slow end)
+    - Automatic type conversion for 3D transforms (Array → Vector3)
+    - Method call keyframes with argument support
+    - Professional animation workflow: Create → Track → Keyframe
+  - **Complete Animation Workflow**:
+    ```gdscript
+    # Example: Create a button hover animation
+    1. create_animation_player(scene, "AnimationPlayer", "hover")
+    2. add_animation_track("hover", "scale", "Button")
+    3. add_keyframe(track=0, time=0.0, value=[1.0, 1.0, 1.0], easing=1.0)
+    4. add_keyframe(track=0, time=0.2, value=[1.1, 1.1, 1.0], easing=2.0)  # Bouncy
+    5. add_keyframe(track=0, time=0.4, value=[1.0, 1.0, 1.0], easing=0.5)  # Smooth
+    # Result: Professional hover effect with smooth scaling
+    ```
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
