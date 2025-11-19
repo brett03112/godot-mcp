@@ -51,9 +51,9 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~3000 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~3800 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
-**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~1900 lines, ~65KB) that handles all complex Godot operations. This script:
+**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3100 lines, ~110KB) that handles all complex Godot operations. This script:
 - Accepts operation type and JSON parameters via command-line arguments
 - Executes operations directly within Godot's headless mode
 - Eliminates the need for temporary script files
@@ -81,7 +81,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 16 tools via the MCP protocol:
+The server exposes 22 tools via the MCP protocol:
 
 **Project Management**:
 - `launch_editor` - Open Godot editor for a project
@@ -109,6 +109,14 @@ The server exposes 16 tools via the MCP protocol:
 - `connect_signal` - Connect signals to create functional interactive scenes (CORE)
 - `disconnect_signal` - Remove existing signal connections from scenes
 - `validate_connection` - Pre-validate signal connections before creating them
+
+**GDScript Code Intelligence** (Phase 2 - COMPLETE):
+- `analyze_script` - Parse GDScript files to extract structure (class, functions, signals, variables, dependencies)
+- `create_script` - Generate GDScript files from production-ready templates (basic, state_machine, singleton, component, character_controller)
+- `modify_function` - Update existing function implementations with optional signature changes
+- `add_export_variable` - Add @export variables with hints (RANGE, FILE, DIR, ENUM, FLAGS, etc.) for editor exposure
+- `extract_dependencies` - Find all script dependencies (preloads, loads, resource paths, class references)
+- `attach_script` - Attach GDScript files to scene nodes with automatic ExtResource management
 
 ## Configuration
 

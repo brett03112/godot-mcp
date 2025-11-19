@@ -1,11 +1,13 @@
 [gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://pause_menu.gd" id="1"]
+[ext_resource type="Script" path="res://test_basic.gd" id="2_test_basic"]
+[ext_resource type="Script" path="res://test_exports.gd" id="3_test_exports"]
 
 [node name="root" type="Control"]
 layout_mode = 3
 anchors_preset = 0
-script = ExtResource("1")
+script = ExtResource("2_test_basic")
 
 [node name="ResumeButton" type="Button" parent="."]
 layout_mode = 0
@@ -15,6 +17,7 @@ offset_right = 550.0
 offset_bottom = 260.0
 text = "Resume"
 
+script = ExtResource("3_test_exports")
 [node name="SettingsButton" type="Button" parent="."]
 layout_mode = 0
 offset_left = 350.0
@@ -36,3 +39,5 @@ text = "Quit"
 [connection signal="pressed" from="SettingsButton" to="." method="_on_settings_button_pressed"]
 
 [connection signal="pressed" from="QuitButton" to="." method="_on_quit_button_pressed"]
+
+

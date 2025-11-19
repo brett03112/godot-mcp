@@ -1103,6 +1103,149 @@ class GodotServer {
             required: ['projectPath', 'scriptPath'],
           },
         },
+        {
+          name: 'create_script',
+          description: 'Generate a complete GDScript file from a template with proper structure and boilerplate code',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path where the script should be created (relative to project)',
+              },
+              className: {
+                type: 'string',
+                description: 'Optional class_name for the script',
+              },
+              extends: {
+                type: 'string',
+                description: 'Base class to extend (e.g., Node, Node2D, CharacterBody2D)',
+              },
+              template: {
+                type: 'string',
+                description: 'Template to use: basic, state_machine, singleton, component, character_controller',
+                enum: ['basic', 'state_machine', 'singleton', 'component', 'character_controller'],
+              },
+            },
+            required: ['projectPath', 'scriptPath', 'extends', 'template'],
+          },
+        },
+        {
+          name: 'modify_function',
+          description: 'Update an existing function in a GDScript file, optionally preserving or updating its signature',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path to the GDScript file (relative to project)',
+              },
+              functionName: {
+                type: 'string',
+                description: 'Name of the function to modify',
+              },
+              newBody: {
+                type: 'string',
+                description: 'New implementation for the function body',
+              },
+              newSignature: {
+                type: 'string',
+                description: 'Optional new function signature (e.g., "func my_func(param: int) -> void:")',
+              },
+            },
+            required: ['projectPath', 'scriptPath', 'functionName', 'newBody'],
+          },
+        },
+        {
+          name: 'add_export_variable',
+          description: 'Add an @export variable to a GDScript file for editor exposure with optional export hints',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path to the GDScript file (relative to project)',
+              },
+              variableName: {
+                type: 'string',
+                description: 'Name of the variable to add',
+              },
+              variableType: {
+                type: 'string',
+                description: 'Type of the variable (e.g., "int", "float", "String", "Vector2")',
+              },
+              defaultValue: {
+                type: 'string',
+                description: 'Default value for the variable (e.g., "0", "1.0", \'""\')',
+              },
+              exportHint: {
+                type: 'string',
+                description: 'Optional export hint: RANGE, FILE, DIR, ENUM, FLAGS, etc.',
+              },
+              hintString: {
+                type: 'string',
+                description: 'Optional hint string for the export hint (e.g., "0,100,1" for RANGE)',
+              },
+            },
+            required: ['projectPath', 'scriptPath', 'variableName', 'variableType', 'defaultValue'],
+          },
+        },
+        {
+          name: 'extract_dependencies',
+          description: 'Extract all dependencies from a GDScript file (preloads, loads, class references, resource paths)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path to the GDScript file (relative to project)',
+              },
+            },
+            required: ['projectPath', 'scriptPath'],
+          },
+        },
+        {
+          name: 'attach_script',
+          description: 'Attach a GDScript file to a node in a scene',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project)',
+              },
+              nodePath: {
+                type: 'string',
+                description: 'Path to the node within the scene (e.g., "." for root, "Player/Sprite" for child)',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path to the GDScript file to attach (relative to project)',
+              },
+            },
+            required: ['projectPath', 'scenePath', 'nodePath', 'scriptPath'],
+          },
+        },
       ],
     }));
 
@@ -1150,6 +1293,16 @@ class GodotServer {
           return await this.handleValidateConnection(request.params.arguments);
         case 'analyze_script':
           return await this.handleAnalyzeScript(request.params.arguments);
+        case 'create_script':
+          return await this.handleCreateScript(request.params.arguments);
+        case 'modify_function':
+          return await this.handleModifyFunction(request.params.arguments);
+        case 'add_export_variable':
+          return await this.handleAddExportVariable(request.params.arguments);
+        case 'extract_dependencies':
+          return await this.handleExtractDependencies(request.params.arguments);
+        case 'attach_script':
+          return await this.handleAttachScript(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -3074,6 +3227,588 @@ class GodotServer {
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify the script file exists and is readable',
           'Ensure the script contains valid GDScript',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the create_script tool
+   * @param args Tool arguments
+   */
+  private async handleCreateScript(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scriptPath) {
+      return this.createErrorResponse(
+        'Script path is required',
+        ['Provide a valid path for the new script file (relative to project)']
+      );
+    }
+
+    if (!args.extends) {
+      return this.createErrorResponse(
+        'Extends parameter is required',
+        ['Specify the base class to extend (e.g., Node, Node2D, CharacterBody2D)']
+      );
+    }
+
+    if (!args.template) {
+      return this.createErrorResponse(
+        'Template parameter is required',
+        ['Choose a template: basic, state_machine, singleton, component, character_controller']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Creating script ${args.scriptPath} with template ${args.template}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scriptPath: args.scriptPath,
+        extends: args.extends,
+        template: args.template,
+      };
+
+      // Add optional className if provided
+      if (args.className) {
+        params.className = args.className;
+      }
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('create_script', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to create script: ${stderr}`,
+          [
+            'Check if the script path is valid',
+            'Verify the extends class is a valid Godot class',
+            'Ensure the template name is correct',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Script created successfully!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to create script: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the script path is writable',
+          'Ensure the template and extends parameters are valid',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the modify_function tool
+   * @param args Tool arguments
+   */
+  private async handleModifyFunction(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scriptPath) {
+      return this.createErrorResponse(
+        'Script path is required',
+        ['Provide a valid path to a GDScript file (relative to project)']
+      );
+    }
+
+    if (!args.functionName) {
+      return this.createErrorResponse(
+        'Function name is required',
+        ['Specify the name of the function to modify']
+      );
+    }
+
+    if (!args.newBody) {
+      return this.createErrorResponse(
+        'New body is required',
+        ['Provide the new implementation for the function']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Modifying function ${args.functionName} in ${args.scriptPath}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scriptPath: args.scriptPath,
+        functionName: args.functionName,
+        newBody: args.newBody,
+      };
+
+      // Add optional newSignature if provided
+      if (args.newSignature) {
+        params.newSignature = args.newSignature;
+      }
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('modify_function', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to modify function: ${stderr}`,
+          [
+            'Check if the function exists in the script',
+            'Verify the script path is correct',
+            'Ensure the new body has proper GDScript syntax',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Function modified successfully!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to modify function: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the script file exists and is writable',
+          'Ensure the function name is correct',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the add_export_variable tool
+   * @param args Tool arguments
+   */
+  private async handleAddExportVariable(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scriptPath) {
+      return this.createErrorResponse(
+        'Script path is required',
+        ['Provide a valid path to a GDScript file (relative to project)']
+      );
+    }
+
+    if (!args.variableName) {
+      return this.createErrorResponse(
+        'Variable name is required',
+        ['Specify the name of the variable to add']
+      );
+    }
+
+    if (!args.variableType) {
+      return this.createErrorResponse(
+        'Variable type is required',
+        ['Specify the type (e.g., "int", "float", "String", "Vector2")']
+      );
+    }
+
+    if (args.defaultValue === undefined || args.defaultValue === null) {
+      return this.createErrorResponse(
+        'Default value is required',
+        ['Provide a default value for the variable']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Adding export variable ${args.variableName} to ${args.scriptPath}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scriptPath: args.scriptPath,
+        variableName: args.variableName,
+        variableType: args.variableType,
+        defaultValue: args.defaultValue,
+      };
+
+      // Add optional export hint and hint string if provided
+      if (args.exportHint) {
+        params.exportHint = args.exportHint;
+      }
+      if (args.hintString) {
+        params.hintString = args.hintString;
+      }
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('add_export_variable', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to add export variable: ${stderr}`,
+          [
+            'Check if the script file exists and is writable',
+            'Verify the variable type is valid',
+            'Ensure the default value matches the type',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Export variable added successfully!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to add export variable: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the script file exists and is writable',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the extract_dependencies tool
+   * @param args Tool arguments
+   */
+  private async handleExtractDependencies(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scriptPath) {
+      return this.createErrorResponse(
+        'Script path is required',
+        ['Provide a valid path to a GDScript file (relative to project)']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Extracting dependencies from ${args.scriptPath}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scriptPath: args.scriptPath,
+      };
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('extract_dependencies', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to extract dependencies: ${stderr}`,
+          [
+            'Check if the script file exists',
+            'Verify the script path is correct',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Dependencies extracted successfully!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to extract dependencies: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the script file exists',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the attach_script tool
+   * @param args Tool arguments
+   */
+  private async handleAttachScript(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide a valid path to a scene file (relative to project)']
+      );
+    }
+
+    if (!args.nodePath) {
+      return this.createErrorResponse(
+        'Node path is required',
+        ['Specify the path to the node (e.g., "." for root, "Player/Sprite" for child)']
+      );
+    }
+
+    if (!args.scriptPath) {
+      return this.createErrorResponse(
+        'Script path is required',
+        ['Provide a valid path to a GDScript file (relative to project)']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Attaching script ${args.scriptPath} to node ${args.nodePath} in ${args.scenePath}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scenePath: args.scenePath,
+        nodePath: args.nodePath,
+        scriptPath: args.scriptPath,
+      };
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('attach_script', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to attach script: ${stderr}`,
+          [
+            'Check if the scene file exists',
+            'Verify the node path is correct',
+            'Ensure the script file exists',
+            'Verify the script extends the correct base class for the node type',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Script attached successfully!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to attach script: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the scene file and script file exist',
         ]
       );
     }
