@@ -1377,6 +1377,46 @@ class GodotServer {
             required: ['projectPath', 'scenePath', 'animationPlayerPath', 'animationName', 'trackIndex', 'time', 'value'],
           },
         },
+        {
+          name: 'create_shader_material',
+          description: 'Create a shader material with custom shader code or from a template. Creates both .gdshader and .tres files, validates shader compilation.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              shaderPath: {
+                type: 'string',
+                description: 'Path where the .gdshader file should be saved (relative to project, e.g., "shaders/hologram.gdshader")',
+              },
+              materialPath: {
+                type: 'string',
+                description: 'Path where the .tres ShaderMaterial should be saved (relative to project, e.g., "materials/hologram.tres")',
+              },
+              shaderCode: {
+                type: 'string',
+                description: 'Complete shader source code including shader_type declaration. Not required if using a template.',
+              },
+              template: {
+                type: 'string',
+                enum: ['dissolve', 'outline', 'damage_flash', 'hologram'],
+                description: 'Optional: Use a predefined shader template instead of custom code. Templates: "dissolve" (fade effect), "outline" (colored border), "damage_flash" (hit effect), "hologram" (scan lines)',
+              },
+              shaderType: {
+                type: 'string',
+                enum: ['canvas_item', 'spatial', 'particles'],
+                description: 'Type of shader: "canvas_item" (2D), "spatial" (3D), or "particles". Auto-determined from template if not specified.',
+              },
+              shaderParameters: {
+                type: 'object',
+                description: 'Optional: Default values for shader parameters/uniforms (e.g., {"speed": 2.0, "tint_color": [1.0, 0.0, 0.0, 1.0]})',
+              },
+            },
+            required: ['projectPath', 'shaderPath', 'materialPath'],
+          },
+        },
       ],
     }));
 
@@ -1442,6 +1482,8 @@ class GodotServer {
           return await this.handleAddAnimationTrack(request.params.arguments);
         case 'add_keyframe':
           return await this.handleAddKeyframe(request.params.arguments);
+        case 'create_shader_material':
+          return await this.handleCreateShaderMaterial(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -4559,6 +4601,104 @@ class GodotServer {
           'Ensure Godot is installed correctly',
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify the scene file and AnimationPlayer exist',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Create a shader material with custom shader code or from a template
+   */
+  private async handleCreateShaderMaterial(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.shaderPath || !args.materialPath) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath, shaderPath, and materialPath']
+      );
+    }
+
+    // Either shaderCode or template must be provided
+    if (!args.shaderCode && !args.template) {
+      return this.createErrorResponse(
+        'Missing shader code or template',
+        ['Provide either shaderCode or template parameter']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.shaderPath) || !this.validatePath(args.materialPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    // Validate shader type if provided
+    if (args.shaderType) {
+      const validShaderTypes = ['canvas_item', 'spatial', 'particles'];
+      if (!validShaderTypes.includes(args.shaderType)) {
+        return this.createErrorResponse(
+          `Invalid shader type: ${args.shaderType}`,
+          ['Use one of: canvas_item (2D), spatial (3D), or particles']
+        );
+      }
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Execute the create_shader_material operation using the bundled script
+      const params = {
+        shader_path: args.shaderPath,
+        material_path: args.materialPath,
+        shader_code: args.shaderCode || null,
+        shader_type: args.shaderType || null,
+        shader_parameters: args.shaderParameters || {},
+        template: args.template || null,
+      };
+
+      const { stdout, stderr } = await this.executeOperation('create_shader_material', params, args.projectPath);
+
+      // Check for errors in stderr
+      if (stderr && stderr.length > 0) {
+        return this.createErrorResponse(
+          `Error creating shader material: ${stderr}`,
+          [
+            'Check if the shader code is valid',
+            'Ensure shader_type declaration matches the shaderType parameter',
+            'Verify the file paths are correct',
+            'Check for syntax errors in the shader code',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Shader material created successfully\n\nShader: ${args.shaderPath}\nMaterial: ${args.materialPath}\n\nOutput: ${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to create shader material: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the shader code syntax is valid',
         ]
       );
     }

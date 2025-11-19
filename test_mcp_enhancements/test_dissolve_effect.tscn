@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://db8yqicdcv1hx"]
+
+[ext_resource type="Texture2D" uid="uid://c21ke644p7t73" path="res://icon.svg" id="1_dv83y"]
+[ext_resource type="Material" path="res://materials/template_dissolve.tres" id="2_material"]
+
+[node name="root" type="Node2D"]
+position = Vector2(704, 333)
+
+[node name="DissolveSprite" type="Sprite2D" parent="."]
+material = ExtResource("2_material")
+texture = ExtResource("1_dv83y")

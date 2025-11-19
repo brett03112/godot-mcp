@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/template_dissolve.gdshader" id="1_l1dbs"]
+
+[resource]
+shader = ExtResource("1_l1dbs")
+shader_parameter/dissolve_amount = null
+shader_parameter/edge_color = null
+shader_parameter/edge_width = null

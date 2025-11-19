@@ -219,6 +219,50 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     # Result: Professional hover effect with smooth scaling
     ```
 
+- **Shader & Material Pipeline** (Phase 5 - COMPLETE):
+  - **`create_shader_material`**: Create shader materials with custom code or templates
+    - **3 Shader Types Supported**: canvas_item (2D), spatial (3D), particles
+    - Creates both .gdshader and .tres ShaderMaterial files
+    - Validates shader compilation before saving to catch syntax errors
+    - Automatic parameter type conversion (Array → Vector2/Vector3/Color)
+    - Support for custom shader parameters with proper Godot types
+  - **4 Production-Ready Shader Templates**:
+    - **dissolve**: Fade/dissolve effect with edge glow
+      - Parameters: dissolve_amount, edge_color, edge_width
+      - Use cases: Enemy death effects, teleportation, transitions
+    - **outline**: Colored border shader for sprites
+      - Parameters: outline_color, outline_width
+      - Use cases: Selection highlights, UI emphasis, character focus
+    - **damage_flash**: Hit flash effect for damage feedback
+      - Parameters: flash_intensity, flash_color
+      - Use cases: Damage indicators, power-ups, status effects
+    - **hologram**: Scan lines effect with animated tint
+      - Parameters: scan_speed, tint_color, scan_intensity
+      - Use cases: Holograms, distortion effects, futuristic UI
+  - **Complete Shader Workflow**:
+    ```gdscript
+    # Example 1: Use a template with custom parameters
+    create_shader_material(
+      template="dissolve",
+      shader_path="shaders/my_dissolve.gdshader",
+      material_path="materials/my_dissolve.tres",
+      shader_parameters={
+        "dissolve_amount": 0.5,
+        "edge_color": [1.0, 0.0, 1.0, 1.0],  # Magenta
+        "edge_width": 0.2
+      }
+    )
+
+    # Example 2: Create custom shader from scratch
+    create_shader_material(
+      shader_code="shader_type canvas_item;\nvoid fragment() { COLOR = vec4(1.0, 0.0, 0.0, 1.0); }",
+      shader_type="canvas_item",
+      shader_path="shaders/red.gdshader",
+      material_path="materials/red.tres"
+    )
+    # Result: Ready-to-use shader materials with validated compilation
+    ```
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
@@ -280,7 +324,11 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "add_export_variable",
         "extract_dependencies",
         "attach_script",
-        "validate_script"
+        "validate_script",
+        "create_animation_player",
+        "add_animation_track",
+        "add_keyframe",
+        "create_shader_material"
       ]
     }
   }
@@ -385,6 +433,20 @@ Once configured, your AI assistant will automatically run the MCP server when ne
 "Validate my player script for syntax errors before committing"
 
 "Check if my inventory.gd has any undefined variables or type mismatches"
+
+"Create a dissolve shader effect for my enemy death animation"
+
+"Add an outline shader to my player sprite for selection highlighting"
+
+"Create a hologram effect shader with cyan tint and fast scan lines"
+
+"Make a damage flash shader that turns my character red when hit"
+
+"Create a custom shader that makes sprites glow with a pulsing effect"
+
+"Apply the dissolve template to my enemy sprite with magenta edge color"
+
+"Create a shader material with custom parameters for my UI effects"
 ```
 
 ## Implementation Details

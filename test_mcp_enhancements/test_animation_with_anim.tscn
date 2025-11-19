@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://ci1rls3qhk4y5"]
 
 [sub_resource type="Animation" id="Animation_s5jmu"]
 tracks/0/type = "value"
@@ -40,6 +40,10 @@ _data = {
 [node name="root" type="Control"]
 layout_mode = 3
 anchors_preset = 0
+offset_left = 213.0
+offset_top = 123.0
+offset_right = 213.0
+offset_bottom = 123.0
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {

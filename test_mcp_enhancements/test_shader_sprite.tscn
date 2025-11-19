@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://b5o5m0gxqh362"]
+
+[ext_resource type="Texture2D" uid="uid://c21ke644p7t73" path="res://icon.svg" id="1_1n2vb"]
+[ext_resource type="Material" path="res://materials/hologram.tres" id="2_hologram"]
+
+[node name="root" type="Node2D"]
+position = Vector2(575, 351)
+
+[node name="Sprite" type="Sprite2D" parent="."]
+material = ExtResource("2_hologram")
+texture = ExtResource("1_1n2vb")

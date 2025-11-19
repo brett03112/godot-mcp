@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/flash_strong.gdshader" id="1_5vthr"]
+
+[resource]
+shader = ExtResource("1_5vthr")
+shader_parameter/flash_intensity = 0.8
+shader_parameter/flash_color = Color(0, 1, 0, 1)

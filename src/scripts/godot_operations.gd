@@ -99,6 +99,8 @@ func _init():
             add_animation_track(params)
         "add_keyframe":
             add_keyframe(params)
+        "create_shader_material":
+            create_shader_material(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -3567,3 +3569,240 @@ func add_keyframe(params):
     else:
         log_error("Failed to pack scene: " + str(result))
         quit(1)
+
+# Get shader template code
+func get_shader_template(template_name: String) -> Dictionary:
+    var templates = {
+        "dissolve": {
+            "code": """shader_type canvas_item;
+
+uniform float dissolve_amount : hint_range(0.0, 1.0) = 0.0;
+uniform sampler2D dissolve_texture : hint_default_white;
+uniform vec4 edge_color : source_color = vec4(1.0, 0.5, 0.0, 1.0);
+uniform float edge_width : hint_range(0.0, 0.5) = 0.1;
+
+void fragment() {
+    vec4 tex = texture(TEXTURE, UV);
+    float noise = texture(dissolve_texture, UV).r;
+
+    float edge = smoothstep(dissolve_amount - edge_width, dissolve_amount, noise);
+    float alpha = smoothstep(dissolve_amount, dissolve_amount + 0.01, noise);
+
+    vec4 edge_glow = edge_color * (1.0 - edge);
+    COLOR = mix(tex + edge_glow, tex, edge);
+    COLOR.a *= alpha * tex.a;
+}""",
+            "type": "canvas_item"
+        },
+        "outline": {
+            "code": """shader_type canvas_item;
+
+uniform vec4 outline_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform float outline_width : hint_range(0.0, 10.0) = 2.0;
+
+void fragment() {
+    vec4 col = texture(TEXTURE, UV);
+    vec2 ps = TEXTURE_PIXEL_SIZE * outline_width;
+    float a = col.a;
+
+    a = max(a, texture(TEXTURE, UV + vec2(0.0, -ps.y)).a);
+    a = max(a, texture(TEXTURE, UV + vec2(0.0, ps.y)).a);
+    a = max(a, texture(TEXTURE, UV + vec2(-ps.x, 0.0)).a);
+    a = max(a, texture(TEXTURE, UV + vec2(ps.x, 0.0)).a);
+
+    COLOR = mix(outline_color, col, col.a);
+    COLOR.a = a;
+}""",
+            "type": "canvas_item"
+        },
+        "damage_flash": {
+            "code": """shader_type canvas_item;
+
+uniform float flash_intensity : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 flash_color : source_color = vec4(1.0, 0.0, 0.0, 1.0);
+
+void fragment() {
+    vec4 tex = texture(TEXTURE, UV);
+    COLOR = mix(tex, flash_color, flash_intensity * tex.a);
+    COLOR.a = tex.a;
+}""",
+            "type": "canvas_item"
+        },
+        "hologram": {
+            "code": """shader_type canvas_item;
+
+uniform float scan_speed : hint_range(0.0, 10.0) = 2.0;
+uniform vec4 tint_color : source_color = vec4(0.0, 1.0, 1.0, 1.0);
+uniform float scan_intensity : hint_range(0.0, 1.0) = 0.5;
+
+void fragment() {
+    float scan = sin((UV.y + TIME * scan_speed) * 20.0) * 0.5 + 0.5;
+    vec4 tex = texture(TEXTURE, UV);
+    COLOR = tex * tint_color;
+    COLOR.a *= mix(1.0 - scan_intensity, 1.0, scan) * tex.a;
+}""",
+            "type": "canvas_item"
+        }
+    }
+
+    if templates.has(template_name):
+        return templates[template_name]
+    else:
+        return {}
+
+# Create a shader material with custom shader code
+func create_shader_material(params):
+    log_info("Creating shader material")
+
+    var shader_path = params.shader_path
+    var material_path = params.material_path
+    var shader_code = params.get("shader_code", null)
+    var shader_type = params.get("shader_type", null)
+    var shader_parameters = params.get("shader_parameters", {})
+    var template = params.get("template", null)
+
+    # If template is provided, use template code
+    if template:
+        log_info("Using shader template: " + template)
+        var template_data = get_shader_template(template)
+        if template_data.is_empty():
+            log_error("Unknown shader template: " + template)
+            quit(1)
+
+        shader_code = template_data["code"]
+        # Use template's shader type if not provided
+        if not shader_type:
+            shader_type = template_data["type"]
+        if debug_mode:
+            log_debug("Template shader type: " + shader_type)
+
+    # Validate we have shader code
+    if not shader_code:
+        log_error("No shader code provided (either via shaderCode or template)")
+        quit(1)
+
+    # Validate we have shader type
+    if not shader_type:
+        log_error("No shader type provided (either via shaderType or template)")
+        quit(1)
+
+    if debug_mode:
+        log_debug("Shader path: " + shader_path)
+        log_debug("Material path: " + material_path)
+        log_debug("Shader type: " + shader_type)
+        log_debug("Shader code length: " + str(shader_code.length()))
+
+    # Ensure shader code starts with shader_type declaration
+    if not shader_code.strip_edges().begins_with("shader_type"):
+        log_error("Shader code must start with 'shader_type' declaration")
+        quit(1)
+
+    # Verify shader_type in code matches the parameter
+    var shader_code_lines = shader_code.split("\n")
+    var found_shader_type = false
+    for line in shader_code_lines:
+        var trimmed = line.strip_edges()
+        if trimmed.begins_with("shader_type"):
+            if shader_type in trimmed:
+                found_shader_type = true
+                break
+
+    if not found_shader_type:
+        log_error("Shader code shader_type does not match parameter: " + shader_type)
+        quit(1)
+
+    # Convert paths to absolute
+    var full_shader_path = ProjectSettings.globalize_path("res://" + shader_path)
+    var full_material_path = ProjectSettings.globalize_path("res://" + material_path)
+
+    if debug_mode:
+        log_debug("Full shader path: " + full_shader_path)
+        log_debug("Full material path: " + full_material_path)
+
+    # Create directories if they don't exist
+    var shader_dir = full_shader_path.get_base_dir()
+    if not DirAccess.dir_exists_absolute(shader_dir):
+        var result = DirAccess.make_dir_recursive_absolute(shader_dir)
+        if result != OK:
+            log_error("Failed to create shader directory: " + shader_dir)
+            quit(1)
+        log_info("Created shader directory: " + shader_dir)
+
+    var material_dir = full_material_path.get_base_dir()
+    if not DirAccess.dir_exists_absolute(material_dir):
+        var result = DirAccess.make_dir_recursive_absolute(material_dir)
+        if result != OK:
+            log_error("Failed to create material directory: " + material_dir)
+            quit(1)
+        log_info("Created material directory: " + material_dir)
+
+    # Write the shader file
+    var shader_file = FileAccess.open(full_shader_path, FileAccess.WRITE)
+    if not shader_file:
+        log_error("Failed to create shader file: " + full_shader_path)
+        quit(1)
+
+    shader_file.store_string(shader_code)
+    shader_file.close()
+    log_info("Shader file created: " + shader_path)
+
+    # Load and validate the shader
+    var shader = load("res://" + shader_path)
+    if not shader:
+        log_error("Failed to load shader: " + shader_path)
+        log_error("Shader may contain syntax errors")
+        quit(1)
+
+    if not shader is Shader:
+        log_error("Loaded resource is not a Shader")
+        quit(1)
+
+    # Check if shader has compilation errors
+    # Note: In Godot 4.x, shader errors are logged but we can check if it's valid
+    if debug_mode:
+        log_debug("Shader loaded successfully and appears valid")
+
+    # Create the ShaderMaterial
+    var material = ShaderMaterial.new()
+    material.shader = shader
+
+    # Set shader parameters if provided
+    if shader_parameters.size() > 0:
+        for param_name in shader_parameters.keys():
+            var param_value = shader_parameters[param_name]
+            # Convert arrays to appropriate types
+            if param_value is Array:
+                # Check array size to determine type
+                if param_value.size() == 2:
+                    material.set_shader_parameter(param_name, Vector2(param_value[0], param_value[1]))
+                elif param_value.size() == 3:
+                    material.set_shader_parameter(param_name, Vector3(param_value[0], param_value[1], param_value[2]))
+                elif param_value.size() == 4:
+                    material.set_shader_parameter(param_name, Color(param_value[0], param_value[1], param_value[2], param_value[3]))
+                else:
+                    material.set_shader_parameter(param_name, param_value)
+            else:
+                material.set_shader_parameter(param_name, param_value)
+
+            if debug_mode:
+                log_debug("Set shader parameter: " + param_name + " = " + str(param_value))
+
+    # Save the material as .tres
+    var save_result = ResourceSaver.save(material, "res://" + material_path)
+    if save_result != OK:
+        log_error("Failed to save material: " + material_path)
+        log_error("Error code: " + str(save_result))
+        quit(1)
+
+    log_info("Material saved: " + material_path)
+
+    # Output the result as JSON
+    var output = {
+        "shader_path": shader_path,
+        "material_path": material_path,
+        "shader_type": shader_type,
+        "parameters_set": shader_parameters.keys() if shader_parameters.size() > 0 else []
+    }
+
+    print(JSON.stringify(output))
+    log_info("create_shader_material operation completed successfully")

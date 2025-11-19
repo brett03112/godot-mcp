@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_5gehc"]
+[ext_resource type="Material" path="res://materials/dissolve_animated.tres" id="2_dissolve"]
+[ext_resource type="Material" path="res://materials/outline_thick.tres" id="3_outline"]
+[ext_resource type="Material" path="res://materials/flash_strong.tres" id="4_flash"]
+
+[node name="root" type="Node2D"]
+
+[node name="DissolveSprite" type="Sprite2D" parent="."]
+material = ExtResource("2_dissolve")
+texture = ExtResource("1_5gehc")
+
+[node name="OutlineSprite" type="Sprite2D" parent="."]
+position = Vector2(200, 0)
+material = ExtResource("3_outline")
+texture = ExtResource("1_5gehc")
+
+[node name="FlashSprite" type="Sprite2D" parent="."]
+position = Vector2(400, 0)
+material = ExtResource("4_flash")
+texture = ExtResource("1_5gehc")

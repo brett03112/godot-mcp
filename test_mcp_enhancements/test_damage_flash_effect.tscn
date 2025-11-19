@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_f8ymp"]
+[ext_resource type="Material" path="res://materials/template_damage_flash.tres" id="2_material"]
+
+[node name="root" type="Node2D"]
+
+[node name="DamageFlashSprite" type="Sprite2D" parent="."]
+material = ExtResource("2_material")
+texture = ExtResource("1_f8ymp")

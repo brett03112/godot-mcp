@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/outline_thick.gdshader" id="1_hxr2j"]
+
+[resource]
+shader = ExtResource("1_hxr2j")
+shader_parameter/outline_color = Color(1, 1, 0, 1)
+shader_parameter/outline_width = 5.0
