@@ -97,6 +97,31 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     - Check signal existence (hard error if missing)
     - Check node existence (hard error if missing)
     - Check method existence (warning if missing - can be added later)
+- **GDScript Code Intelligence** (Phase 2 - COMPLETE):
+  - **`analyze_script`**: Parse GDScript files to extract complete structure
+    - Extract class name, extends, functions with signatures and line numbers
+    - Identify signals, export variables, constants, enums, and preloads
+    - Line-accurate parsing for navigation and refactoring
+  - **`create_script`**: Generate GDScript files from production-ready templates
+    - 5 templates: basic, state_machine, singleton, component, character_controller
+    - All templates use GDScript 2.0 syntax with proper type hints
+    - Customizable class names and inheritance
+  - **`modify_function`**: Update existing function implementations
+    - Supports body-only or full signature+body modifications
+    - Indentation-aware parsing maintains code structure
+    - Preserves surrounding code and formatting
+  - **`add_export_variable`**: Add @export variables for editor exposure
+    - Supports 10+ export hints: RANGE, FILE, DIR, ENUM, FLAGS, COLOR_NO_ALPHA, NODE_PATH, MULTILINE, PLACEHOLDER
+    - Intelligent insertion point detection (after class_name/extends, before functions)
+    - Proper Godot 4.x @export decorator syntax
+  - **`extract_dependencies`**: Find all script dependencies for refactoring
+    - Identifies preloads, loads, resource paths, and class references
+    - Filters out built-in Godot types from class references
+    - Supports dependency analysis for large codebases
+  - **`attach_script`**: Attach GDScript files to scene nodes
+    - Direct .tscn file manipulation for reliable persistence
+    - Automatic ExtResource management with unique IDs
+    - Supports both root nodes and child nodes
 
 ## Requirements
 
@@ -152,7 +177,13 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "list_connections",
         "connect_signal",
         "disconnect_signal",
-        "validate_connection"
+        "validate_connection",
+        "analyze_script",
+        "create_script",
+        "modify_function",
+        "add_export_variable",
+        "extract_dependencies",
+        "attach_script"
       ]
     }
   }
@@ -237,6 +268,22 @@ Once configured, your AI assistant will automatically run the MCP server when ne
 "Validate if I can connect the 'body_entered' signal from my Area2D to the player script"
 
 "Disconnect the button_down signal from my old handler"
+
+"Analyze my player.gd script and show me all functions and signals"
+
+"Create a new character controller script using the character_controller template"
+
+"Add an @export variable for jump height with a range hint from 0 to 1000"
+
+"Modify the _physics_process function in my player script to add wall-sliding mechanics"
+
+"Extract all dependencies from my game_manager.gd script"
+
+"Attach the player_controller.gd script to my Player node in the scene"
+
+"Create a state machine script for my enemy AI"
+
+"Find all preloads and class references in my inventory system script"
 ```
 
 ## Implementation Details
