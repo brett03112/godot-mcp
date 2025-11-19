@@ -1510,6 +1510,9 @@ class GodotServer {
       );
     }
 
+    // Parse errors for enhanced debugging information
+    const parsedErrors = this.parseGodotErrors(this.activeProcess.errors);
+
     return {
       content: [
         {
@@ -1518,6 +1521,8 @@ class GodotServer {
             {
               output: this.activeProcess.output,
               errors: this.activeProcess.errors,
+              parsed_errors: parsedErrors,
+              error_count: parsedErrors.length,
             },
             null,
             2
@@ -1525,6 +1530,206 @@ class GodotServer {
         },
       ],
     };
+  }
+
+  /**
+   * Parse Godot error messages to extract structured information
+   * Detects common error patterns and provides actionable solutions
+   */
+  private parseGodotErrors(errorLines: string[]): Array<{
+    type: string;
+    message: string;
+    file?: string;
+    line?: number;
+    function?: string;
+    raw_line: string;
+    possible_solutions: string[];
+  }> {
+    const parsedErrors: Array<{
+      type: string;
+      message: string;
+      file?: string;
+      line?: number;
+      function?: string;
+      raw_line: string;
+      possible_solutions: string[];
+    }> = [];
+
+    // Common Godot 4.x error patterns
+    const errorPatterns = [
+      // ERROR: <message>
+      //   at: <function> (<file>:<line>)
+      {
+        pattern: /ERROR:\s*(.+)/,
+        atPattern: /at:\s*(.+?)\s*\((.+?):(\d+)\)/,
+        type: 'ERROR',
+      },
+      // SCRIPT ERROR: <message>
+      //   at: <function> (<file>:<line>)
+      {
+        pattern: /SCRIPT ERROR:\s*(.+)/,
+        atPattern: /at:\s*(.+?)\s*\((.+?):(\d+)\)/,
+        type: 'SCRIPT_ERROR',
+      },
+      // Parse error: <message>
+      //   at: <file>:<line>
+      {
+        pattern: /Parse error:\s*(.+)/,
+        atPattern: /at:\s*(.+?):(\d+)/,
+        type: 'PARSE_ERROR',
+      },
+      // WARNING: <message>
+      //   at: <function> (<file>:<line>)
+      {
+        pattern: /WARNING:\s*(.+)/,
+        atPattern: /at:\s*(.+?)\s*\((.+?):(\d+)\)/,
+        type: 'WARNING',
+      },
+      // Single-line error format: ERROR: <message> at <function> (<file>:<line>)
+      {
+        pattern: /ERROR:\s*(.+?)\s+at\s+(.+?)\s*\((.+?):(\d+)\)/,
+        type: 'ERROR',
+      },
+    ];
+
+    for (let i = 0; i < errorLines.length; i++) {
+      const line = errorLines[i].trim();
+      if (!line) continue;
+
+      // Try to match error patterns
+      for (const errorPattern of errorPatterns) {
+        const match = line.match(errorPattern.pattern);
+        if (match) {
+          let errorInfo: {
+            type: string;
+            message: string;
+            file?: string;
+            line?: number;
+            function?: string;
+            raw_line: string;
+            possible_solutions: string[];
+          } = {
+            type: errorPattern.type,
+            message: match[1].trim(),
+            raw_line: line,
+            possible_solutions: [],
+          };
+
+          // Single-line format with location info in same line
+          if (match.length >= 5) {
+            errorInfo.function = match[2].trim();
+            errorInfo.file = match[3].trim();
+            errorInfo.line = parseInt(match[4]);
+          }
+          // Multi-line format: check next line for location info
+          else if (errorPattern.atPattern && i + 1 < errorLines.length) {
+            const nextLine = errorLines[i + 1].trim();
+            const atMatch = nextLine.match(errorPattern.atPattern);
+            if (atMatch) {
+              if (atMatch.length >= 4) {
+                // Format: at: function (file:line)
+                errorInfo.function = atMatch[1].trim();
+                errorInfo.file = atMatch[2].trim();
+                errorInfo.line = parseInt(atMatch[3]);
+              } else if (atMatch.length === 3) {
+                // Format: at: file:line
+                errorInfo.file = atMatch[1].trim();
+                errorInfo.line = parseInt(atMatch[2]);
+              }
+              i++; // Skip the "at:" line since we processed it
+            }
+          }
+
+          // Add context-specific solutions based on error type and message
+          errorInfo.possible_solutions = this.getSolutionsForError(errorInfo);
+
+          parsedErrors.push(errorInfo);
+          break; // Found a match, don't try other patterns for this line
+        }
+      }
+    }
+
+    return parsedErrors;
+  }
+
+  /**
+   * Provide actionable solutions based on error type and message
+   */
+  private getSolutionsForError(error: {
+    type: string;
+    message: string;
+    file?: string;
+    line?: number;
+  }): string[] {
+    const solutions: string[] = [];
+    const msg = error.message.toLowerCase();
+
+    // Null reference errors
+    if (msg.includes('null') && (msg.includes('instance') || msg.includes('reference') || msg.includes('access'))) {
+      solutions.push('Check if the object is properly initialized before accessing it');
+      solutions.push('Verify the node exists in the scene tree (use get_node() or $NodeName)');
+      solutions.push('Add null checks before accessing properties or methods');
+      if (error.file && error.line) {
+        solutions.push(`Review the code at ${error.file}:${error.line} for uninitialized variables`);
+      }
+    }
+
+    // Invalid get index errors
+    if (msg.includes('invalid get index') || msg.includes('index out of bounds')) {
+      solutions.push('Check array/dictionary bounds before accessing elements');
+      solutions.push('Verify the key exists in the dictionary before accessing it');
+      solutions.push('Ensure the array has elements before indexing');
+    }
+
+    // Parse errors
+    if (error.type === 'PARSE_ERROR') {
+      solutions.push('Check for syntax errors (missing colons, parentheses, etc.)');
+      solutions.push('Verify proper indentation (use tabs consistently)');
+      solutions.push('Check for typos in keywords or function names');
+      if (error.file && error.line) {
+        solutions.push(`Fix the syntax error at ${error.file}:${error.line}`);
+      }
+    }
+
+    // Function not found errors
+    if (msg.includes('not found') && (msg.includes('function') || msg.includes('method'))) {
+      solutions.push('Verify the function name spelling');
+      solutions.push('Check if the function is defined in the script or base class');
+      solutions.push('Ensure the function is not private (starts with underscore) when calling from outside');
+    }
+
+    // Type errors
+    if (msg.includes('type') && (msg.includes('expected') || msg.includes('mismatch'))) {
+      solutions.push('Check the type annotations match the actual values');
+      solutions.push('Verify function parameters are passed with correct types');
+      solutions.push('Use type conversion functions if needed (int(), float(), str(), etc.)');
+    }
+
+    // Scene/resource not found
+    if (msg.includes('not found') && (msg.includes('scene') || msg.includes('resource') || msg.includes('file'))) {
+      solutions.push('Verify the resource path is correct (use res:// prefix)');
+      solutions.push('Check if the file exists in the project directory');
+      solutions.push('Ensure the resource is not excluded from export');
+    }
+
+    // Signal connection errors
+    if (msg.includes('signal') && (msg.includes('connect') || msg.includes('not found'))) {
+      solutions.push('Verify the signal name is spelled correctly');
+      solutions.push('Check if the signal is defined in the emitting object');
+      solutions.push('Ensure the target method exists and has correct signature');
+    }
+
+    // If no specific solutions, provide generic debugging advice
+    if (solutions.length === 0) {
+      solutions.push('Check the Godot documentation for this error type');
+      solutions.push('Review the stack trace for the error origin');
+      if (error.file && error.line) {
+        solutions.push(`Examine the code at ${error.file}:${error.line}`);
+      }
+      solutions.push('Use print() statements to debug variable values');
+    }
+
+    return solutions;
   }
 
   /**

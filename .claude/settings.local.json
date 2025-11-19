@@ -19,7 +19,8 @@
       "Bash(timeout:*)",
       "mcp__godot__get_debug_output",
       "mcp__godot__stop_project",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(node test_error_parser.js:*)"
     ],
     "deny": [],
     "ask": []
