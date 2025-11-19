@@ -1417,6 +1417,91 @@ class GodotServer {
             required: ['projectPath', 'shaderPath', 'materialPath'],
           },
         },
+        {
+          name: 'create_test_suite',
+          description: 'Create a GUT (Godot Unit Test) test file with test cases. Generates a test script extending GutTest with proper test methods.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              testPath: {
+                type: 'string',
+                description: 'Path where the test file should be saved (relative to project, e.g., "test/unit/test_player.gd")',
+              },
+              targetScript: {
+                type: 'string',
+                description: 'Optional: Path to the script being tested (e.g., "player.gd") for reference in test file',
+              },
+              testCases: {
+                type: 'array',
+                description: 'Array of test case definitions. Each test case should have: name (string), description (optional), assertions (array of assertion calls)',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: {
+                      type: 'string',
+                      description: 'Test method name (will be prefixed with "test_" if not already)',
+                    },
+                    description: {
+                      type: 'string',
+                      description: 'Optional: Description of what the test checks',
+                    },
+                    setup: {
+                      type: 'string',
+                      description: 'Optional: Setup code to run before assertions',
+                    },
+                    assertions: {
+                      type: 'array',
+                      description: 'Array of assertion calls (e.g., ["assert_eq(1 + 1, 2)", "assert_true(player.is_alive)"])',
+                      items: {
+                        type: 'string',
+                      },
+                    },
+                  },
+                  required: ['name'],
+                },
+              },
+              includeHooks: {
+                type: 'boolean',
+                description: 'Optional: Include before_all, after_all, before_each, after_each hook methods (default: false)',
+              },
+            },
+            required: ['projectPath', 'testPath'],
+          },
+        },
+        {
+          name: 'run_tests',
+          description: 'Execute GUT (Godot Unit Test) tests and return structured results. Runs tests in headless mode and parses output for pass/fail/error details.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              testDir: {
+                type: 'string',
+                description: 'Optional: Directory containing tests (relative to project, default: "test/")',
+              },
+              testFile: {
+                type: 'string',
+                description: 'Optional: Specific test file to run (relative to project, e.g., "test/unit/test_player.gd")',
+              },
+              verbosity: {
+                type: 'number',
+                description: 'Optional: Log verbosity level (0=quiet, 1=normal, 2=verbose, default: 1)',
+              },
+              exitOnFinish: {
+                type: 'boolean',
+                description: 'Optional: Exit Godot after tests complete (default: true)',
+              },
+            },
+            required: ['projectPath'],
+          },
+        },
       ],
     }));
 
@@ -1484,6 +1569,10 @@ class GodotServer {
           return await this.handleAddKeyframe(request.params.arguments);
         case 'create_shader_material':
           return await this.handleCreateShaderMaterial(request.params.arguments);
+        case 'create_test_suite':
+          return await this.handleCreateTestSuite(request.params.arguments);
+        case 'run_tests':
+          return await this.handleRunTests(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -4702,6 +4791,342 @@ class GodotServer {
         ]
       );
     }
+  }
+
+  /**
+   * Handle the create_test_suite tool
+   * @param args Tool arguments
+   */
+  private async handleCreateTestSuite(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.testPath) {
+      return this.createErrorResponse(
+        'Missing required parameters: projectPath and testPath are required',
+        ['Provide a valid project path and test file path']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.testPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Execute the create_test_suite operation using the bundled script
+      const params = {
+        test_path: args.testPath,
+        target_script: args.targetScript || null,
+        test_cases: args.testCases || [],
+        include_hooks: args.includeHooks || false,
+      };
+
+      const { stdout, stderr } = await this.executeOperation('create_test_suite', params, args.projectPath);
+
+      // Check for errors
+      if (stderr && stderr.trim() !== '') {
+        return this.createErrorResponse(
+          'Failed to create test suite',
+          ['Check the error message for details', stderr]
+        );
+      }
+
+      // Parse the JSON output
+      try {
+        const result = JSON.parse(stdout);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Test suite created successfully at ${result.test_path}\n\nTest file contains ${result.test_count} test method(s).\n\nTo run tests:\n1. Install GUT framework from Godot Asset Library\n2. Run via editor: Project > Tools > GUT\n3. Run via command line: godot --headless -s addons/gut/gut_cmdln.gd --path "$PWD" -gdir res://test/ -gexit`,
+            },
+          ],
+        };
+      } catch (parseError) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Test suite created successfully.\n\nOutput: ${stdout}`,
+            },
+          ],
+        };
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Error creating test suite: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Ensure you have write permissions',
+          'Check that the test path directory exists or can be created',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Run GUT tests and return structured results
+   */
+  private async handleRunTests(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Missing required parameter: projectPath is required',
+        ['Provide a valid project path']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Check if GUT is installed
+      const gutPath = join(args.projectPath, 'addons', 'gut', 'gut_cmdln.gd');
+      if (!existsSync(gutPath)) {
+        return this.createErrorResponse(
+          'GUT framework not found',
+          [
+            'Install GUT from https://github.com/bitwes/Gut/releases',
+            'Extract to addons/gut directory in your project',
+            'Run "godot --headless --import" to register GUT classes',
+          ]
+        );
+      }
+
+      // Build GUT command
+      const testDir = args.testDir || 'test/';
+      const verbosity = args.verbosity !== undefined ? args.verbosity : 1;
+      const exitOnFinish = args.exitOnFinish !== undefined ? args.exitOnFinish : true;
+
+      const gutArgs = [
+        '--headless',
+        '-s', 'addons/gut/gut_cmdln.gd',
+        '--path', args.projectPath,
+        '-gdir', `res://${testDir}`,
+        `-glog=${verbosity}`,
+      ];
+
+      // Add specific test file if provided
+      if (args.testFile) {
+        gutArgs.push('-gtest', `res://${args.testFile}`);
+      }
+
+      // Add exit flag if needed
+      if (exitOnFinish) {
+        gutArgs.push('-gexit');
+      }
+
+      this.logDebug(`Running GUT with args: ${gutArgs.join(' ')}`);
+
+      // Execute Godot with GUT
+      const result = await new Promise<{ stdout: string; stderr: string; exitCode: number }>((resolve, reject) => {
+        const process = spawn(this.godotPath!, gutArgs, { stdio: 'pipe' });
+        let stdout = '';
+        let stderr = '';
+
+        process.stdout?.on('data', (data: Buffer) => {
+          stdout += data.toString();
+        });
+
+        process.stderr?.on('data', (data: Buffer) => {
+          stderr += data.toString();
+        });
+
+        process.on('close', (code: number | null) => {
+          resolve({ stdout, stderr, exitCode: code || 0 });
+        });
+
+        process.on('error', (error: Error) => {
+          reject(error);
+        });
+      });
+
+      // Parse GUT output
+      const testResults = this.parseGutOutput(result.stdout, result.stderr);
+
+      // Return structured results
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(testResults, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Error running tests: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Ensure GUT is installed in addons/gut',
+          'Check that test files exist in the specified directory',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Parse GUT output to extract structured test results
+   */
+  private parseGutOutput(stdout: string, stderr: string): any {
+    // Remove ANSI color codes from output for easier parsing
+    const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, '').replace(/\[[0-9;]*m/g, '');
+
+    const cleanOutput = stripAnsi(stdout);
+    const lines = cleanOutput.split('\n');
+    const result: any = {
+      success: false,
+      exit_code: 0,
+      summary: {
+        scripts: 0,
+        tests: 0,
+        passing_tests: 0,
+        failing_tests: 0,
+        asserts: 0,
+        time: '0s',
+      },
+      test_files: [],
+      raw_output: stdout,
+      raw_errors: stderr,
+    };
+
+    let currentFile: any = null;
+    let currentTest: any = null;
+    let inSummary = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Detect test file (but not if we're in the summary section)
+      if (!inSummary && trimmed.startsWith('res://') && trimmed.endsWith('.gd')) {
+        if (currentFile) {
+          result.test_files.push(currentFile);
+        }
+        currentFile = {
+          file: trimmed,
+          tests: [],
+          passed: 0,
+          failed: 0,
+        };
+        currentTest = null;
+      }
+
+      // Detect test method
+      else if (currentFile && trimmed.startsWith('* test_')) {
+        if (currentTest) {
+          currentFile.tests.push(currentTest);
+        }
+        currentTest = {
+          name: trimmed.substring(2),
+          passed: true,
+          assertions: [],
+        };
+      }
+
+      // Detect assertion results
+      else if (currentTest && (trimmed.includes('[Passed]:') || trimmed.includes('[Failed]:'))) {
+        const isPassed = trimmed.includes('[Passed]:');
+        const assertion = {
+          passed: isPassed,
+          message: trimmed,
+        };
+        currentTest.assertions.push(assertion);
+
+        if (!isPassed) {
+          currentTest.passed = false;
+        }
+      }
+
+      // Detect test summary line (e.g., "1/1 passed.")
+      else if (currentFile && /^\d+\/\d+\s+(passed|failed)/.test(trimmed)) {
+        if (currentTest) {
+          currentFile.tests.push(currentTest);
+          currentTest = null;
+        }
+
+        const match = trimmed.match(/^(\d+)\/(\d+)\s+(passed|failed)/);
+        if (match) {
+          currentFile.passed = parseInt(match[1]);
+          currentFile.failed = parseInt(match[2]) - parseInt(match[1]);
+        }
+      }
+
+      // Detect summary section
+      else if (trimmed.includes('= Run Summary')) {
+        if (currentFile) {
+          result.test_files.push(currentFile);
+          currentFile = null;
+        }
+        inSummary = true;
+      }
+
+      // Parse summary statistics
+      else if (inSummary) {
+        if (trimmed.startsWith('Scripts')) {
+          const match = trimmed.match(/Scripts\s+(\d+)/);
+          if (match) result.summary.scripts = parseInt(match[1]);
+        } else if (trimmed.startsWith('Tests')) {
+          const match = trimmed.match(/Tests\s+(\d+)/);
+          if (match) result.summary.tests = parseInt(match[1]);
+        } else if (trimmed.startsWith('Passing Tests')) {
+          const match = trimmed.match(/Passing Tests\s+(\d+)/);
+          if (match) result.summary.passing_tests = parseInt(match[1]);
+        } else if (trimmed.startsWith('Asserts')) {
+          const match = trimmed.match(/Asserts\s+(\d+)/);
+          if (match) result.summary.asserts = parseInt(match[1]);
+        } else if (trimmed.startsWith('Time')) {
+          const match = trimmed.match(/Time\s+([\d.]+s)/);
+          if (match) result.summary.time = match[1];
+        } else if (trimmed.includes('All tests passed!')) {
+          result.success = true;
+        }
+      }
+    }
+
+    // Add last file if exists
+    if (currentFile) {
+      result.test_files.push(currentFile);
+    }
+
+    // Calculate failing tests
+    result.summary.failing_tests = result.summary.tests - result.summary.passing_tests;
+
+    return result;
   }
 
   /**

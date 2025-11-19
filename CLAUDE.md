@@ -23,8 +23,8 @@ The current implementation plan follows a phased approach:
 - **Phase 2:** GDScript Code Intelligence (COMPLETE ✅)
 - **Phase 3:** Enhanced Debugging & Error Analysis (COMPLETE ✅)
 - **Phase 4:** Animation & Timeline Orchestration (COMPLETE ✅)
-- **Phase 5:** Shader & Material Pipeline
-- **Phase 6:** Testing & Quality Assurance
+- **Phase 5:** Shader & Material Pipeline (COMPLETE ✅)
+- **Phase 6:** Testing & Quality Assurance (COMPLETE ✅)
 - Future phases cover asset management, build pipelines, and specialized workflows
 
 ## Build and Development Commands
@@ -54,9 +54,9 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~4100 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~5200 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
-**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3560 lines, ~130KB) that handles all complex Godot operations. This script:
+**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3930 lines, ~140KB) that handles all complex Godot operations. This script:
 
 - Accepts operation type and JSON parameters via command-line arguments
 - Executes operations directly within Godot's headless mode
@@ -175,6 +175,41 @@ The server exposes 26 tools via the MCP protocol:
   - Automatic Array-to-Vector3 conversion for 3D transform tracks
   - Method call keyframes with arguments
   - Professional animation workflow: Create → Track → Keyframe
+
+**Shader & Material Pipeline** (Phase 5 - COMPLETE):
+
+- `create_shader_material` - Create shader materials with custom shader code or templates
+  - Supports shader types: canvas_item, spatial, particles
+  - Validates shader compilation before saving
+  - Creates both .gdshader and .tres material files
+  - Automatic type conversion for shader parameters (Array → Vector2/Vector3/Color)
+  - 4 production-ready shader templates:
+    - **dissolve** - Fade/dissolve effect with edge glow (dissolve_amount, edge_color, edge_width)
+    - **outline** - Colored border around sprites (outline_color, outline_width)
+    - **damage_flash** - Hit flash effect (flash_intensity, flash_color)
+    - **hologram** - Scan lines effect (scan_speed, tint_color, scan_intensity)
+
+**Testing & Quality Assurance** (Phase 6 - COMPLETE):
+
+- `create_test_suite` - Create GUT (Godot Unit Test) test files with test cases
+  - Generates test scripts extending GutTest with proper test methods
+  - Automatically prefixes test methods with "test_" if not present
+  - Supports multiple test cases with assertions, setup code, and descriptions
+  - Optional hooks: before_all, after_all, before_each, after_each
+  - Creates directory structure automatically
+  - Integration with GUT 9.5.0 framework
+
+- `run_tests` - Execute GUT tests and return structured results
+  - Runs tests in headless mode via Godot command line
+  - Comprehensive output parsing with ANSI color code stripping
+  - Returns structured JSON with test files, tests, assertions, and summary statistics
+  - Supports filtering by test directory or specific test file
+  - Captures both passing and failing test details with assertion-level tracking
+  - Output includes:
+    - `success`: overall pass/fail status
+    - `summary`: scripts, tests, passing_tests, failing_tests, asserts, time
+    - `test_files`: array of test files with individual test results
+    - `raw_output` and `raw_errors`: unfiltered output for debugging
 
 ## Configuration
 

@@ -263,6 +263,89 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     # Result: Ready-to-use shader materials with validated compilation
     ```
 
+- **Testing & Quality Assurance** (Phase 6 - COMPLETE):
+  - **`create_test_suite`**: Create GUT (Godot Unit Test) test files with test cases
+    - **Generates GutTest Scripts**: Creates properly structured test files extending GutTest
+    - Automatically prefixes test methods with "test_" if not present
+    - Supports multiple test cases with assertions, setup code, and descriptions
+    - **Optional Test Hooks**: before_all, after_all, before_each, after_each for setup/teardown
+    - Creates directory structure automatically for organized test suites
+    - **Integration with GUT 9.5.0**: Compatible with latest GUT framework
+    - Perfect for TDD workflows and regression testing
+  - **`run_tests`**: Execute GUT tests and return structured results
+    - **Headless Test Execution**: Runs tests via Godot command line without opening editor
+    - **Comprehensive Output Parsing**: Strips ANSI color codes and parses test results
+    - Returns structured JSON with test files, tests, assertions, and summary statistics
+    - **Flexible Test Selection**:
+      - Run all tests in a directory (default: "test/")
+      - Run specific test file (e.g., "test/unit/test_player.gd")
+      - Configure verbosity level (0=quiet, 1=normal, 2=verbose)
+    - **Detailed Result Tracking**:
+      - Overall success/failure status
+      - Summary statistics: scripts, tests, passing_tests, failing_tests, asserts, time
+      - Per-file test results with individual test pass/fail status
+      - Assertion-level tracking with full messages
+      - Raw output and errors for debugging
+    - **Example Output**:
+      ```json
+      {
+        "success": false,
+        "summary": {
+          "scripts": 2,
+          "tests": 3,
+          "passing_tests": 2,
+          "failing_tests": 1,
+          "asserts": 5,
+          "time": "0.453s"
+        },
+        "test_files": [
+          {
+            "file": "res://test/unit/test_player.gd",
+            "tests": [
+              {
+                "name": "test_health_system",
+                "passed": true,
+                "assertions": [
+                  {"passed": true, "message": "[Passed]: Health initialized correctly"}
+                ]
+              }
+            ],
+            "passed": 1,
+            "failed": 0
+          }
+        ]
+      }
+      ```
+  - **Complete TDD Workflow**:
+    ```gdscript
+    # Step 1: Create test suite
+    create_test_suite(
+      projectPath="/path/to/project",
+      testPath="test/unit/test_player.gd",
+      targetScript="player.gd",
+      testCases=[
+        {
+          "name": "health_system",
+          "description": "Test player health mechanics",
+          "assertions": [
+            "assert_eq(player.health, 100, 'Initial health')",
+            "player.take_damage(30)",
+            "assert_eq(player.health, 70, 'Health after damage')"
+          ]
+        }
+      ]
+    )
+
+    # Step 2: Run tests
+    run_tests(
+      projectPath="/path/to/project",
+      testDir="test/"  # Runs all tests in directory
+    )
+
+    # Step 3: Fix failing tests and rerun
+    # Result: Full TDD cycle with structured feedback
+    ```
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system

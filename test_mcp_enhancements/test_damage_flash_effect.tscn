@@ -1,10 +1,12 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://skepaprhgtbm"]
 
-[ext_resource type="Texture2D" path="res://icon.svg" id="1_f8ymp"]
+[ext_resource type="Texture2D" uid="uid://c21ke644p7t73" path="res://icon.svg" id="1_f8ymp"]
 [ext_resource type="Material" path="res://materials/template_damage_flash.tres" id="2_material"]
 
 [node name="root" type="Node2D"]
 
 [node name="DamageFlashSprite" type="Sprite2D" parent="."]
 material = ExtResource("2_material")
+use_parent_material = true
+position = Vector2(681, 288)
 texture = ExtResource("1_f8ymp")

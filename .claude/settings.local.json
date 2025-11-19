@@ -25,7 +25,14 @@
       "Bash(nul)",
       "mcp__godot__load_sprite",
       "Bash(\"C:\\Users\\brett\\Desktop\\Godot\\Godot_v4.5-stable_win64.exe\" --headless --script \"c:\\Users\\brett\\Desktop\\godot-mcp\\build\\scripts\\godot_operations.gd\" create_shader_material \"{\"\"shader_path\"\":\"\"shaders/dissolve_animated.gdshader\"\",\"\"material_path\"\":\"\"materials/dissolve_animated.tres\"\",\"\"template\"\":\"\"dissolve\"\",\"\"shader_parameters\"\":{\"\"dissolve_amount\"\":0.5,\"\"edge_color\"\":[1.0,0.0,1.0,1.0],\"\"edge_width\"\":0.2}}\" --debug-godot)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebSearch",
+      "WebFetch(domain:gut.readthedocs.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(tar:*)",
+      "Bash(unzip:*)",
+      "Bash(node test_parse_gut.js:*)",
+      "Bash(node test_parse_gut.cjs:*)"
     ],
     "deny": [],
     "ask": []

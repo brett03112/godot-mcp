@@ -8,4 +8,5 @@ position = Vector2(704, 333)
 
 [node name="DissolveSprite" type="Sprite2D" parent="."]
 material = ExtResource("2_material")
+position = Vector2(-1, 0)
 texture = ExtResource("1_dv83y")
