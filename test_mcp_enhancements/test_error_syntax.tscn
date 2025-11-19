@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://test_error_syntax.gd" id="1_syntax"]
+
+[node name="root" type="Node2D"]
+script = ExtResource("1_syntax")

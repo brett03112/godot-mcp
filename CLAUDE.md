@@ -19,9 +19,9 @@ Godot MCP is a Model Context Protocol (MCP) server that enables AI assistants to
 
 The current implementation plan follows a phased approach:
 
-- **Phase 1:** Signal & Event Connection System (CRITICAL)
-- **Phase 2:** GDScript Code Intelligence (CRITICAL)
-- **Phase 3:** Enhanced Debugging & Error Analysis
+- **Phase 1:** Signal & Event Connection System (COMPLETE ✅)
+- **Phase 2:** GDScript Code Intelligence (COMPLETE ✅)
+- **Phase 3:** Enhanced Debugging & Error Analysis (IN PROGRESS 🟡 - Task 3.1 Complete)
 - **Phase 4:** Animation & Timeline Orchestration
 - **Phase 5:** Shader & Material Pipeline
 - **Phase 6:** Testing & Quality Assurance
@@ -95,7 +95,7 @@ The server exposes 22 tools via the MCP protocol:
 - `launch_editor` - Open Godot editor for a project
 - `run_project` - Execute a project in debug mode with optional scene
 - `stop_project` - Terminate running project
-- `get_debug_output` - Retrieve captured console output
+- `get_debug_output` - Retrieve captured console output **with enhanced error parsing** (Phase 3)
 - `get_godot_version` - Query installed Godot version
 - `list_projects` - Find project.godot files in directories
 - `get_project_info` - Analyze project structure and assets
@@ -129,6 +129,21 @@ The server exposes 22 tools via the MCP protocol:
 - `add_export_variable` - Add @export variables with hints (RANGE, FILE, DIR, ENUM, FLAGS, etc.) for editor exposure
 - `extract_dependencies` - Find all script dependencies (preloads, loads, resource paths, class references)
 - `attach_script` - Attach GDScript files to scene nodes with automatic ExtResource management
+
+**Enhanced Debugging & Error Analysis** (Phase 3 - IN PROGRESS):
+
+- `get_debug_output` - Enhanced with intelligent error parsing that:
+  - Automatically detects and parses 5 Godot error patterns (SCRIPT ERROR, ERROR, Parse error, WARNING, Debugger Break)
+  - Extracts structured error information (type, message, file path, line number, function name)
+  - Provides context-aware actionable solutions for common error types:
+    - Null reference errors
+    - Invalid index/bounds errors
+    - Parse/syntax errors
+    - Function not found errors
+    - Type mismatch errors
+    - Resource not found errors
+    - Signal connection errors
+  - Returns `parsed_errors` array with full context and `error_count` in addition to raw output/errors
 
 ## Configuration
 

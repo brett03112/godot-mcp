@@ -1510,8 +1510,9 @@ class GodotServer {
       );
     }
 
-    // Parse errors for enhanced debugging information
-    const parsedErrors = this.parseGodotErrors(this.activeProcess.errors);
+    // Parse errors from both stderr and stdout (some errors appear in stdout)
+    const allLines = [...this.activeProcess.errors, ...this.activeProcess.output];
+    const parsedErrors = this.parseGodotErrors(allLines);
 
     return {
       content: [
@@ -1557,6 +1558,13 @@ class GodotServer {
 
     // Common Godot 4.x error patterns
     const errorPatterns = [
+      // Debugger Break format: Debugger Break, Reason: 'Parser Error: <message>'
+      // *Frame 0 - <file>:<line> in function '<function>'
+      {
+        pattern: /Debugger Break, Reason: '(?:Parser Error: )?(.+?)'/,
+        framePattern: /\*Frame \d+ - (.+?):(\d+) in function '(.*)'/,
+        type: 'PARSE_ERROR',
+      },
       // ERROR: <message>
       //   at: <function> (<file>:<line>)
       {
@@ -1620,6 +1628,18 @@ class GodotServer {
             errorInfo.function = match[2].trim();
             errorInfo.file = match[3].trim();
             errorInfo.line = parseInt(match[4]);
+          }
+          // Debugger Break with *Frame format
+          else if (errorPattern.framePattern && i + 1 < errorLines.length) {
+            const nextLine = errorLines[i + 1].trim();
+            const frameMatch = nextLine.match(errorPattern.framePattern);
+            if (frameMatch) {
+              // Format: *Frame 0 - file:line in function 'function_name'
+              errorInfo.file = frameMatch[1].trim();
+              errorInfo.line = parseInt(frameMatch[2]);
+              errorInfo.function = frameMatch[3].trim();
+              i++; // Skip the frame line since we processed it
+            }
           }
           // Multi-line format: check next line for location info
           else if (errorPattern.atPattern && i + 1 < errorLines.length) {

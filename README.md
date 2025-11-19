@@ -65,7 +65,11 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 
 - **Launch Godot Editor**: Open the Godot editor for a specific project
 - **Run Godot Projects**: Execute Godot projects in debug mode
-- **Capture Debug Output**: Retrieve console output and error messages
+- **Enhanced Debug Output**: Retrieve console output with **intelligent error parsing** (Phase 3)
+  - Automatically parses and structures Godot errors (SCRIPT ERROR, Parse error, WARNING, etc.)
+  - Extracts error details: type, message, file path, line number, function name
+  - Provides context-aware actionable solutions for 8+ error categories
+  - Returns `parsed_errors` array with full context + `error_count`
 - **Control Execution**: Start and stop Godot projects programmatically
 - **Get Godot Version**: Retrieve the installed Godot version
 - **List Godot Projects**: Find Godot projects in a specified directory
@@ -122,6 +126,36 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     - Direct .tscn file manipulation for reliable persistence
     - Automatic ExtResource management with unique IDs
     - Supports both root nodes and child nodes
+- **Enhanced Debugging & Error Analysis** (Phase 3 - IN PROGRESS):
+  - **`get_debug_output`**: Enhanced with intelligent error parsing
+    - **5 Error Pattern Types**: SCRIPT ERROR, ERROR, Parse error, WARNING, Debugger Break
+    - **Structured Error Extraction**: Automatically extracts type, message, file, line, function from errors
+    - **Context-Aware Solutions**: Provides actionable fixes for common error types:
+      - Null reference errors (4 solutions: initialization checks, node tree validation, null guards)
+      - Invalid index/bounds errors (3 solutions: bounds checking, key existence, array validation)
+      - Parse/syntax errors (4 solutions: syntax checking, indentation fixes, typo detection)
+      - Function not found errors (3 solutions: spelling verification, scope checking)
+      - Type mismatch errors (3 solutions: type annotation fixes, conversion functions)
+      - Resource not found errors (3 solutions: path validation, existence checks)
+      - Signal connection errors (3 solutions: signal name validation, signature checking)
+    - **Enhanced Output Format**:
+
+      ```json
+      {
+        "output": [...],
+        "errors": [...],
+        "parsed_errors": [{
+          "type": "SCRIPT_ERROR",
+          "message": "Cannot call method 'queue_free' on a null value.",
+          "file": "res://player.gd",
+          "line": 42,
+          "function": "take_damage",
+          "raw_line": "SCRIPT ERROR: ...",
+          "possible_solutions": ["Check if the object is properly initialized...", ...]
+        }],
+        "error_count": 1
+      }
+      ```
 
 ## Requirements
 
