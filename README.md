@@ -126,7 +126,7 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     - Direct .tscn file manipulation for reliable persistence
     - Automatic ExtResource management with unique IDs
     - Supports both root nodes and child nodes
-- **Enhanced Debugging & Error Analysis** (Phase 3 - IN PROGRESS):
+- **Enhanced Debugging & Error Analysis** (Phase 3 - COMPLETE):
   - **`get_debug_output`**: Enhanced with intelligent error parsing
     - **5 Error Pattern Types**: SCRIPT ERROR, ERROR, Parse error, WARNING, Debugger Break
     - **Structured Error Extraction**: Automatically extracts type, message, file, line, function from errors
@@ -152,6 +152,36 @@ This direct feedback loop helps AI assistants like Claude understand what works 
           "function": "take_damage",
           "raw_line": "SCRIPT ERROR: ...",
           "possible_solutions": ["Check if the object is properly initialized...", ...]
+        }],
+        "error_count": 1
+      }
+      ```
+
+  - **`validate_script`**: Validate GDScript syntax without execution
+    - Uses Godot's `--check-only` flag to check scripts without running them
+    - Catches syntax errors, undefined variables, type mismatches, and other parse-time issues
+    - Reuses error parsing from `get_debug_output` for consistent error reporting
+    - Returns structured validation result:
+      - `valid`: boolean indicating script has no errors
+      - `exit_code`: Godot validation exit code (0 = success, 1 = errors)
+      - `errors`: array of parsed error objects with type, message, file, line, solutions
+      - `error_count`: total number of validation errors
+      - `raw_output` and `raw_errors`: unfiltered output for debugging
+    - Ideal for pre-commit validation or CI/CD integration
+    - Example output:
+
+      ```json
+      {
+        "valid": false,
+        "script_path": "player.gd",
+        "exit_code": 1,
+        "errors": [{
+          "type": "PARSE_ERROR",
+          "message": "Identifier 'undefined_variable' not declared",
+          "file": "res://player.gd",
+          "line": 15,
+          "function": "_ready",
+          "possible_solutions": ["Declare the variable before use...", ...]
         }],
         "error_count": 1
       }
@@ -217,7 +247,8 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "modify_function",
         "add_export_variable",
         "extract_dependencies",
-        "attach_script"
+        "attach_script",
+        "validate_script"
       ]
     }
   }
@@ -318,6 +349,10 @@ Once configured, your AI assistant will automatically run the MCP server when ne
 "Create a state machine script for my enemy AI"
 
 "Find all preloads and class references in my inventory system script"
+
+"Validate my player script for syntax errors before committing"
+
+"Check if my inventory.gd has any undefined variables or type mismatches"
 ```
 
 ## Implementation Details

@@ -1246,6 +1246,24 @@ class GodotServer {
             required: ['projectPath', 'scenePath', 'nodePath', 'scriptPath'],
           },
         },
+        {
+          name: 'validate_script',
+          description: 'Validate a GDScript file for syntax errors without running it. Uses Godot\'s --check-only flag to parse the script and return any errors with line numbers.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path to the GDScript file to validate (relative to project)',
+              },
+            },
+            required: ['projectPath', 'scriptPath'],
+          },
+        },
       ],
     }));
 
@@ -1303,6 +1321,8 @@ class GodotServer {
           return await this.handleExtractDependencies(request.params.arguments);
         case 'attach_script':
           return await this.handleAttachScript(request.params.arguments);
+        case 'validate_script':
+          return await this.handleValidateScript(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -4034,6 +4054,153 @@ class GodotServer {
           'Ensure Godot is installed correctly',
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify the scene file and script file exist',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the validate_script tool
+   * Validates a GDScript file for syntax errors without executing it
+   */
+  private async handleValidateScript(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scriptPath) {
+      return this.createErrorResponse(
+        'Script path is required',
+        ['Provide a valid path to a GDScript file (relative to project)']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Check if the script file exists
+      const scriptFile = join(args.projectPath, args.scriptPath);
+      if (!existsSync(scriptFile)) {
+        return this.createErrorResponse(
+          `Script file not found: ${args.scriptPath}`,
+          [
+            'Ensure the script path is correct and relative to the project directory',
+            'Check for typos in the file path',
+          ]
+        );
+      }
+
+      this.logDebug(`Validating script: ${args.scriptPath} in project: ${args.projectPath}`);
+
+      // Use Godot's --check-only flag to validate the script
+      const cmdArgs = ['--headless', '--path', args.projectPath, '--script', args.scriptPath, '--check-only'];
+
+      this.logDebug(`Running Godot command: ${this.godotPath} ${cmdArgs.join(' ')}`);
+
+      return new Promise((resolve) => {
+        const godotProcess = spawn(this.godotPath!, cmdArgs, { stdio: 'pipe' });
+        const output: string[] = [];
+        const errors: string[] = [];
+
+        godotProcess.stdout?.on('data', (data: Buffer) => {
+          const lines = data.toString().split('\n');
+          output.push(...lines);
+        });
+
+        godotProcess.stderr?.on('data', (data: Buffer) => {
+          const lines = data.toString().split('\n');
+          errors.push(...lines);
+        });
+
+        godotProcess.on('close', (code: number | null) => {
+          this.logDebug(`Godot validation process exited with code ${code}`);
+
+          // Parse errors from both stdout and stderr
+          const allLines = [...errors, ...output];
+          const parsedErrors = this.parseGodotErrors(allLines);
+
+          // If exit code is 0, the script is valid
+          const isValid = code === 0 && parsedErrors.length === 0;
+
+          resolve({
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    valid: isValid,
+                    script_path: args.scriptPath,
+                    exit_code: code,
+                    errors: parsedErrors,
+                    error_count: parsedErrors.length,
+                    raw_output: output.filter(line => line.trim()),
+                    raw_errors: errors.filter(line => line.trim()),
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          });
+        });
+
+        godotProcess.on('error', (err: Error) => {
+          console.error('Failed to start Godot validation process:', err);
+          resolve(this.createErrorResponse(
+            `Failed to validate script: ${err.message}`,
+            [
+              'Ensure Godot is installed correctly',
+              'Check if the GODOT_PATH environment variable is set correctly',
+              'Verify the script file exists and has correct syntax',
+            ]
+          ));
+        });
+      });
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to validate script: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the script file exists',
         ]
       );
     }

@@ -21,7 +21,7 @@ The current implementation plan follows a phased approach:
 
 - **Phase 1:** Signal & Event Connection System (COMPLETE ✅)
 - **Phase 2:** GDScript Code Intelligence (COMPLETE ✅)
-- **Phase 3:** Enhanced Debugging & Error Analysis (IN PROGRESS 🟡 - Task 3.1 Complete)
+- **Phase 3:** Enhanced Debugging & Error Analysis (COMPLETE ✅)
 - **Phase 4:** Animation & Timeline Orchestration
 - **Phase 5:** Shader & Material Pipeline
 - **Phase 6:** Testing & Quality Assurance
@@ -88,7 +88,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 22 tools via the MCP protocol:
+The server exposes 23 tools via the MCP protocol:
 
 **Project Management**:
 
@@ -130,7 +130,7 @@ The server exposes 22 tools via the MCP protocol:
 - `extract_dependencies` - Find all script dependencies (preloads, loads, resource paths, class references)
 - `attach_script` - Attach GDScript files to scene nodes with automatic ExtResource management
 
-**Enhanced Debugging & Error Analysis** (Phase 3 - IN PROGRESS):
+**Enhanced Debugging & Error Analysis** (Phase 3 - COMPLETE):
 
 - `get_debug_output` - Enhanced with intelligent error parsing that:
   - Automatically detects and parses 5 Godot error patterns (SCRIPT ERROR, ERROR, Parse error, WARNING, Debugger Break)
@@ -144,6 +144,19 @@ The server exposes 22 tools via the MCP protocol:
     - Resource not found errors
     - Signal connection errors
   - Returns `parsed_errors` array with full context and `error_count` in addition to raw output/errors
+
+- `validate_script` - Validate GDScript syntax without execution:
+  - Uses Godot's `--check-only` flag to check scripts for syntax errors
+  - Validates scripts without running them or modifying game state
+  - Reuses error parsing from `get_debug_output` for consistent error reporting
+  - Returns structured validation result with:
+    - `valid`: boolean indicating script has no errors
+    - `exit_code`: Godot validation exit code (0 = success, 1 = errors)
+    - `errors`: array of parsed error objects with type, message, file, line, solutions
+    - `error_count`: total number of validation errors
+    - `raw_output` and `raw_errors`: unfiltered output for debugging
+  - Catches syntax errors, undefined variables, type mismatches, and other parse-time issues
+  - Ideal for pre-commit validation or CI/CD integration
 
 ## Configuration
 
