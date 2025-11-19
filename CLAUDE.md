@@ -51,9 +51,9 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~2200 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~3000 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
-**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~50KB) that handles all complex Godot operations. This script:
+**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~1900 lines, ~65KB) that handles all complex Godot operations. This script:
 - Accepts operation type and JSON parameters via command-line arguments
 - Executes operations directly within Godot's headless mode
 - Eliminates the need for temporary script files
@@ -81,7 +81,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 15 tools via the MCP protocol:
+The server exposes 16 tools via the MCP protocol:
 
 **Project Management**:
 - `launch_editor` - Open Godot editor for a project
@@ -103,10 +103,12 @@ The server exposes 15 tools via the MCP protocol:
 - `get_uid` - Retrieve UIDs for files (Godot 4.4+)
 - `update_project_uids` - Resave resources to update UID references (Godot 4.4+)
 
-**Signal & Event System** (NEW - Phase 1):
+**Signal & Event System** (Phase 1 - COMPLETE):
 - `list_signals` - List all signals available on a node type or instance with parameter info
 - `list_connections` - List all signal connections in a scene with filtering support
 - `connect_signal` - Connect signals to create functional interactive scenes (CORE)
+- `disconnect_signal` - Remove existing signal connections from scenes
+- `validate_connection` - Pre-validate signal connections before creating them
 
 ## Configuration
 

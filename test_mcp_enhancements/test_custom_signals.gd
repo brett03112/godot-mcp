@@ -14,4 +14,4 @@ signal damage_taken(amount: int, damage_type: String, is_critical: bool)
 signal item_collected(item: Node, position: Vector2)
 
 func _ready():
-    pass
+	pass

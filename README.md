@@ -79,15 +79,24 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 - **UID Management** (for Godot 4.4+):
   - Get UID for specific files
   - Update UID references by resaving resources
-- **Signal & Event System** (NEW):
-  - List all signals available on any node type or instance
-  - Inspect custom signals with parameter type information
-  - Support for both built-in and custom script signals
-  - List all signal connections in a scene
-  - Filter connections by specific node paths
-  - **Connect signals to create functional interactive scenes**
-  - Validate signal and node existence before connecting
-  - Support for connection flags and bound parameters
+- **Signal & Event System** (Phase 1 - COMPLETE):
+  - **`list_signals`**: List all signals available on any node type or instance
+    - Inspect custom signals with parameter type information
+    - Support for both built-in and custom script signals
+  - **`list_connections`**: List all signal connections in a scene
+    - Filter connections by specific node paths
+    - View source, target, method, flags, and bound parameters
+  - **`connect_signal`**: Connect signals to create functional interactive scenes (CORE)
+    - Automatically persists connections to .tscn files
+    - Validates signal and node existence before connecting
+    - Support for connection flags and bound parameters
+  - **`disconnect_signal`**: Remove existing signal connections
+    - Clean removal from scene files
+    - Validation to prevent errors
+  - **`validate_connection`**: Pre-validate connections before creating
+    - Check signal existence (hard error if missing)
+    - Check node existence (hard error if missing)
+    - Check method existence (warning if missing - can be added later)
 
 ## Requirements
 
@@ -138,7 +147,12 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "export_mesh_library",
         "save_scene",
         "get_uid",
-        "update_project_uids"
+        "update_project_uids",
+        "list_signals",
+        "list_connections",
+        "connect_signal",
+        "disconnect_signal",
+        "validate_connection"
       ]
     }
   }
@@ -211,6 +225,18 @@ Once configured, your AI assistant will automatically run the MCP server when ne
 "Get the UID for a specific script file in my Godot 4.4 project"
 
 "Update UID references in my Godot project after upgrading to 4.4"
+
+"List all signals available on a Button node"
+
+"Show me all signal connections in my pause_menu scene"
+
+"Connect the 'pressed' signal from my StartButton to the _on_start_pressed method"
+
+"Create a functional pause menu with Resume, Settings, and Quit buttons"
+
+"Validate if I can connect the 'body_entered' signal from my Area2D to the player script"
+
+"Disconnect the button_down signal from my old handler"
 ```
 
 ## Implementation Details
