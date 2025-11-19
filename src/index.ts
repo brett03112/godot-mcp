@@ -1085,6 +1085,24 @@ class GodotServer {
             required: ['projectPath', 'scenePath', 'sourceNodePath', 'signalName', 'targetNodePath', 'methodName'],
           },
         },
+        {
+          name: 'analyze_script',
+          description: 'Parse a GDScript file and extract its complete structure including class name, functions, signals, variables, and dependencies',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path to the GDScript file (relative to project)',
+              },
+            },
+            required: ['projectPath', 'scriptPath'],
+          },
+        },
       ],
     }));
 
@@ -1130,6 +1148,8 @@ class GodotServer {
           return await this.handleDisconnectSignal(request.params.arguments);
         case 'validate_connection':
           return await this.handleValidateConnection(request.params.arguments);
+        case 'analyze_script':
+          return await this.handleAnalyzeScript(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -2955,6 +2975,105 @@ class GodotServer {
           'Check if the GODOT_PATH environment variable is set correctly',
           'Verify the scene file exists and is valid',
           'Use list_signals to check available signals on the source node',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the analyze_script tool
+   * @param args Tool arguments
+   */
+  private async handleAnalyzeScript(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    // Validate required parameters
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scriptPath) {
+      return this.createErrorResponse(
+        'Script path is required',
+        ['Provide a valid path to a GDScript file (relative to project)']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid project path',
+        ['Provide a valid path without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable to specify the correct path',
+            ]
+          );
+        }
+      }
+
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      this.logDebug(`Analyzing script ${args.scriptPath}`);
+
+      // Prepare parameters for the operation
+      const params: any = {
+        scriptPath: args.scriptPath,
+      };
+
+      // Execute the operation
+      const { stdout, stderr } = await this.executeOperation('analyze_script', params, args.projectPath);
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to analyze script: ${stderr}`,
+          [
+            'Check if the script file exists',
+            'Verify the script path is correct (relative to project)',
+            'Ensure the script is valid GDScript',
+          ]
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Script analysis complete!\n\n${stdout}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return this.createErrorResponse(
+        `Failed to analyze script: ${error?.message || 'Unknown error'}`,
+        [
+          'Ensure Godot is installed correctly',
+          'Check if the GODOT_PATH environment variable is set correctly',
+          'Verify the script file exists and is readable',
+          'Ensure the script contains valid GDScript',
         ]
       );
     }

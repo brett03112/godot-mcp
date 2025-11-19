@@ -81,6 +81,8 @@ func _init():
             disconnect_signal(params)
         "validate_connection":
             validate_connection(params)
+        "analyze_script":
+            analyze_script(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -1897,3 +1899,276 @@ func validate_connection(params):
         log_info("validate_connection operation completed - connection is valid")
     else:
         log_info("validate_connection operation completed - connection is NOT valid")
+
+# Analyze script operation - Parse GDScript and extract structure
+func analyze_script(params):
+    log_info("Starting analyze_script operation")
+
+    # Validate required parameters
+    if not params.has("scriptPath"):
+        log_error("scriptPath parameter is required")
+        quit(1)
+        return
+
+    var script_path = params["scriptPath"]
+    log_debug("Script path: " + script_path)
+
+    # Check if file exists
+    if not FileAccess.file_exists(script_path):
+        log_error("Script file not found: " + script_path)
+        quit(1)
+        return
+
+    # Read the script file
+    var file = FileAccess.open(script_path, FileAccess.READ)
+    if file == null:
+        log_error("Failed to open script file: " + script_path)
+        quit(1)
+        return
+
+    var lines = []
+    while not file.eof_reached():
+        lines.append(file.get_line())
+    file.close()
+
+    log_debug("Read " + str(lines.size()) + " lines from script")
+
+    # Initialize analysis results
+    var script_class_name = ""
+    var script_extends = ""
+    var functions = []
+    var signals = []
+    var export_vars = []
+    var constants = []
+    var enums = []
+    var variables = []
+    var preloads = []
+
+    # Parse the script line by line
+    var line_num = 0
+    var in_multiline_comment = false
+
+    for line in lines:
+        line_num += 1
+        var trimmed = line.strip_edges()
+
+        # Skip empty lines and comments
+        if trimmed.is_empty():
+            continue
+
+        # Handle multiline comments
+        if trimmed.begins_with('"""') or trimmed.begins_with("'''"):
+            if in_multiline_comment:
+                in_multiline_comment = false
+            else:
+                in_multiline_comment = true
+            continue
+
+        if in_multiline_comment:
+            continue
+
+        # Skip single-line comments
+        if trimmed.begins_with("#"):
+            continue
+
+        # Extract class_name
+        if trimmed.begins_with("class_name "):
+            script_class_name = trimmed.replace("class_name ", "").strip_edges()
+            log_debug("Found class_name: " + script_class_name)
+
+        # Extract extends
+        elif trimmed.begins_with("extends "):
+            script_extends = trimmed.replace("extends ", "").strip_edges()
+            log_debug("Found extends: " + script_extends)
+
+        # Extract signals
+        elif trimmed.begins_with("signal "):
+            var signal_def = trimmed.replace("signal ", "").strip_edges()
+            var signal_name = signal_def
+            var signal_params = []
+
+            # Check if signal has parameters
+            if "(" in signal_def:
+                var paren_pos = signal_def.find("(")
+                signal_name = signal_def.substr(0, paren_pos).strip_edges()
+                var params_str = signal_def.substr(paren_pos + 1, signal_def.find(")") - paren_pos - 1)
+
+                if not params_str.is_empty():
+                    var params_list = params_str.split(",")
+                    for param in params_list:
+                        var param_trimmed = param.strip_edges()
+                        if not param_trimmed.is_empty():
+                            signal_params.append(param_trimmed)
+
+            signals.append({
+                "name": signal_name,
+                "parameters": signal_params,
+                "line": line_num
+            })
+            log_debug("Found signal: " + signal_name)
+
+        # Extract constants
+        elif trimmed.begins_with("const "):
+            var const_def = trimmed.replace("const ", "").strip_edges()
+            var const_name = ""
+            var const_value = ""
+
+            if "=" in const_def:
+                var parts = const_def.split("=", false, 1)
+                const_name = parts[0].strip_edges()
+                if parts.size() > 1:
+                    const_value = parts[1].strip_edges()
+            else:
+                const_name = const_def
+
+            # Remove type hints
+            if ":" in const_name:
+                const_name = const_name.split(":")[0].strip_edges()
+
+            constants.append({
+                "name": const_name,
+                "value": const_value,
+                "line": line_num
+            })
+            log_debug("Found constant: " + const_name)
+
+        # Extract enums
+        elif trimmed.begins_with("enum "):
+            var enum_def = trimmed.replace("enum ", "").strip_edges()
+            var enum_name = ""
+
+            if "{" in enum_def:
+                enum_name = enum_def.substr(0, enum_def.find("{")).strip_edges()
+            else:
+                enum_name = enum_def
+
+            enums.append({
+                "name": enum_name,
+                "line": line_num
+            })
+            log_debug("Found enum: " + enum_name)
+
+        # Extract @export variables
+        elif trimmed.begins_with("@export"):
+            var export_line = trimmed
+            var var_name = ""
+            var var_type = ""
+
+            # Check if there's a variable declaration on the same line or next line
+            if "var " in export_line:
+                var var_part = export_line.substr(export_line.find("var ") + 4).strip_edges()
+                if ":" in var_part:
+                    var parts = var_part.split(":")
+                    var_name = parts[0].strip_edges()
+                    if parts.size() > 1:
+                        var_type = parts[1].split("=")[0].strip_edges()
+                elif "=" in var_part:
+                    var_name = var_part.split("=")[0].strip_edges()
+                else:
+                    var_name = var_part
+
+                export_vars.append({
+                    "name": var_name,
+                    "type": var_type,
+                    "export": trimmed.substr(0, trimmed.find("var")).strip_edges(),
+                    "line": line_num
+                })
+                log_debug("Found export variable: " + var_name)
+
+        # Extract regular variables
+        elif trimmed.begins_with("var "):
+            var var_def = trimmed.replace("var ", "").strip_edges()
+            var var_name = ""
+            var var_type = ""
+
+            if ":" in var_def:
+                var parts = var_def.split(":")
+                var_name = parts[0].strip_edges()
+                if parts.size() > 1:
+                    var_type = parts[1].split("=")[0].strip_edges()
+            elif "=" in var_def:
+                var_name = var_def.split("=")[0].strip_edges()
+            else:
+                var_name = var_def
+
+            variables.append({
+                "name": var_name,
+                "type": var_type,
+                "line": line_num
+            })
+            log_debug("Found variable: " + var_name)
+
+        # Extract preloads
+        elif "preload(" in trimmed:
+            var preload_start = trimmed.find("preload(")
+            var preload_str = trimmed.substr(preload_start)
+            if ")" in preload_str:
+                var path_str = preload_str.substr(8, preload_str.find(")") - 8).strip_edges()
+                path_str = path_str.replace('"', '').replace("'", '')
+                preloads.append({
+                    "path": path_str,
+                    "line": line_num
+                })
+                log_debug("Found preload: " + path_str)
+
+        # Extract functions
+        elif trimmed.begins_with("func "):
+            var func_def = trimmed.replace("func ", "").strip_edges()
+            var func_name = ""
+            var func_params = []
+            var return_type = ""
+
+            # Extract function name
+            if "(" in func_def:
+                func_name = func_def.substr(0, func_def.find("(")).strip_edges()
+
+                # Extract parameters
+                var paren_start = func_def.find("(")
+                var paren_end = func_def.find(")")
+                if paren_end > paren_start:
+                    var params_str = func_def.substr(paren_start + 1, paren_end - paren_start - 1)
+
+                    if not params_str.is_empty():
+                        var params_list = params_str.split(",")
+                        for param in params_list:
+                            var param_trimmed = param.strip_edges()
+                            if not param_trimmed.is_empty():
+                                func_params.append(param_trimmed)
+
+                # Extract return type
+                if "->" in func_def:
+                    var arrow_pos = func_def.find("->")
+                    var colon_pos = func_def.find(":")
+                    if colon_pos > arrow_pos:
+                        return_type = func_def.substr(arrow_pos + 2, colon_pos - arrow_pos - 2).strip_edges()
+                    else:
+                        return_type = func_def.substr(arrow_pos + 2).strip_edges().replace(":", "").strip_edges()
+            else:
+                func_name = func_def.replace(":", "").strip_edges()
+
+            functions.append({
+                "name": func_name,
+                "parameters": func_params,
+                "return_type": return_type,
+                "line": line_num
+            })
+            log_debug("Found function: " + func_name + " at line " + str(line_num))
+
+    # Build the result
+    var result = {
+        "script_path": script_path,
+        "class_name": script_class_name,
+        "extends": script_extends,
+        "functions": functions,
+        "signals": signals,
+        "export_variables": export_vars,
+        "constants": constants,
+        "enums": enums,
+        "variables": variables,
+        "preloads": preloads,
+        "total_lines": lines.size()
+    }
+
+    # Output the result as JSON
+    print(JSON.stringify(result))
+    log_info("analyze_script operation completed successfully")
