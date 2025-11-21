@@ -908,21 +908,720 @@ tracks/0/keys = PackedFloat32Array(0, 1, 1, 1, 1, 0.2, 2, 1.1, 1.1, 1, 0.4, 0.5,
 
 ---
 
-## REMAINING PHASES (Lower Priority)
+## REMAINING PHASES (Next Development Cycle)
 
-### Phase 7: Asset Import & Configuration
+---
 
-### Phase 8: Project Settings & Configuration
+## PHASE 7: ASSET IMPORT & CONFIGURATION
 
-### Phase 9: Build & Export Pipeline
+**Priority:** 🚀 CRITICAL (Immediate Impact)
+**Estimated Effort:** 40 hours
+**Value:** Closes the asset → code → gameplay loop
 
-### Phase 10: Tilemap & Level Design
+**Goal:** Enable Claude to configure and optimize game assets for production use.
+
+**Success Criteria:**
+
+- [ ] Can import and configure textures with proper settings
+- [ ] Can import audio with loop points and compression
+- [ ] Can import 3D models with materials and collisions
+- [ ] Can create custom Resource files programmatically
+
+---
+
+### Task 7.1: Implement `import_texture` Tool
+
+**Description:** Configure texture import settings for optimal game performance.
+
+**Implementation Steps:**
+
+1. [ ] Add `import_texture` tool definition to `setupToolHandlers()`
+2. [ ] Create `handleImportTexture()` method
+3. [ ] Implement GDScript operation `configure_texture_import()`
+4. [ ] Support texture import parameters:
+   - Filter mode (Linear, Nearest, Linear Mipmap)
+   - Mipmaps generation (enabled/disabled)
+   - Compression (Lossless, Lossy, VRAM Compressed, Uncompressed)
+   - Texture type (2D, Cubemap, Array, 3D)
+   - Process mode (Normal, Fix Alpha Border, Premultiply Alpha)
+
+**Tool Parameters:**
+
+- `project_path` (string): Path to Godot project
+- `texture_path` (string): Path to texture file (relative to project)
+- `filter` (string): "Linear", "Nearest", "Linear Mipmap", "Nearest Mipmap"
+- `mipmaps` (bool): Generate mipmaps
+- `compression` (string): "Lossless", "Lossy", "VRAM Compressed", "Uncompressed"
+- `texture_type` (string): "2D", "Cubemap", "Array", "3D"
+
+**Implementation Notes:**
+
+- Modify `.import` files in the project directory
+- Use ConfigFile class to read/write import settings
+- Validate texture file exists before configuration
+- Support for Godot 4.x import system format
+
+**Testing Requirements:**
+
+- [ ] **Test 7.1.1:** Import sprite texture with Linear filter - verify settings applied
+- [ ] **Test 7.1.2:** Import pixel art with Nearest filter - verify no blurring
+- [ ] **Test 7.1.3:** Configure compression settings - verify file size changes
+- [ ] **Test 7.1.4:** Generate mipmaps for 3D texture - verify .import file
+
+**🛑 CHECKPOINT:** Texture import settings persist and take effect in editor.
+
+---
+
+### Task 7.2: Implement `import_audio` Tool
+
+**Description:** Configure audio import settings for music and sound effects.
+
+**Implementation Steps:**
+
+1. [ ] Add `import_audio` tool definition
+2. [ ] Create `handleImportAudio()` method
+3. [ ] Implement GDScript operation `configure_audio_import()`
+4. [ ] Support audio import parameters:
+   - Loop mode (Disabled, Forward, Ping-Pong, Backward)
+   - Loop offset (start point in seconds)
+   - BPM (beats per minute for music sync)
+   - Beat count (for rhythm games)
+   - Bar beats (time signature)
+   - Compression mode (Ogg Vorbis, MP3, WAV)
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `audio_path` (string): Path to audio file
+- `loop` (bool): Enable looping
+- `loop_offset` (float): Loop start point in seconds
+- `bpm` (float, optional): Beats per minute
+- `compression` (string): "Ogg Vorbis", "MP3", "WAV"
+
+**Implementation Notes:**
+
+- Modify `.import` files for audio resources
+- Support for both streaming and RAM-loaded audio
+- Validate audio format compatibility
+
+**Testing Requirements:**
+
+- [ ] **Test 7.2.1:** Import music with loop enabled - verify loops correctly
+- [ ] **Test 7.2.2:** Set loop offset - verify starts at correct point
+- [ ] **Test 7.2.3:** Configure compression - verify file size and quality
+- [ ] **Test 7.2.4:** Import sound effect without loop - verify one-shot playback
+
+**🛑 CHECKPOINT:** Audio import settings persist and audio plays with correct settings.
+
+---
+
+### Task 7.3: Implement `import_3d_model` Tool
+
+**Description:** Configure 3D model import with materials, collisions, and animations.
+
+**Implementation Steps:**
+
+1. [ ] Add `import_3d_model` tool definition
+2. [ ] Create `handleImport3DModel()` method
+3. [ ] Implement GDScript operation `configure_3d_import()`
+4. [ ] Support 3D import parameters:
+   - Mesh generation (Import, Generate)
+   - Materials (Import, Generate)
+   - Collision generation (Disabled, Mesh, Simplified Convex, Single Convex, Multiple Convex)
+   - Animation import (enabled/disabled)
+   - Scale (import scale multiplier)
+   - LOD generation
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `model_path` (string): Path to 3D model file (GLTF, FBX, OBJ, etc.)
+- `generate_collision` (string): "None", "Mesh", "Convex", "Multiple Convex"
+- `import_materials` (bool): Import materials from model
+- `import_animations` (bool): Import animation tracks
+- `scale` (float): Scale multiplier
+
+**Implementation Notes:**
+
+- Modify `.import` files for 3D model resources
+- Support for GLTF 2.0 format (Godot 4.x standard)
+- Handle material path references
+- Generate collision shapes using Godot's built-in algorithms
+
+**Testing Requirements:**
+
+- [ ] **Test 7.3.1:** Import 3D model with materials - verify materials applied
+- [ ] **Test 7.3.2:** Generate convex collision - verify collision shape created
+- [ ] **Test 7.3.3:** Import animated model - verify animations available
+- [ ] **Test 7.3.4:** Scale model on import - verify correct size
+
+**🛑 CHECKPOINT:** 3D models import with correct materials, collisions, and animations.
+
+---
+
+### Task 7.4: Implement `create_resource` Tool
+
+**Description:** Create custom Resource files (.tres) programmatically.
+
+**Implementation Steps:**
+
+1. [ ] Add `create_resource` tool definition
+2. [ ] Create `handleCreateResource()` method
+3. [ ] Implement GDScript operation `create_custom_resource()`
+4. [ ] Support resource types:
+   - Theme (for UI styling)
+   - AudioBusLayout (for audio mixing)
+   - Environment (for 3D rendering)
+   - Material (for custom materials)
+   - Generic custom Resource classes
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `resource_path` (string): Destination path for .tres file
+- `resource_type` (string): Class name of resource
+- `properties` (dict): Key-value pairs for resource properties
+
+**Implementation Notes:**
+
+- Use ResourceSaver.save() to create .tres files
+- Support for nested resources (e.g., Theme with StyleBoxes)
+- Validate resource type exists before creation
+
+**Testing Requirements:**
+
+- [ ] **Test 7.4.1:** Create Theme resource - verify .tres file created
+- [ ] **Test 7.4.2:** Set Theme properties - verify properties persist
+- [ ] **Test 7.4.3:** Create AudioBusLayout - verify bus configuration saved
+- [ ] **Test 7.4.4:** Apply created resource to scene - verify works correctly
+
+**🛑 CHECKPOINT:** Custom resources create successfully and persist to disk.
+
+---
+
+## PHASE 8: PROJECT SETTINGS & CONFIGURATION
+
+**Priority:** 🚀 HIGH (Immediate Impact)
+**Estimated Effort:** 20 hours
+**Value:** Automates tedious project configuration
+
+**Goal:** Enable Claude to configure complete Godot projects programmatically.
+
+**Success Criteria:**
+
+- [ ] Can modify project.godot settings (window, physics, rendering)
+- [ ] Can configure input action maps
+- [ ] Can setup physics/render layers
+- [ ] Can add autoload singletons
+
+---
+
+### Task 8.1: Implement `modify_project_setting` Tool
+
+**Description:** Modify project.godot settings programmatically.
+
+**Implementation Steps:**
+
+1. [ ] Add `modify_project_setting` tool definition
+2. [ ] Create `handleModifyProjectSetting()` method
+3. [ ] Implement GDScript operation `update_project_setting()`
+4. [ ] Support common settings:
+   - `application/config/name` (string)
+   - `application/config/icon` (string)
+   - `display/window/size/width` (int)
+   - `display/window/size/height` (int)
+   - `display/window/size/resizable` (bool)
+   - `rendering/renderer/rendering_method` (string)
+   - `physics/2d/default_gravity` (float)
+   - `physics/3d/default_gravity` (float)
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `setting_path` (string): Path in project settings (e.g., "display/window/size/width")
+- `value` (any): New value for the setting
+- `restart_required` (bool, output): Whether editor restart needed
+
+**Implementation Notes:**
+
+- Use ProjectSettings.set_setting() and ProjectSettings.save()
+- Parse project.godot as ConfigFile
+- Validate setting path exists
+- Handle type conversions (string to int, bool, etc.)
+
+**Testing Requirements:**
+
+- [ ] **Test 8.1.1:** Change window size - verify project.godot updated
+- [ ] **Test 8.1.2:** Set application name - verify appears in project
+- [ ] **Test 8.1.3:** Modify rendering method - verify setting persists
+- [ ] **Test 8.1.4:** Change physics gravity - verify affects gameplay
+
+**🛑 CHECKPOINT:** Project settings persist and take effect in editor/runtime.
+
+---
+
+### Task 8.2: Implement `configure_input_action` Tool
+
+**Description:** Create and modify input action maps programmatically.
+
+**Implementation Steps:**
+
+1. [ ] Add `configure_input_action` tool definition
+2. [ ] Create `handleConfigureInputAction()` method
+3. [ ] Implement GDScript operation `setup_input_action()`
+4. [ ] Support input event types:
+   - Keyboard (KeyboardEvent with keycode)
+   - Mouse button (MouseButtonEvent)
+   - Mouse motion (MouseMotionEvent)
+   - Joypad button (JoypadButtonEvent)
+   - Joypad axis (JoypadMotionEvent)
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `action_name` (string): Name of input action (e.g., "jump", "move_left")
+- `events` (array): List of input events to bind
+  - Each event: `{type: "key", keycode: KEY_SPACE}` or `{type: "button", button: JOY_BUTTON_A}`
+- `deadzone` (float, optional): Input deadzone (0.0 - 1.0)
+
+**Implementation Notes:**
+
+- Modify input_map section in project.godot
+- Support multiple events per action
+- Handle Godot 4.x input event format
+- Validate key/button codes
+
+**Testing Requirements:**
+
+- [ ] **Test 8.2.1:** Create jump action with Space key - verify in project settings
+- [ ] **Test 8.2.2:** Add gamepad button to action - verify multiple bindings
+- [ ] **Test 8.2.3:** Set deadzone - verify analog input behavior
+- [ ] **Test 8.2.4:** Test action in runtime - verify input triggers correctly
+
+**🛑 CHECKPOINT:** Input actions work correctly with keyboard and gamepad.
+
+---
+
+### Task 8.3: Implement `setup_render_layers` Tool
+
+**Description:** Configure physics and render layer names/masks.
+
+**Implementation Steps:**
+
+1. [ ] Add `setup_render_layers` tool definition
+2. [ ] Create `handleSetupRenderLayers()` method
+3. [ ] Implement GDScript operation `configure_layer_names()`
+4. [ ] Support layer configuration:
+   - 2D physics layers (32 layers)
+   - 3D physics layers (32 layers)
+   - 2D render layers (20 layers)
+   - 3D render layers (20 layers)
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `layer_type` (string): "2d_physics", "3d_physics", "2d_render", "3d_render"
+- `layer_names` (dict): Layer number → name mapping (e.g., {1: "Player", 2: "Enemy"})
+
+**Implementation Notes:**
+
+- Modify layer_names section in project.godot
+- Validate layer numbers (1-32 for physics, 1-20 for render)
+- Layer names improve editor usability
+
+**Testing Requirements:**
+
+- [ ] **Test 8.3.1:** Set 2D physics layer names - verify in editor
+- [ ] **Test 8.3.2:** Configure 3D render layers - verify naming appears
+- [ ] **Test 8.3.3:** Setup complete layer hierarchy - verify organization
+
+**🛑 CHECKPOINT:** Layer names appear correctly in Godot editor.
+
+---
+
+### Task 8.4: Implement `configure_autoload` Tool
+
+**Description:** Add singleton scripts to autoload (global access).
+
+**Implementation Steps:**
+
+1. [ ] Add `configure_autoload` tool definition
+2. [ ] Create `handleConfigureAutoload()` method
+3. [ ] Implement GDScript operation `add_autoload_singleton()`
+4. [ ] Support autoload configuration:
+   - Script path (relative to project)
+   - Singleton name (global variable name)
+   - Enabled flag
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `name` (string): Name for the singleton (e.g., "GameManager")
+- `script_path` (string): Path to script (e.g., "res://autoload/game_manager.gd")
+- `enabled` (bool): Whether autoload is enabled
+
+**Implementation Notes:**
+
+- Modify autoload section in project.godot
+- Validate script exists before adding
+- Preserve load order of existing autoloads
+
+**Testing Requirements:**
+
+- [ ] **Test 8.4.1:** Add GameManager autoload - verify accessible globally
+- [ ] **Test 8.4.2:** Add multiple autoloads - verify all accessible
+- [ ] **Test 8.4.3:** Disable autoload - verify not loaded at runtime
+- [ ] **Test 8.4.4:** Test singleton access in script - verify works correctly
+
+**🛑 CHECKPOINT:** Autoload singletons are accessible globally at runtime.
+
+---
+
+## PHASE 9: BUILD & EXPORT PIPELINE
+
+**Priority:** 🎯 HIGH (Strategic Value)
+**Estimated Effort:** 30 hours
+**Value:** Completes dev-to-deployment workflow
+
+**Goal:** Enable automated builds and CI/CD integration for Godot projects.
+
+**Success Criteria:**
+
+- [ ] Can create export presets for multiple platforms
+- [ ] Can build game executables programmatically
+- [ ] Can validate projects before export
+- [ ] Can generate PCK files for updates
+
+---
+
+### Task 9.1: Implement `create_export_preset` Tool
+
+**Description:** Generate export presets for target platforms.
+
+**Implementation Steps:**
+
+1. [ ] Add `create_export_preset` tool definition
+2. [ ] Create `handleCreateExportPreset()` method
+3. [ ] Implement GDScript operation `generate_export_preset()`
+4. [ ] Support platforms:
+   - Windows Desktop (x86_64, x86_32)
+   - Linux/X11 (x86_64, x86_32)
+   - macOS (universal, arm64, x86_64)
+   - Web (HTML5/WASM)
+   - Android
+   - iOS
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `preset_name` (string): Name for the preset (e.g., "Windows Release")
+- `platform` (string): Target platform
+- `export_path` (string): Default export path
+- `options` (dict): Platform-specific options
+  - `runnable` (bool): Make preset runnable
+  - `encryption_key` (string, optional): For PCK encryption
+  - `include_filter` (string): File patterns to include
+  - `exclude_filter` (string): File patterns to exclude
+
+**Implementation Notes:**
+
+- Modify export_presets.cfg in project directory
+- Use ConfigFile to write preset configuration
+- Platform-specific default options
+- Validate platform availability
+
+**Testing Requirements:**
+
+- [ ] **Test 9.1.1:** Create Windows preset - verify export_presets.cfg updated
+- [ ] **Test 9.1.2:** Create Web preset - verify HTML5 settings correct
+- [ ] **Test 9.1.3:** Set encryption key - verify PCK encryption enabled
+- [ ] **Test 9.1.4:** Configure filters - verify excludes test files
+
+**🛑 CHECKPOINT:** Export presets appear in Godot editor and are valid.
+
+---
+
+### Task 9.2: Implement `export_project` Tool
+
+**Description:** Build game for specified platform.
+
+**Implementation Steps:**
+
+1. [ ] Add `export_project` tool definition
+2. [ ] Create `handleExportProject()` method
+3. [ ] Execute Godot with --export or --export-release flags
+4. [ ] Capture build output and errors
+5. [ ] Return build status and file location
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `preset_name` (string): Name of export preset to use
+- `output_path` (string): Where to save exported game
+- `release_mode` (bool): Use release export (optimized)
+- `pack_only` (bool): Generate PCK file only (for updates)
+
+**Implementation Notes:**
+
+- Use `godot --headless --export "preset_name" output_path`
+- Capture stdout/stderr for build logs
+- Validate preset exists before export
+- Handle platform-specific file extensions (.exe, .app, .html, etc.)
+
+**Testing Requirements:**
+
+- [ ] **Test 9.2.1:** Export Windows build - verify .exe created
+- [ ] **Test 9.2.2:** Export PCK only - verify .pck file generated
+- [ ] **Test 9.2.3:** Export with errors - verify errors captured
+- [ ] **Test 9.2.4:** Run exported game - verify works correctly
+
+**🛑 CHECKPOINT:** Exported games run successfully on target platforms.
+
+---
+
+### Task 9.3: Implement `validate_export` Tool
+
+**Description:** Check project for export issues before building.
+
+**Implementation Steps:**
+
+1. [ ] Add `validate_export` tool definition
+2. [ ] Create `handleValidateExport()` method
+3. [ ] Implement GDScript operation `check_export_readiness()`
+4. [ ] Validation checks:
+   - All resource paths are valid
+   - No missing dependencies
+   - Required export templates installed
+   - No script errors
+   - Assets within size limits
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `preset_name` (string, optional): Specific preset to validate
+
+**Return Value:**
+
+```json
+{
+  "valid": true,
+  "warnings": [
+    "Large texture: icon.png (2048x2048, consider 512x512)"
+  ],
+  "errors": [],
+  "missing_dependencies": [],
+  "export_templates_ok": true
+}
+```
+
+**Implementation Notes:**
+
+- Scan project files for broken references
+- Check export template availability
+- Validate script syntax (reuse from Phase 3)
+- Warn about large asset files
+
+**Testing Requirements:**
+
+- [ ] **Test 9.3.1:** Validate clean project - verify passes
+- [ ] **Test 9.3.2:** Add missing dependency - verify detects error
+- [ ] **Test 9.3.3:** Use large texture - verify warning issued
+- [ ] **Test 9.3.4:** Missing export template - verify reports issue
+
+**🛑 CHECKPOINT:** Validation catches export issues before building.
+
+---
+
+## PHASE 10: TILEMAP & LEVEL DESIGN
+
+**Priority:** 🎯 HIGH for 2D, MEDIUM for 3D
+**Estimated Effort:** 35 hours
+**Value:** Enables rapid level creation and procedural generation
+
+**Goal:** Automate tilemap creation and level design workflows.
+
+**Success Criteria:**
+
+- [ ] Can create TileMap nodes with TileSet resources
+- [ ] Can paint tiles programmatically
+- [ ] Can configure tile collisions and navigation
+- [ ] Can generate navigation meshes for 3D
+
+---
+
+### Task 10.1: Implement `create_tilemap` Tool
+
+**Description:** Generate TileMap nodes with configured TileSets.
+
+**Implementation Steps:**
+
+1. [ ] Add `create_tilemap` tool definition
+2. [ ] Create `handleCreateTilemap()` method
+3. [ ] Implement GDScript operation `setup_tilemap()`
+4. [ ] Support TileMap configuration:
+   - Tile size (cell size in pixels)
+   - TileSet resource (create or reference existing)
+   - Layers (multiple tilemap layers)
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `scene_path` (string): Scene to add TileMap to
+- `tilemap_name` (string): Name for the TileMap node
+- `tile_size` (Vector2i): Size of each tile (e.g., {x: 16, y: 16})
+- `tileset_path` (string, optional): Path to existing TileSet resource
+
+**Implementation Notes:**
+
+- Create TileMap node in scene
+- Generate or reference TileSet resource
+- Configure default layer
+- Support Godot 4.x TileMap format (layers, scenes)
+
+**Testing Requirements:**
+
+- [ ] **Test 10.1.1:** Create TileMap with 16x16 tiles - verify in editor
+- [ ] **Test 10.1.2:** Reference existing TileSet - verify tiles visible
+- [ ] **Test 10.1.3:** Add multiple layers - verify layer structure
+- [ ] **Test 10.1.4:** Test runtime - verify TileMap renders correctly
+
+**🛑 CHECKPOINT:** TileMap nodes create successfully with proper configuration.
+
+---
+
+### Task 10.2: Implement `paint_tiles` Tool
+
+**Description:** Place tiles programmatically in TileMap.
+
+**Implementation Steps:**
+
+1. [ ] Add `paint_tiles` tool definition
+2. [ ] Create `handlePaintTiles()` method
+3. [ ] Implement GDScript operation `set_tilemap_cells()`
+4. [ ] Support painting patterns:
+   - Single tiles
+   - Rectangular regions
+   - Line patterns
+   - Flood fill
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `scene_path` (string)
+- `tilemap_path` (string): NodePath to TileMap
+- `layer` (int): Layer index to paint on
+- `tiles` (array): Array of {position: Vector2i, tile_id: int}
+- `pattern` (string, optional): "single", "rect", "line", "flood"
+
+**Implementation Notes:**
+
+- Use TileMap.set_cell() to place tiles
+- Support bulk operations for performance
+- Validate tile IDs exist in TileSet
+- Handle multi-layer painting
+
+**Testing Requirements:**
+
+- [ ] **Test 10.2.1:** Paint single tile - verify appears in TileMap
+- [ ] **Test 10.2.2:** Paint rectangular region - verify pattern correct
+- [ ] **Test 10.2.3:** Paint on multiple layers - verify layering works
+- [ ] **Test 10.2.4:** Bulk paint 1000 tiles - verify performance acceptable
+
+**🛑 CHECKPOINT:** Tiles paint correctly and persist to scene file.
+
+---
+
+### Task 10.3: Implement `configure_tileset` Tool
+
+**Description:** Configure tile properties (collisions, navigation, terrains).
+
+**Implementation Steps:**
+
+1. [ ] Add `configure_tileset` tool definition
+2. [ ] Create `handleConfigureTileset()` method
+3. [ ] Implement GDScript operation `setup_tile_properties()`
+4. [ ] Support tile properties:
+   - Collision shapes (add collision polygons)
+   - Navigation polygons (for pathfinding)
+   - Terrain sets (for autotiling)
+   - Custom data layers
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `tileset_path` (string): Path to TileSet resource
+- `tile_id` (int): Which tile to configure
+- `collision_shape` (array, optional): Polygon points for collision
+- `navigation_polygon` (array, optional): Polygon points for navigation
+- `terrain_set` (int, optional): Terrain set ID
+
+**Implementation Notes:**
+
+- Modify TileSet resource directly
+- Use TileSetAtlasSource for tile configuration
+- Support physics layers for collisions
+- Configure terrain peering bits for autotiling
+
+**Testing Requirements:**
+
+- [ ] **Test 10.3.1:** Add collision to tile - verify collides in runtime
+- [ ] **Test 10.3.2:** Set navigation polygon - verify pathfinding works
+- [ ] **Test 10.3.3:** Configure terrain set - verify autotiling
+- [ ] **Test 10.3.4:** Add custom data layer - verify accessible in code
+
+**🛑 CHECKPOINT:** Tile properties configure correctly and affect gameplay.
+
+---
+
+### Task 10.4: Implement `generate_navmesh` Tool
+
+**Description:** Create 3D navigation meshes for AI pathfinding.
+
+**Implementation Steps:**
+
+1. [ ] Add `generate_navmesh` tool definition
+2. [ ] Create `handleGenerateNavmesh()` method
+3. [ ] Implement GDScript operation `create_navigation_mesh()`
+4. [ ] Support navigation mesh configuration:
+   - Cell size and height
+   - Agent radius and height
+   - Region min size
+   - Walkable slope angle
+
+**Tool Parameters:**
+
+- `project_path` (string)
+- `scene_path` (string)
+- `region_path` (string): NodePath to NavigationRegion3D
+- `geometry_nodes` (array): Nodes to use for geometry
+- `cell_size` (float): Voxel cell size
+- `agent_radius` (float): Agent radius for pathfinding
+
+**Implementation Notes:**
+
+- Create or modify NavigationRegion3D node
+- Generate NavigationMesh from scene geometry
+- Use NavigationMeshGenerator.bake()
+- Support static and dynamic baking
+
+**Testing Requirements:**
+
+- [ ] **Test 10.4.1:** Generate navmesh from terrain - verify created
+- [ ] **Test 10.4.2:** Test pathfinding - verify agents navigate correctly
+- [ ] **Test 10.4.3:** Configure agent size - verify affects navigation
+- [ ] **Test 10.4.4:** Bake with obstacles - verify avoids obstacles
+
+**🛑 CHECKPOINT:** Navigation meshes generate and pathfinding works correctly.
+
+---
+
+## LOWER PRIORITY PHASES (Future Consideration)
 
 ### Phase 11: Localization Management
 
 ### Phase 12: Plugin Management
 
-**Note:** These phases will be detailed as earlier phases are completed and tested.
+**Note:** These phases will be detailed based on user feedback and priority assessment.
 
 ---
 
