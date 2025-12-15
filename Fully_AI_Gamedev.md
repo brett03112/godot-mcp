@@ -762,28 +762,28 @@ The AI cannot "play" a game and feel whether it's fun. But it can:
 
 ### Proposed Architecture
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Playtest Harness                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   Recorder   │  │   Analyzer   │  │   Reporter   │          │
-│  │              │  │              │  │              │          │
-│  │ - Video      │  │ - Frame diff │  │ - Metrics    │          │
-│  │ - Inputs     │  │ - Event log  │  │ - Heatmaps   │          │
-│  │ - Game state │  │ - AI vision  │  │ - Summaries  │          │
-│  │ - Events     │  │ - Patterns   │  │ - Issues     │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │   Recorder   │  │   Analyzer   │  │   Reporter   │           │
+│  │              │  │              │  │              │           │
+│  │ - Video      │  │ - Frame diff │  │ - Metrics    │           │
+│  │ - Inputs     │  │ - Event log  │  │ - Heatmaps   │           │
+│  │ - Game state │  │ - AI vision  │  │ - Summaries  │           │
+│  │ - Events     │  │ - Patterns   │  │ - Issues     │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
 │                                                                 │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │              Automated Players                    │          │
-│  │                                                   │          │
-│  │  - Random input bot                              │          │
-│  │  - Pathfinding bot                               │          │
-│  │  - Trained RL agent                              │          │
-│  │  - Replay recorded human inputs                  │          │
-│  └──────────────────────────────────────────────────┘          │
+│  ┌──────────────────────────────────────────────────┐           │
+│  │              Automated Players                   │           │
+│  │                                                  │           │
+│  │  - Random input bot                              │           │
+│  │  - Pathfinding bot                               │           │
+│  │  - Trained RL agent                              │           │
+│  │  - Replay recorded human inputs                  │           │
+│  └──────────────────────────────────────────────────┘           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -1314,7 +1314,7 @@ async function analyzeGameFeel(projectPath: string) {
 
 ## Implementation Priority and Dependencies
 
-```
+```bash
                     ┌─────────────────────┐
                     │   Fun Metrics       │
                     │   Framework         │
