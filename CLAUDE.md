@@ -25,7 +25,8 @@ The current implementation plan follows a phased approach:
 - **Phase 4:** Animation & Timeline Orchestration (COMPLETE ✅)
 - **Phase 5:** Shader & Material Pipeline (COMPLETE ✅)
 - **Phase 6:** Testing & Quality Assurance (COMPLETE ✅)
-- Future phases cover asset management, build pipelines, and specialized workflows
+- **Phase 7:** Asset Import & Configuration (COMPLETE ✅)
+- Future phases cover project settings, build pipelines, and specialized workflows
 
 ## Build and Development Commands
 
@@ -54,7 +55,7 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~5200 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~6300 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
 **Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3930 lines, ~140KB) that handles all complex Godot operations. This script:
 
@@ -88,7 +89,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 26 tools via the MCP protocol:
+The server exposes 30 tools via the MCP protocol:
 
 **Project Management**:
 
@@ -210,6 +211,29 @@ The server exposes 26 tools via the MCP protocol:
     - `summary`: scripts, tests, passing_tests, failing_tests, asserts, time
     - `test_files`: array of test files with individual test results
     - `raw_output` and `raw_errors`: unfiltered output for debugging
+
+**Asset Import & Configuration** (Phase 7 - COMPLETE):
+
+- `import_texture` - Configure texture import settings for optimal game performance
+  - Modifies .import files to control filtering, mipmaps, compression
+  - Filter modes: Linear, Nearest (pixel art), Linear Mipmap, Nearest Mipmap
+  - Compression: Lossless, Lossy, VRAM Compressed, VRAM Uncompressed, Basis Universal
+  - Additional settings: sRGB handling, normal map detection, repeat mode
+- `import_audio` - Configure audio import settings for music and sound effects
+  - Loop settings: enable/disable, loop mode (Forward, Ping-Pong, Backward)
+  - Music sync: BPM, beat count, bar beats for rhythm synchronization
+  - Loop offset for skipping intro sections
+  - Supports WAV, OGG, MP3 formats with automatic detection
+- `import_3d_model` - Configure 3D model import with materials, collisions, animations
+  - Collision generation: None, Mesh, Convex, Multiple Convex, Decomposed
+  - Import options: materials, animations, scale, LOD generation
+  - Root node type: Node3D, StaticBody3D, RigidBody3D, CharacterBody3D, Area3D
+  - Supports GLTF, GLB, FBX, OBJ, DAE, BLEND formats
+- `create_resource` - Create custom Godot Resource files (.tres) programmatically
+  - Supports any Resource class: Theme, Environment, Material, AudioBusLayout, etc.
+  - 6 built-in templates: theme_dark, theme_light, environment_outdoor, environment_indoor, material_standard, material_unshaded
+  - Set any resource property with automatic type formatting
+  - Generates valid Godot 4.x .tres files with proper UIDs
 
 ## Configuration
 

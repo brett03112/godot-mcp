@@ -346,6 +346,75 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     # Result: Full TDD cycle with structured feedback
     ```
 
+- **Asset Import & Configuration** (Phase 7 - COMPLETE):
+  - **`import_texture`**: Configure texture import settings for optimal game performance
+    - **Filter Modes**: Linear, Nearest (pixel art), Linear Mipmap, Nearest Mipmap
+    - **Compression Options**: Lossless, Lossy, VRAM Compressed, VRAM Uncompressed, Basis Universal
+    - **Additional Settings**: Mipmaps, repeat mode, sRGB handling, normal map detection
+    - Modifies `.import` files directly for reliable persistence
+    - Perfect for optimizing texture settings for different use cases (pixel art, 3D textures, UI)
+  - **`import_audio`**: Configure audio import settings for music and sound effects
+    - **Loop Settings**: Enable/disable looping, loop mode (Forward, Ping-Pong, Backward)
+    - **Music Sync**: BPM, beat count, bar beats for rhythm game synchronization
+    - **Loop Offset**: Skip intro sections by setting loop start point in seconds
+    - Supports WAV, OGG, and MP3 formats with automatic format detection
+    - Ideal for background music, ambient sounds, and one-shot sound effects
+  - **`import_3d_model`**: Configure 3D model import with materials, collisions, and animations
+    - **Collision Generation**: None, Mesh, Convex, Multiple Convex, Decomposed
+    - **Import Options**: Materials, animations, scale multiplier, LOD generation
+    - **Root Node Type**: Node3D, StaticBody3D, RigidBody3D, CharacterBody3D, Area3D
+    - Supports GLTF, GLB, FBX, OBJ, DAE, and BLEND formats
+    - Professional workflow for importing game-ready 3D assets
+  - **`create_resource`**: Create custom Godot Resource files (.tres) programmatically
+    - **Supported Types**: Theme, Environment, Material, AudioBusLayout, and any Resource class
+    - **6 Built-in Templates**: theme_dark, theme_light, environment_outdoor, environment_indoor, material_standard, material_unshaded
+    - **Property Support**: Set any resource property with automatic type formatting
+    - Generates valid Godot 4.x .tres files with proper UIDs
+    - Perfect for creating reusable game configurations and assets
+  - **Complete Asset Workflow**:
+    ```gdscript
+    # Example 1: Import pixel art texture
+    import_texture(
+      projectPath="/path/to/project",
+      texturePath="sprites/player.png",
+      filter="Nearest",           # No blur for pixel art
+      compression="Lossless",     # Perfect quality
+      mipmaps=false               # Not needed for 2D
+    )
+
+    # Example 2: Import looping background music
+    import_audio(
+      projectPath="/path/to/project",
+      audioPath="audio/bgm.ogg",
+      loop=true,
+      loopOffset=2.5,             # Skip 2.5s intro
+      bpm=120,                    # For beat sync
+      barBeats=4                  # 4/4 time signature
+    )
+
+    # Example 3: Import 3D character model
+    import_3d_model(
+      projectPath="/path/to/project",
+      modelPath="models/character.glb",
+      importMaterials=true,
+      importAnimations=true,
+      generateCollision="Convex",
+      scale=0.01                  # Convert cm to meters
+    )
+
+    # Example 4: Create outdoor environment resource
+    create_resource(
+      projectPath="/path/to/project",
+      resourcePath="resources/outdoor_env.tres",
+      resourceType="Environment",
+      template="environment_outdoor",
+      properties={
+        "ambient_light_energy": 0.8,
+        "fog_enabled": true
+      }
+    )
+    ```
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
@@ -411,7 +480,13 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "create_animation_player",
         "add_animation_track",
         "add_keyframe",
-        "create_shader_material"
+        "create_shader_material",
+        "create_test_suite",
+        "run_tests",
+        "import_texture",
+        "import_audio",
+        "import_3d_model",
+        "create_resource"
       ]
     }
   }
@@ -530,6 +605,24 @@ Once configured, your AI assistant will automatically run the MCP server when ne
 "Apply the dissolve template to my enemy sprite with magenta edge color"
 
 "Create a shader material with custom parameters for my UI effects"
+
+"Create a test suite for my player health system with damage and healing tests"
+
+"Run all my GUT tests and show me which ones are failing"
+
+"Configure my pixel art textures to use Nearest filtering without mipmaps"
+
+"Import my background music with looping enabled and set the BPM to 120"
+
+"Set up my 3D character model to generate convex collision shapes on import"
+
+"Create an Environment resource with outdoor lighting settings"
+
+"Configure my sound effects to not loop and use Lossless compression"
+
+"Import my GLTF model at 0.01 scale to convert from centimeters to meters"
+
+"Create a Theme resource with dark mode colors for my game UI"
 ```
 
 ## Implementation Details
