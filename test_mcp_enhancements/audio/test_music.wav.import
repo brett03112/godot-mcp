@@ -2,18 +2,23 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://85hmtahu8737t"
-path="res://.godot/imported/test_music.wav-cet6sa1i.wav"
+uid="uid://c77n3s4uql35p"
+path="res://.godot/imported/test_music.wav-1099eaa5572a65b194f90d5323b45729.sample"
 
 [deps]
 
 source_file="res://audio/test_music.wav"
-dest_files=["res://.godot/imported/test_music.wav-lm500qld.wav"]
+dest_files=["res://.godot/imported/test_music.wav-1099eaa5572a65b194f90d5323b45729.sample"]
 
 [params]
 
-loop=true
-loop_offset=2.5
-bpm=120
-beat_count=32
-bar_beats=4
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

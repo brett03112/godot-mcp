@@ -2,18 +2,23 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://r0eut9ys8kfjc"
-path="res://.godot/imported/test_sfx.wav-qbhlg1b0.wav"
+uid="uid://cjreh2bsyqwia"
+path="res://.godot/imported/test_sfx.wav-269b5fae338181a7dbaad170e81964e5.sample"
 
 [deps]
 
 source_file="res://audio/test_sfx.wav"
-dest_files=["res://.godot/imported/test_sfx.wav-tmxu7l76.wav"]
+dest_files=["res://.godot/imported/test_sfx.wav-269b5fae338181a7dbaad170e81964e5.sample"]
 
 [params]
 
-loop=false
-loop_offset=0.0
-bpm=0.0
-beat_count=0
-bar_beats=4
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
