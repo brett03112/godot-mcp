@@ -1502,6 +1502,171 @@ class GodotServer {
             required: ['projectPath'],
           },
         },
+        {
+          name: 'import_texture',
+          description: 'Configure texture import settings for optimal game performance. Modifies the .import file for a texture to control filtering, mipmaps, compression, and other settings.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              texturePath: {
+                type: 'string',
+                description: 'Path to the texture file (relative to project, e.g., "assets/player.png")',
+              },
+              filter: {
+                type: 'string',
+                enum: ['Linear', 'Nearest', 'Linear Mipmap', 'Nearest Mipmap'],
+                description: 'Texture filter mode. Use "Nearest" for pixel art, "Linear" for smooth textures.',
+              },
+              mipmaps: {
+                type: 'boolean',
+                description: 'Generate mipmaps for better quality at distance (recommended for 3D textures)',
+              },
+              compression: {
+                type: 'string',
+                enum: ['Lossless', 'Lossy', 'VRAM Compressed', 'VRAM Uncompressed', 'Basis Universal'],
+                description: 'Compression mode. "VRAM Compressed" for most cases, "Lossless" for pixel art.',
+              },
+              repeatMode: {
+                type: 'string',
+                enum: ['Disabled', 'Enabled', 'Mirrored'],
+                description: 'Texture repeat/wrap mode for tiling textures.',
+              },
+              srgb: {
+                type: 'string',
+                enum: ['Detect', 'Enable', 'Disable'],
+                description: 'sRGB color space handling. "Detect" auto-detects, "Enable" for color textures, "Disable" for data textures.',
+              },
+              normalMap: {
+                type: 'boolean',
+                description: 'Set to true if this is a normal map texture (enables special processing)',
+              },
+            },
+            required: ['projectPath', 'texturePath'],
+          },
+        },
+        {
+          name: 'import_audio',
+          description: 'Configure audio import settings for music and sound effects. Modifies the .import file for audio to control looping, BPM, and compression settings.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              audioPath: {
+                type: 'string',
+                description: 'Path to the audio file (relative to project, e.g., "audio/music.ogg")',
+              },
+              loop: {
+                type: 'boolean',
+                description: 'Enable looping for background music or ambient sounds',
+              },
+              loopMode: {
+                type: 'string',
+                enum: ['Disabled', 'Forward', 'Ping-Pong', 'Backward'],
+                description: 'Loop mode. "Forward" for standard loops, "Ping-Pong" for back-and-forth.',
+              },
+              loopOffset: {
+                type: 'number',
+                description: 'Loop start point in seconds (useful to skip intro sections)',
+              },
+              bpm: {
+                type: 'number',
+                description: 'Beats per minute for music synchronization (rhythm games, beat matching)',
+              },
+              beatCount: {
+                type: 'integer',
+                description: 'Number of beats in the audio (for precise loop points)',
+              },
+              barBeats: {
+                type: 'integer',
+                description: 'Beats per bar (time signature numerator, e.g., 4 for 4/4 time)',
+              },
+            },
+            required: ['projectPath', 'audioPath'],
+          },
+        },
+        {
+          name: 'import_3d_model',
+          description: 'Configure 3D model import settings for GLTF, FBX, OBJ, and other 3D formats. Controls collision generation, material import, animation import, and scale.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              modelPath: {
+                type: 'string',
+                description: 'Path to the 3D model file (relative to project, e.g., "models/character.glb")',
+              },
+              generateCollision: {
+                type: 'string',
+                enum: ['None', 'Mesh', 'Convex', 'Multiple Convex', 'Decomposed'],
+                description: 'Collision shape generation mode. "Convex" for simple shapes, "Multiple Convex" for complex objects.',
+              },
+              importMaterials: {
+                type: 'boolean',
+                description: 'Import materials embedded in the model file',
+              },
+              importAnimations: {
+                type: 'boolean',
+                description: 'Import animation tracks from the model file',
+              },
+              scale: {
+                type: 'number',
+                description: 'Scale multiplier for the imported model (e.g., 0.01 to convert from cm to m)',
+              },
+              generateLOD: {
+                type: 'boolean',
+                description: 'Generate Level of Detail (LOD) meshes for performance optimization',
+              },
+              rootType: {
+                type: 'string',
+                enum: ['Node3D', 'AnimatableBody3D', 'RigidBody3D', 'Area3D', 'CharacterBody3D', 'StaticBody3D'],
+                description: 'Root node type for the imported scene',
+              },
+            },
+            required: ['projectPath', 'modelPath'],
+          },
+        },
+        {
+          name: 'create_resource',
+          description: 'Create custom Godot Resource files (.tres) programmatically. Supports Theme, Environment, Material, AudioBusLayout, and other resource types.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              resourcePath: {
+                type: 'string',
+                description: 'Path for the .tres file (relative to project, e.g., "resources/my_theme.tres")',
+              },
+              resourceType: {
+                type: 'string',
+                description: 'Godot resource class name (e.g., "Theme", "Environment", "StandardMaterial3D", "AudioBusLayout")',
+              },
+              properties: {
+                type: 'object',
+                description: 'Key-value pairs of resource properties to set',
+                additionalProperties: true,
+              },
+              template: {
+                type: 'string',
+                enum: ['theme_dark', 'theme_light', 'environment_outdoor', 'environment_indoor', 'material_standard', 'material_unshaded'],
+                description: 'Optional template to use as a starting point for the resource',
+              },
+            },
+            required: ['projectPath', 'resourcePath', 'resourceType'],
+          },
+        },
       ],
     }));
 
@@ -1573,6 +1738,14 @@ class GodotServer {
           return await this.handleCreateTestSuite(request.params.arguments);
         case 'run_tests':
           return await this.handleRunTests(request.params.arguments);
+        case 'import_texture':
+          return await this.handleImportTexture(request.params.arguments);
+        case 'import_audio':
+          return await this.handleImportAudio(request.params.arguments);
+        case 'import_3d_model':
+          return await this.handleImport3DModel(request.params.arguments);
+        case 'create_resource':
+          return await this.handleCreateResource(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -5127,6 +5300,976 @@ class GodotServer {
     result.summary.failing_tests = result.summary.tests - result.summary.passing_tests;
 
     return result;
+  }
+
+  /**
+   * Handle the import_texture tool
+   * Configures texture import settings by modifying the .import file
+   */
+  private async handleImportTexture(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.texturePath) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath and texturePath']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.texturePath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Check if the texture file exists
+      const texturePath = join(args.projectPath, args.texturePath);
+      if (!existsSync(texturePath)) {
+        return this.createErrorResponse(
+          `Texture file does not exist: ${args.texturePath}`,
+          [
+            'Ensure the texture path is correct',
+            'Provide a path relative to the project directory',
+          ]
+        );
+      }
+
+      // Build the .import file path
+      const importFilePath = texturePath + '.import';
+
+      // Read existing .import file or create default settings
+      let importContent: string;
+      const { readFileSync, writeFileSync } = await import('fs');
+
+      if (existsSync(importFilePath)) {
+        importContent = readFileSync(importFilePath, 'utf-8');
+      } else {
+        // Create default import file structure for Godot 4.x
+        importContent = `[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://${this.generateUID()}"
+path="res://.godot/imported/${basename(args.texturePath)}-${this.generateShortUID()}.ctex"
+
+[deps]
+
+source_file="res://${args.texturePath}"
+dest_files=["res://.godot/imported/${basename(args.texturePath)}-${this.generateShortUID()}.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=false
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1
+`;
+      }
+
+      // Parse and modify settings based on arguments
+      const lines = importContent.split('\n');
+      const modifiedLines: string[] = [];
+      let inParams = false;
+      const settingsToApply: Record<string, string> = {};
+
+      // Map user-friendly options to Godot import settings
+      if (args.filter !== undefined) {
+        // Filter mode mapping for Godot 4.x
+        // In Godot 4, filtering is controlled differently - through the texture itself
+        // The import file uses compress/mode and other settings
+        const filterMap: Record<string, { generate: string; mode: string }> = {
+          'Linear': { generate: 'false', mode: '0' },
+          'Nearest': { generate: 'false', mode: '0' },
+          'Linear Mipmap': { generate: 'true', mode: '0' },
+          'Nearest Mipmap': { generate: 'true', mode: '0' },
+        };
+        const filterSettings = filterMap[args.filter];
+        if (filterSettings) {
+          settingsToApply['mipmaps/generate'] = filterSettings.generate;
+        }
+      }
+
+      if (args.mipmaps !== undefined) {
+        settingsToApply['mipmaps/generate'] = args.mipmaps ? 'true' : 'false';
+      }
+
+      if (args.compression !== undefined) {
+        // Compression mode mapping for Godot 4.x
+        const compressionMap: Record<string, string> = {
+          'Lossless': '0',
+          'Lossy': '1',
+          'VRAM Compressed': '2',
+          'VRAM Uncompressed': '3',
+          'Basis Universal': '4',
+        };
+        const compressionMode = compressionMap[args.compression];
+        if (compressionMode !== undefined) {
+          settingsToApply['compress/mode'] = compressionMode;
+        }
+      }
+
+      if (args.normalMap !== undefined) {
+        settingsToApply['compress/normal_map'] = args.normalMap ? '1' : '0';
+      }
+
+      if (args.srgb !== undefined) {
+        const srgbMap: Record<string, string> = {
+          'Detect': '0',
+          'Enable': '1',
+          'Disable': '2',
+        };
+        // Note: sRGB handling in Godot 4.x is automatic for most cases
+        // process/hdr_as_srgb controls this behavior
+        if (args.srgb === 'Enable') {
+          settingsToApply['process/hdr_as_srgb'] = 'true';
+        } else if (args.srgb === 'Disable') {
+          settingsToApply['process/hdr_as_srgb'] = 'false';
+        }
+      }
+
+      // Process and modify the import file
+      const appliedSettings = new Set<string>();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (trimmed === '[params]') {
+          inParams = true;
+          modifiedLines.push(line);
+          continue;
+        }
+
+        if (trimmed.startsWith('[') && trimmed !== '[params]') {
+          // Before leaving params section, add any unapplied settings
+          if (inParams) {
+            for (const [key, value] of Object.entries(settingsToApply)) {
+              if (!appliedSettings.has(key)) {
+                modifiedLines.push(`${key}=${value}`);
+                appliedSettings.add(key);
+              }
+            }
+          }
+          inParams = false;
+        }
+
+        if (inParams) {
+          // Check if this line is a setting we want to modify
+          const equalsIndex = trimmed.indexOf('=');
+          if (equalsIndex > 0) {
+            const settingKey = trimmed.substring(0, equalsIndex);
+            if (settingsToApply[settingKey] !== undefined) {
+              modifiedLines.push(`${settingKey}=${settingsToApply[settingKey]}`);
+              appliedSettings.add(settingKey);
+              continue;
+            }
+          }
+        }
+
+        modifiedLines.push(line);
+      }
+
+      // If we ended in params section, add remaining settings
+      if (inParams) {
+        for (const [key, value] of Object.entries(settingsToApply)) {
+          if (!appliedSettings.has(key)) {
+            modifiedLines.push(`${key}=${value}`);
+          }
+        }
+      }
+
+      // Write the modified import file
+      const newContent = modifiedLines.join('\n');
+      writeFileSync(importFilePath, newContent, 'utf-8');
+
+      // Build response with applied settings
+      const appliedSettingsReport: string[] = [];
+      for (const [key, value] of Object.entries(settingsToApply)) {
+        appliedSettingsReport.push(`${key}=${value}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              texture_path: args.texturePath,
+              import_file: importFilePath,
+              settings_applied: appliedSettingsReport,
+              message: `Texture import settings updated for ${args.texturePath}. Re-import in Godot editor or run "godot --headless --import" to apply changes.`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to configure texture import: ${errorMessage}`,
+        [
+          'Verify the texture file exists',
+          'Check file permissions for the .import file',
+          'Ensure the project path is correct',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the import_audio tool
+   * Configures audio import settings by modifying the .import file
+   */
+  private async handleImportAudio(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.audioPath) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath and audioPath']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.audioPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Check if the audio file exists
+      const audioPath = join(args.projectPath, args.audioPath);
+      if (!existsSync(audioPath)) {
+        return this.createErrorResponse(
+          `Audio file does not exist: ${args.audioPath}`,
+          [
+            'Ensure the audio path is correct',
+            'Provide a path relative to the project directory',
+          ]
+        );
+      }
+
+      // Determine audio type from file extension
+      const ext = args.audioPath.toLowerCase().split('.').pop() || '';
+      const supportedFormats = ['wav', 'ogg', 'mp3'];
+      if (!supportedFormats.includes(ext)) {
+        return this.createErrorResponse(
+          `Unsupported audio format: ${ext}`,
+          [
+            'Supported formats: WAV, OGG, MP3',
+            'Convert your audio to one of these formats',
+          ]
+        );
+      }
+
+      // Build the .import file path
+      const importFilePath = audioPath + '.import';
+
+      // Read existing .import file or create default settings
+      let importContent: string;
+      const { readFileSync, writeFileSync } = await import('fs');
+
+      // Determine importer type based on file extension
+      let importerType: string;
+      let resourceType: string;
+      switch (ext) {
+        case 'wav':
+          importerType = 'wav';
+          resourceType = 'AudioStreamWAV';
+          break;
+        case 'ogg':
+          importerType = 'oggvorbisstr';
+          resourceType = 'AudioStreamOggVorbis';
+          break;
+        case 'mp3':
+          importerType = 'mp3';
+          resourceType = 'AudioStreamMP3';
+          break;
+        default:
+          importerType = 'wav';
+          resourceType = 'AudioStreamWAV';
+      }
+
+      if (existsSync(importFilePath)) {
+        importContent = readFileSync(importFilePath, 'utf-8');
+      } else {
+        // Create default import file structure for Godot 4.x
+        const audioFileName = basename(args.audioPath);
+        importContent = `[remap]
+
+importer="${importerType}"
+type="${resourceType}"
+uid="uid://${this.generateUID()}"
+path="res://.godot/imported/${audioFileName}-${this.generateShortUID()}.${ext === 'ogg' ? 'oggvorbisstr' : ext}"
+
+[deps]
+
+source_file="res://${args.audioPath}"
+dest_files=["res://.godot/imported/${audioFileName}-${this.generateShortUID()}.${ext === 'ogg' ? 'oggvorbisstr' : ext}"]
+
+[params]
+
+loop=false
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4
+`;
+      }
+
+      // Parse and modify settings based on arguments
+      const lines = importContent.split('\n');
+      const modifiedLines: string[] = [];
+      let inParams = false;
+      const settingsToApply: Record<string, string> = {};
+
+      // Map user-friendly options to Godot import settings
+      if (args.loop !== undefined) {
+        settingsToApply['loop'] = args.loop ? 'true' : 'false';
+      }
+
+      if (args.loopMode !== undefined) {
+        // Godot 4.x loop mode mapping
+        const loopModeMap: Record<string, string> = {
+          'Disabled': '0',
+          'Forward': '1',
+          'Ping-Pong': '2',
+          'Backward': '3',
+        };
+        const loopModeValue = loopModeMap[args.loopMode];
+        if (loopModeValue !== undefined) {
+          settingsToApply['loop_mode'] = loopModeValue;
+          // If setting a loop mode other than Disabled, enable looping
+          if (loopModeValue !== '0') {
+            settingsToApply['loop'] = 'true';
+          }
+        }
+      }
+
+      if (args.loopOffset !== undefined) {
+        settingsToApply['loop_offset'] = args.loopOffset.toString();
+      }
+
+      if (args.bpm !== undefined) {
+        settingsToApply['bpm'] = args.bpm.toString();
+      }
+
+      if (args.beatCount !== undefined) {
+        settingsToApply['beat_count'] = args.beatCount.toString();
+      }
+
+      if (args.barBeats !== undefined) {
+        settingsToApply['bar_beats'] = args.barBeats.toString();
+      }
+
+      // Process and modify the import file
+      const appliedSettings = new Set<string>();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (trimmed === '[params]') {
+          inParams = true;
+          modifiedLines.push(line);
+          continue;
+        }
+
+        if (trimmed.startsWith('[') && trimmed !== '[params]') {
+          // Before leaving params section, add any unapplied settings
+          if (inParams) {
+            for (const [key, value] of Object.entries(settingsToApply)) {
+              if (!appliedSettings.has(key)) {
+                modifiedLines.push(`${key}=${value}`);
+                appliedSettings.add(key);
+              }
+            }
+          }
+          inParams = false;
+        }
+
+        if (inParams) {
+          // Check if this line is a setting we want to modify
+          const equalsIndex = trimmed.indexOf('=');
+          if (equalsIndex > 0) {
+            const settingKey = trimmed.substring(0, equalsIndex);
+            if (settingsToApply[settingKey] !== undefined) {
+              modifiedLines.push(`${settingKey}=${settingsToApply[settingKey]}`);
+              appliedSettings.add(settingKey);
+              continue;
+            }
+          }
+        }
+
+        modifiedLines.push(line);
+      }
+
+      // If we ended in params section, add remaining settings
+      if (inParams) {
+        for (const [key, value] of Object.entries(settingsToApply)) {
+          if (!appliedSettings.has(key)) {
+            modifiedLines.push(`${key}=${value}`);
+          }
+        }
+      }
+
+      // Write the modified import file
+      const newContent = modifiedLines.join('\n');
+      writeFileSync(importFilePath, newContent, 'utf-8');
+
+      // Build response with applied settings
+      const appliedSettingsReport: string[] = [];
+      for (const [key, value] of Object.entries(settingsToApply)) {
+        appliedSettingsReport.push(`${key}=${value}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              audio_path: args.audioPath,
+              audio_type: resourceType,
+              import_file: importFilePath,
+              settings_applied: appliedSettingsReport,
+              message: `Audio import settings updated for ${args.audioPath}. Re-import in Godot editor or run "godot --headless --import" to apply changes.`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to configure audio import: ${errorMessage}`,
+        [
+          'Verify the audio file exists',
+          'Check file permissions for the .import file',
+          'Ensure the project path is correct',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the import_3d_model tool
+   * Configures 3D model import settings by modifying the .import file
+   */
+  private async handleImport3DModel(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.modelPath) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath and modelPath']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.modelPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Check if the model file exists
+      const modelPath = join(args.projectPath, args.modelPath);
+      if (!existsSync(modelPath)) {
+        return this.createErrorResponse(
+          `Model file does not exist: ${args.modelPath}`,
+          [
+            'Ensure the model path is correct',
+            'Provide a path relative to the project directory',
+          ]
+        );
+      }
+
+      // Determine model type from file extension
+      const ext = args.modelPath.toLowerCase().split('.').pop() || '';
+      const supportedFormats = ['gltf', 'glb', 'fbx', 'obj', 'dae', 'blend'];
+      if (!supportedFormats.includes(ext)) {
+        return this.createErrorResponse(
+          `Unsupported 3D model format: ${ext}`,
+          [
+            'Supported formats: GLTF, GLB, FBX, OBJ, DAE, BLEND',
+            'Convert your model to one of these formats (GLTF/GLB recommended)',
+          ]
+        );
+      }
+
+      // Build the .import file path
+      const importFilePath = modelPath + '.import';
+
+      // Read existing .import file or create default settings
+      let importContent: string;
+      const { readFileSync, writeFileSync } = await import('fs');
+
+      // Determine importer type based on file extension
+      let importerType: string;
+      switch (ext) {
+        case 'gltf':
+        case 'glb':
+          importerType = 'scene';
+          break;
+        case 'fbx':
+          importerType = 'scene';
+          break;
+        case 'obj':
+          importerType = 'wavefront_obj';
+          break;
+        case 'dae':
+          importerType = 'scene';
+          break;
+        case 'blend':
+          importerType = 'scene';
+          break;
+        default:
+          importerType = 'scene';
+      }
+
+      const modelFileName = basename(args.modelPath);
+      const shortUID = this.generateShortUID();
+
+      if (existsSync(importFilePath)) {
+        importContent = readFileSync(importFilePath, 'utf-8');
+      } else {
+        // Create default import file structure for Godot 4.x 3D models
+        importContent = `[remap]
+
+importer="${importerType}"
+importer_version=1
+type="PackedScene"
+uid="uid://${this.generateUID()}"
+path="res://.godot/imported/${modelFileName}-${shortUID}.scn"
+
+[deps]
+
+source_file="res://${args.modelPath}"
+dest_files=["res://.godot/imported/${modelFileName}-${shortUID}.scn"]
+
+[params]
+
+nodes/root_type="Node3D"
+nodes/root_name=""
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+import_script/path=""
+_subresources={}
+gltf/naming_version=1
+gltf/embedded_image_handling=1
+`;
+      }
+
+      // Parse and modify settings based on arguments
+      const lines = importContent.split('\n');
+      const modifiedLines: string[] = [];
+      let inParams = false;
+      const settingsToApply: Record<string, string> = {};
+
+      // Map user-friendly options to Godot import settings
+      if (args.generateCollision !== undefined) {
+        // Collision generation mapping for Godot 4.x
+        // These are handled via physics/generate settings
+        const collisionMap: Record<string, { generate: string; type: string }> = {
+          'None': { generate: 'false', type: '0' },
+          'Mesh': { generate: 'true', type: '1' },
+          'Convex': { generate: 'true', type: '2' },
+          'Multiple Convex': { generate: 'true', type: '3' },
+          'Decomposed': { generate: 'true', type: '4' },
+        };
+        const collisionSettings = collisionMap[args.generateCollision];
+        if (collisionSettings) {
+          settingsToApply['physics/generate'] = collisionSettings.generate;
+          settingsToApply['physics/shape_type'] = collisionSettings.type;
+        }
+      }
+
+      if (args.importMaterials !== undefined) {
+        settingsToApply['materials/export'] = args.importMaterials ? 'true' : 'false';
+      }
+
+      if (args.importAnimations !== undefined) {
+        settingsToApply['animation/import'] = args.importAnimations ? 'true' : 'false';
+      }
+
+      if (args.scale !== undefined) {
+        settingsToApply['nodes/root_scale'] = args.scale.toString();
+      }
+
+      if (args.generateLOD !== undefined) {
+        settingsToApply['meshes/generate_lods'] = args.generateLOD ? 'true' : 'false';
+      }
+
+      if (args.rootType !== undefined) {
+        settingsToApply['nodes/root_type'] = `"${args.rootType}"`;
+      }
+
+      // Process and modify the import file
+      const appliedSettings = new Set<string>();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (trimmed === '[params]') {
+          inParams = true;
+          modifiedLines.push(line);
+          continue;
+        }
+
+        if (trimmed.startsWith('[') && trimmed !== '[params]') {
+          // Before leaving params section, add any unapplied settings
+          if (inParams) {
+            for (const [key, value] of Object.entries(settingsToApply)) {
+              if (!appliedSettings.has(key)) {
+                modifiedLines.push(`${key}=${value}`);
+                appliedSettings.add(key);
+              }
+            }
+          }
+          inParams = false;
+        }
+
+        if (inParams) {
+          // Check if this line is a setting we want to modify
+          const equalsIndex = trimmed.indexOf('=');
+          if (equalsIndex > 0) {
+            const settingKey = trimmed.substring(0, equalsIndex);
+            if (settingsToApply[settingKey] !== undefined) {
+              modifiedLines.push(`${settingKey}=${settingsToApply[settingKey]}`);
+              appliedSettings.add(settingKey);
+              continue;
+            }
+          }
+        }
+
+        modifiedLines.push(line);
+      }
+
+      // If we ended in params section, add remaining settings
+      if (inParams) {
+        for (const [key, value] of Object.entries(settingsToApply)) {
+          if (!appliedSettings.has(key)) {
+            modifiedLines.push(`${key}=${value}`);
+          }
+        }
+      }
+
+      // Write the modified import file
+      const newContent = modifiedLines.join('\n');
+      writeFileSync(importFilePath, newContent, 'utf-8');
+
+      // Build response with applied settings
+      const appliedSettingsReport: string[] = [];
+      for (const [key, value] of Object.entries(settingsToApply)) {
+        appliedSettingsReport.push(`${key}=${value}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              model_path: args.modelPath,
+              model_format: ext.toUpperCase(),
+              import_file: importFilePath,
+              settings_applied: appliedSettingsReport,
+              message: `3D model import settings updated for ${args.modelPath}. Re-import in Godot editor or run "godot --headless --import" to apply changes.`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to configure 3D model import: ${errorMessage}`,
+        [
+          'Verify the model file exists',
+          'Check file permissions for the .import file',
+          'Ensure the project path is correct',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the create_resource tool
+   * Creates custom Godot Resource files (.tres) programmatically
+   */
+  private async handleCreateResource(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.resourcePath || !args.resourceType) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath, resourcePath, and resourceType']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath) || !this.validatePath(args.resourcePath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      // Check if the project directory exists and contains a project.godot file
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Ensure resource path ends with .tres
+      let resourcePath = args.resourcePath;
+      if (!resourcePath.endsWith('.tres')) {
+        resourcePath += '.tres';
+      }
+
+      // Build full path
+      const fullResourcePath = join(args.projectPath, resourcePath);
+
+      // Ensure directory exists
+      const resourceDir = dirname(fullResourcePath);
+      const { mkdirSync, writeFileSync } = await import('fs');
+
+      if (!existsSync(resourceDir)) {
+        mkdirSync(resourceDir, { recursive: true });
+      }
+
+      // Resource templates for common resource types
+      const resourceTemplates: Record<string, Record<string, any>> = {
+        'theme_dark': {
+          default_font_size: 14,
+          // Dark theme colors would be added via properties
+        },
+        'theme_light': {
+          default_font_size: 14,
+          // Light theme colors would be added via properties
+        },
+        'environment_outdoor': {
+          background_mode: 2, // Sky
+          ambient_light_color: 'Color(0.4, 0.4, 0.5, 1)',
+          ambient_light_energy: 0.5,
+          tonemap_mode: 2, // ACES
+          ssao_enabled: true,
+        },
+        'environment_indoor': {
+          background_mode: 1, // Color
+          background_color: 'Color(0.1, 0.1, 0.1, 1)',
+          ambient_light_color: 'Color(0.3, 0.3, 0.3, 1)',
+          ambient_light_energy: 0.3,
+        },
+        'material_standard': {
+          albedo_color: 'Color(1, 1, 1, 1)',
+          metallic: 0.0,
+          roughness: 1.0,
+        },
+        'material_unshaded': {
+          shading_mode: 0, // Unshaded
+          albedo_color: 'Color(1, 1, 1, 1)',
+        },
+      };
+
+      // Start building the .tres file content
+      const resourceType = args.resourceType;
+      let properties = args.properties || {};
+
+      // Apply template if specified
+      if (args.template && resourceTemplates[args.template]) {
+        properties = { ...resourceTemplates[args.template], ...properties };
+      }
+
+      // Generate UID for the resource
+      const uid = `uid://${this.generateUID()}`;
+
+      // Build .tres file content in Godot's text resource format
+      let tresContent = `[gd_resource type="${resourceType}" format=3 uid="${uid}"]\n\n`;
+      tresContent += `[resource]\n`;
+
+      // Format properties based on type
+      for (const [key, value] of Object.entries(properties)) {
+        const formattedValue = this.formatTresValue(value);
+        tresContent += `${key} = ${formattedValue}\n`;
+      }
+
+      // Write the .tres file
+      writeFileSync(fullResourcePath, tresContent, 'utf-8');
+
+      // Build response
+      const propertiesReport: string[] = [];
+      for (const [key, value] of Object.entries(properties)) {
+        propertiesReport.push(`${key} = ${this.formatTresValue(value)}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              resource_path: resourcePath,
+              resource_type: resourceType,
+              full_path: fullResourcePath,
+              uid: uid,
+              properties_set: propertiesReport,
+              template_used: args.template || null,
+              message: `Resource file created at ${resourcePath}. You can load it in Godot editor or via load("res://${resourcePath}").`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to create resource: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+          'Ensure the resource type is valid',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Format a value for .tres file format
+   */
+  private formatTresValue(value: any): string {
+    if (value === null || value === undefined) {
+      return 'null';
+    }
+
+    if (typeof value === 'string') {
+      // Check if it's already a Godot type like Color(), Vector2(), etc.
+      if (value.match(/^(Color|Vector2|Vector3|Vector4|Rect2|Transform2D|Transform3D|Basis|Quaternion|AABB|Plane)\s*\(/)) {
+        return value;
+      }
+      // Regular string - quote it
+      return `"${value.replace(/"/g, '\\"')}"`;
+    }
+
+    if (typeof value === 'number') {
+      // Format numbers - Godot uses decimals for floats
+      if (Number.isInteger(value)) {
+        return value.toString();
+      }
+      return value.toFixed(6).replace(/\.?0+$/, '');
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    if (Array.isArray(value)) {
+      // Format as Godot array
+      const formattedItems = value.map(item => this.formatTresValue(item));
+      return `[${formattedItems.join(', ')}]`;
+    }
+
+    if (typeof value === 'object') {
+      // Attempt to format as sub-resource or dictionary
+      const entries = Object.entries(value);
+      const formattedEntries = entries.map(([k, v]) => `"${k}": ${this.formatTresValue(v)}`);
+      return `{${formattedEntries.join(', ')}}`;
+    }
+
+    return String(value);
+  }
+
+  /**
+   * Generate a simple UID for import files
+   */
+  private generateUID(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let uid = '';
+    for (let i = 0; i < 13; i++) {
+      uid += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return uid;
+  }
+
+  /**
+   * Generate a short UID hash for imported file paths
+   */
+  private generateShortUID(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let uid = '';
+    for (let i = 0; i < 8; i++) {
+      uid += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return uid;
   }
 
   /**
