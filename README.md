@@ -415,6 +415,112 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     )
     ```
 
+- **Project Settings & Configuration** (Phase 8 - COMPLETE):
+  - **`modify_project_setting`**: Modify project.godot settings programmatically
+    - **Common Settings**: Window size, application name, rendering method, physics gravity
+    - **Type Support**: Strings, numbers, booleans, arrays, Godot types (Vector2, Color, PackedStringArray)
+    - Automatically creates sections if they don't exist
+    - Perfect for project initialization and configuration automation
+  - **`configure_input_action`**: Create and modify input action maps
+    - **Event Types**: Keyboard keys, mouse buttons, joypad buttons, joypad axes
+    - **Key Mapping**: Full support for A-Z, 0-9, F1-F12, arrows, modifiers, special keys
+    - **Customization**: Deadzone configuration, multiple bindings per action
+    - Generates proper Godot 4.x InputEvent Object() format
+    - Essential for game control configuration
+  - **`setup_render_layers`**: Configure physics and render layer names
+    - **Layer Types**: 2D physics, 3D physics, 2D render, 3D render
+    - **Validation**: 1-32 for physics layers, 1-20 for render layers
+    - Layer names improve editor usability and code readability
+    - Organize collision and rendering groups effectively
+  - **`configure_autoload`**: Add or remove autoload singletons
+    - **Add Autoloads**: Register global singleton scripts
+    - **Enable/Disable**: Control whether autoload is active (* prefix)
+    - **Remove Autoloads**: Clean removal from project settings
+    - Validates script exists before adding
+    - Essential for global game managers, audio systems, save systems
+  - **Complete Project Setup Workflow**:
+    ```gdscript
+    # Example 1: Configure window settings
+    modify_project_setting(
+      projectPath="/path/to/project",
+      settingPath="display/window/size/viewport_width",
+      value=1920
+    )
+
+    # Example 2: Set up player input
+    configure_input_action(
+      projectPath="/path/to/project",
+      actionName="jump",
+      events=[
+        {type: "key", keycode: "Space"},
+        {type: "joypad_button", button: 0}  # A button
+      ],
+      deadzone=0.5
+    )
+
+    # Example 3: Configure physics layers
+    setup_render_layers(
+      projectPath="/path/to/project",
+      layerType="2d_physics",
+      layerNames={"1": "Player", "2": "Enemy", "3": "World", "4": "Projectile"}
+    )
+
+    # Example 4: Add game manager autoload
+    configure_autoload(
+      projectPath="/path/to/project",
+      name="GameManager",
+      scriptPath="res://autoload/game_manager.gd",
+      enabled=true
+    )
+    ```
+
+- **Build & Export Pipeline** (Phase 9 - COMPLETE):
+  - **`create_export_preset`**: Generate export presets for target platforms
+    - **Platforms**: Windows Desktop, Linux/X11, macOS, Web, Android, iOS
+    - **Options**: Runnable, debug mode, include/exclude filters, encryption
+    - Generates proper export_presets.cfg with platform-specific settings
+    - Auto-generates export paths with correct file extensions
+    - Supports adding multiple presets to same project
+  - **`export_project`**: Build/export Godot projects
+    - **Modes**: Debug export, release export, pack-only export
+    - **Options**: Custom output path, preset selection
+    - Creates output directories automatically
+    - Returns build duration and verification status
+    - Captures export errors for troubleshooting
+  - **`validate_export`**: Check projects for export issues
+    - **Checks**: Export presets, templates, scripts, large assets, project icon
+    - **Script Analysis**: Debug print statements, breakpoints, TODO/FIXME comments
+    - **Recommendations**: Actionable suggestions for fixing issues
+    - Summary with error/warning/info counts
+    - Export readiness determination
+  - **Complete Export Workflow**:
+    ```gdscript
+    # Step 1: Create export preset
+    create_export_preset(
+      projectPath="/path/to/project",
+      presetName="Windows Release",
+      platform="Windows Desktop",
+      exportPath="export/windows/game.exe"
+    )
+
+    # Step 2: Validate before export
+    validate_export(
+      projectPath="/path/to/project",
+      presetName="Windows Release",
+      checkTemplates=true,
+      checkScripts=true,
+      warnLargeAssets=true
+    )
+
+    # Step 3: Build the game
+    export_project(
+      projectPath="/path/to/project",
+      presetName="Windows Release",
+      outputPath="export/windows/game.exe",
+      releaseMode=true
+    )
+    ```
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
@@ -486,7 +592,14 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "import_texture",
         "import_audio",
         "import_3d_model",
-        "create_resource"
+        "create_resource",
+        "modify_project_setting",
+        "configure_input_action",
+        "setup_render_layers",
+        "configure_autoload",
+        "create_export_preset",
+        "export_project",
+        "validate_export"
       ]
     }
   }

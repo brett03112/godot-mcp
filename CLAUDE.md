@@ -26,7 +26,9 @@ The current implementation plan follows a phased approach:
 - **Phase 5:** Shader & Material Pipeline (COMPLETE ✅)
 - **Phase 6:** Testing & Quality Assurance (COMPLETE ✅)
 - **Phase 7:** Asset Import & Configuration (COMPLETE ✅)
-- Future phases cover project settings, build pipelines, and specialized workflows
+- **Phase 8:** Project Settings & Configuration (COMPLETE ✅)
+- **Phase 9:** Build & Export Pipeline (COMPLETE ✅)
+- Future phases cover tilemap design, dialogue systems, and specialized workflows
 
 ## Build and Development Commands
 
@@ -55,7 +57,7 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~6300 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~8300 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
 **Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3930 lines, ~140KB) that handles all complex Godot operations. This script:
 
@@ -89,7 +91,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 30 tools via the MCP protocol:
+The server exposes 37 tools via the MCP protocol:
 
 **Project Management**:
 
@@ -234,6 +236,52 @@ The server exposes 30 tools via the MCP protocol:
   - 6 built-in templates: theme_dark, theme_light, environment_outdoor, environment_indoor, material_standard, material_unshaded
   - Set any resource property with automatic type formatting
   - Generates valid Godot 4.x .tres files with proper UIDs
+
+**Project Settings & Configuration** (Phase 8 - COMPLETE):
+
+- `modify_project_setting` - Modify project.godot settings programmatically
+  - Supports any setting path (e.g., "display/window/size/viewport_width", "physics/2d/default_gravity")
+  - Handles all value types: strings, numbers, booleans, arrays, Godot types
+  - Automatically creates sections if they don't exist
+  - Direct file manipulation for reliable persistence
+- `configure_input_action` - Create and modify input action maps
+  - Event types: keyboard (InputEventKey), mouse button (InputEventMouseButton), joypad button (InputEventJoypadButton), joypad axis (InputEventJoypadMotion)
+  - Full key mapping for A-Z, 0-9, F1-F12, arrows, modifiers, special keys
+  - Configurable deadzone for analog input
+  - Support for multiple bindings per action
+  - Generates proper Godot 4.x Object() format
+- `setup_render_layers` - Configure physics and render layer names
+  - Layer types: 2d_physics, 3d_physics, 2d_render, 3d_render
+  - Validates layer numbers (1-32 for physics, 1-20 for render)
+  - Writes to [layer_names] section in project.godot
+  - Layer names improve editor usability and code readability
+- `configure_autoload` - Add or remove autoload singletons
+  - Add global singleton scripts accessible from any script
+  - Enable/disable autoloads with * prefix control
+  - Remove autoloads cleanly from project settings
+  - Validates script existence before adding
+  - Essential for game managers, audio systems, save systems
+
+**Build & Export Pipeline** (Phase 9 - COMPLETE):
+
+- `create_export_preset` - Generate export presets for target platforms
+  - Platforms: Windows Desktop, Linux/X11, macOS, Web, Android, iOS
+  - Creates export_presets.cfg with platform-specific settings
+  - Options: runnable, debug mode, include/exclude filters, encryption
+  - Auto-generates export paths with correct file extensions (.exe, .x86_64, .zip, .html, .apk, .ipa)
+  - Supports adding multiple presets to same project
+- `export_project` - Build/export Godot projects for distribution
+  - Modes: debug export (--export-debug), release export (--export-release), pack-only (--export-pack)
+  - Validates preset exists before export
+  - Creates output directories automatically
+  - Returns build duration, exit code, and output verification
+  - Captures export errors for troubleshooting
+- `validate_export` - Check projects for export issues before building
+  - Checks: export_presets.cfg exists, export templates installed, script issues, large assets, project icon
+  - Script analysis: debug print statements (>10), breakpoint() calls, TODO/FIXME comments
+  - Severity levels: error, warning, info with actionable recommendations
+  - Export readiness determination
+  - Summary with error/warning/info counts
 
 ## Configuration
 

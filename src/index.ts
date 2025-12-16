@@ -9,7 +9,7 @@
 
 import { fileURLToPath } from 'url';
 import { join, dirname, basename, normalize } from 'path';
-import { existsSync, readdirSync, mkdirSync } from 'fs';
+import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { exec } from 'child_process';
@@ -1667,6 +1667,247 @@ class GodotServer {
             required: ['projectPath', 'resourcePath', 'resourceType'],
           },
         },
+        {
+          name: 'modify_project_setting',
+          description: 'Modify project.godot settings programmatically. Supports window size, application name, rendering method, physics gravity, and other project settings.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              settingPath: {
+                type: 'string',
+                description: 'Path in project settings (e.g., "display/window/size/viewport_width", "application/config/name", "physics/2d/default_gravity")',
+              },
+              value: {
+                description: 'New value for the setting (string, number, boolean, or array)',
+              },
+            },
+            required: ['projectPath', 'settingPath', 'value'],
+          },
+        },
+        {
+          name: 'configure_input_action',
+          description: 'Create or modify input action maps in project.godot. Configure keyboard, mouse, and gamepad bindings for game actions.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              actionName: {
+                type: 'string',
+                description: 'Name of the input action (e.g., "jump", "move_left", "attack")',
+              },
+              events: {
+                type: 'array',
+                description: 'Array of input events to bind to the action',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['key', 'mouse_button', 'joypad_button', 'joypad_axis'],
+                      description: 'Type of input event',
+                    },
+                    keycode: {
+                      type: 'string',
+                      description: 'For key events: key name (e.g., "Space", "W", "Escape", "Up")',
+                    },
+                    button: {
+                      type: 'integer',
+                      description: 'For mouse/joypad button events: button index (0=left, 1=right, 2=middle for mouse)',
+                    },
+                    axis: {
+                      type: 'integer',
+                      description: 'For joypad axis events: axis index (0=left_x, 1=left_y, 2=right_x, 3=right_y)',
+                    },
+                    axisValue: {
+                      type: 'number',
+                      description: 'For joypad axis: axis direction (-1.0 or 1.0)',
+                    },
+                  },
+                  required: ['type'],
+                },
+              },
+              deadzone: {
+                type: 'number',
+                description: 'Input deadzone (0.0 - 1.0), default is 0.5',
+              },
+            },
+            required: ['projectPath', 'actionName', 'events'],
+          },
+        },
+        {
+          name: 'setup_render_layers',
+          description: 'Configure physics and render layer names in project settings. Layer names improve editor usability and code readability.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              layerType: {
+                type: 'string',
+                enum: ['2d_physics', '3d_physics', '2d_render', '3d_render'],
+                description: 'Type of layers to configure',
+              },
+              layerNames: {
+                type: 'object',
+                description: 'Layer number → name mapping (e.g., {"1": "Player", "2": "Enemy", "3": "World"}). Layer numbers are 1-32 for physics, 1-20 for render.',
+                additionalProperties: {
+                  type: 'string',
+                },
+              },
+            },
+            required: ['projectPath', 'layerType', 'layerNames'],
+          },
+        },
+        {
+          name: 'configure_autoload',
+          description: 'Add or remove autoload singletons (global scripts) in project settings. Autoloads are accessible globally at runtime.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              name: {
+                type: 'string',
+                description: 'Name for the singleton (e.g., "GameManager", "AudioManager")',
+              },
+              scriptPath: {
+                type: 'string',
+                description: 'Path to script (e.g., "res://autoload/game_manager.gd") or scene file',
+              },
+              enabled: {
+                type: 'boolean',
+                description: 'Whether the autoload is enabled (default: true)',
+              },
+              remove: {
+                type: 'boolean',
+                description: 'Set to true to remove the autoload instead of adding/updating it',
+              },
+            },
+            required: ['projectPath', 'name'],
+          },
+        },
+        {
+          name: 'create_export_preset',
+          description: 'Generate export presets for target platforms (Windows, Linux, macOS, Web, Android, iOS). Creates or updates export_presets.cfg in the project directory.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              presetName: {
+                type: 'string',
+                description: 'Name for the export preset (e.g., "Windows Release", "Web Build")',
+              },
+              platform: {
+                type: 'string',
+                enum: ['Windows Desktop', 'Linux/X11', 'macOS', 'Web', 'Android', 'iOS'],
+                description: 'Target platform for the export',
+              },
+              exportPath: {
+                type: 'string',
+                description: 'Default export path for the built game (e.g., "builds/windows/game.exe")',
+              },
+              runnable: {
+                type: 'boolean',
+                description: 'Make this preset the runnable one (used for one-click deploy)',
+              },
+              debugMode: {
+                type: 'boolean',
+                description: 'Enable debug mode for the export (default: false for release builds)',
+              },
+              includeFilter: {
+                type: 'string',
+                description: 'File patterns to include (comma-separated, e.g., "*.json,*.cfg")',
+              },
+              excludeFilter: {
+                type: 'string',
+                description: 'File patterns to exclude (comma-separated, e.g., "*.md,test/*")',
+              },
+              encryptionKey: {
+                type: 'string',
+                description: 'Optional 256-bit AES encryption key for PCK files (64 hex characters)',
+              },
+            },
+            required: ['projectPath', 'presetName', 'platform'],
+          },
+        },
+        {
+          name: 'export_project',
+          description: 'Build/export a Godot project for a specific platform using an existing export preset. Creates executable, PCK, or web build.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              presetName: {
+                type: 'string',
+                description: 'Name of the export preset to use (must exist in export_presets.cfg)',
+              },
+              outputPath: {
+                type: 'string',
+                description: 'Path where the exported game will be saved (e.g., "builds/game.exe")',
+              },
+              releaseMode: {
+                type: 'boolean',
+                description: 'Use release export (optimized, no debug symbols). Default: true',
+              },
+              packOnly: {
+                type: 'boolean',
+                description: 'Generate only the PCK file (for updates/patches). Default: false',
+              },
+            },
+            required: ['projectPath', 'presetName', 'outputPath'],
+          },
+        },
+        {
+          name: 'validate_export',
+          description: 'Check a Godot project for export issues before building. Validates resources, dependencies, scripts, and export templates.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              presetName: {
+                type: 'string',
+                description: 'Optional: specific export preset to validate against',
+              },
+              checkTemplates: {
+                type: 'boolean',
+                description: 'Check if required export templates are installed (default: true)',
+              },
+              checkScripts: {
+                type: 'boolean',
+                description: 'Validate all GDScript files for syntax errors (default: true)',
+              },
+              warnLargeAssets: {
+                type: 'boolean',
+                description: 'Warn about large asset files (default: true)',
+              },
+              largeAssetThreshold: {
+                type: 'number',
+                description: 'Size in MB above which assets are considered large (default: 10)',
+              },
+            },
+            required: ['projectPath'],
+          },
+        },
       ],
     }));
 
@@ -1746,6 +1987,20 @@ class GodotServer {
           return await this.handleImport3DModel(request.params.arguments);
         case 'create_resource':
           return await this.handleCreateResource(request.params.arguments);
+        case 'modify_project_setting':
+          return await this.handleModifyProjectSetting(request.params.arguments);
+        case 'configure_input_action':
+          return await this.handleConfigureInputAction(request.params.arguments);
+        case 'setup_render_layers':
+          return await this.handleSetupRenderLayers(request.params.arguments);
+        case 'configure_autoload':
+          return await this.handleConfigureAutoload(request.params.arguments);
+        case 'create_export_preset':
+          return await this.handleCreateExportPreset(request.params.arguments);
+        case 'export_project':
+          return await this.handleExportProject(request.params.arguments);
+        case 'validate_export':
+          return await this.handleValidateExport(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -6270,6 +6525,1725 @@ gltf/embedded_image_handling=1
       uid += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return uid;
+  }
+
+  /**
+   * Handle the modify_project_setting tool
+   * Modifies project.godot settings programmatically
+   */
+  private async handleModifyProjectSetting(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.settingPath || args.value === undefined) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath, settingPath, and value']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Read project.godot file
+      const { readFileSync, writeFileSync } = await import('fs');
+      let content = readFileSync(projectFile, 'utf-8');
+
+      // Parse setting path - first segment is section, rest is key
+      const settingPath = args.settingPath as string;
+      const pathParts = settingPath.split('/');
+      if (pathParts.length < 2) {
+        return this.createErrorResponse(
+          'Invalid setting path format',
+          [
+            'Setting path must have at least section/key format',
+            'Example: "display/window/size/viewport_width"',
+            'Example: "application/config/name"',
+          ]
+        );
+      }
+
+      const section = pathParts[0];
+      const key = pathParts.slice(1).join('/');
+
+      // Format the value for project.godot format
+      const formattedValue = this.formatProjectSettingValue(args.value);
+
+      // Parse the file into sections
+      const lines = content.split('\n');
+      const sections: Map<string, string[]> = new Map();
+      let currentSection = '';
+      let headerLines: string[] = [];
+
+      for (const line of lines) {
+        const sectionMatch = line.match(/^\[(\w+)\]$/);
+        if (sectionMatch) {
+          currentSection = sectionMatch[1];
+          if (!sections.has(currentSection)) {
+            sections.set(currentSection, []);
+          }
+        } else if (currentSection) {
+          sections.get(currentSection)!.push(line);
+        } else {
+          // Lines before first section (header/config_version)
+          headerLines.push(line);
+        }
+      }
+
+      // Update or add the setting
+      let keyFound = false;
+      if (sections.has(section)) {
+        const sectionLines = sections.get(section)!;
+        for (let i = 0; i < sectionLines.length; i++) {
+          const line = sectionLines[i];
+          // Match the key at the start of the line
+          const keyPattern = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`);
+          if (keyPattern.test(line)) {
+            sectionLines[i] = `${key}=${formattedValue}`;
+            keyFound = true;
+            break;
+          }
+        }
+        if (!keyFound) {
+          // Add the key to the section
+          sectionLines.push(`${key}=${formattedValue}`);
+        }
+      } else {
+        // Create new section
+        sections.set(section, [`${key}=${formattedValue}`]);
+      }
+
+      // Rebuild the file content
+      let newContent = headerLines.join('\n');
+      if (!newContent.endsWith('\n')) {
+        newContent += '\n';
+      }
+
+      for (const [sectionName, sectionLines] of sections) {
+        newContent += `\n[${sectionName}]\n`;
+        newContent += sectionLines.filter(l => l.trim() !== '').join('\n');
+        newContent += '\n';
+      }
+
+      // Write the file
+      writeFileSync(projectFile, newContent, 'utf-8');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              setting_path: settingPath,
+              section: section,
+              key: key,
+              value: args.value,
+              formatted_value: formattedValue,
+              action: keyFound ? 'updated' : 'created',
+              message: `Project setting [${section}] ${key} has been ${keyFound ? 'updated' : 'created'}`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to modify project setting: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+          'Ensure the setting path is valid',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Format a value for project.godot file format
+   */
+  private formatProjectSettingValue(value: any): string {
+    if (value === null || value === undefined) {
+      return 'null';
+    }
+
+    if (typeof value === 'string') {
+      // Check if it's already a Godot type like Vector2(), Color(), etc.
+      if (value.match(/^(Color|Vector2|Vector2i|Vector3|Vector3i|Vector4|Rect2|Transform2D|Transform3D|PackedStringArray|PackedInt32Array|PackedFloat32Array)\s*\(/)) {
+        return value;
+      }
+      // Regular string - quote it
+      return `"${value.replace(/"/g, '\\"')}"`;
+    }
+
+    if (typeof value === 'number') {
+      if (Number.isInteger(value)) {
+        return value.toString();
+      }
+      return value.toString();
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    if (Array.isArray(value)) {
+      // Check if all elements are strings - use PackedStringArray
+      if (value.every(item => typeof item === 'string')) {
+        const formattedItems = value.map(item => `"${String(item).replace(/"/g, '\\"')}"`);
+        return `PackedStringArray(${formattedItems.join(', ')})`;
+      }
+      // Generic array format
+      const formattedItems = value.map(item => this.formatProjectSettingValue(item));
+      return `[${formattedItems.join(', ')}]`;
+    }
+
+    if (typeof value === 'object') {
+      const entries = Object.entries(value);
+      const formattedEntries = entries.map(([k, v]) => `"${k}": ${this.formatProjectSettingValue(v)}`);
+      return `{${formattedEntries.join(', ')}}`;
+    }
+
+    return String(value);
+  }
+
+  /**
+   * Handle the configure_input_action tool
+   * Creates or modifies input action maps in project.godot
+   */
+  private async handleConfigureInputAction(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.actionName || !args.events) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath, actionName, and events array']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      // Read project.godot file
+      const { readFileSync, writeFileSync } = await import('fs');
+      let content = readFileSync(projectFile, 'utf-8');
+
+      const actionName = args.actionName as string;
+      const events = args.events as any[];
+      const deadzone = args.deadzone !== undefined ? args.deadzone : 0.5;
+
+      // Build the input action value in Godot 4.x format
+      const eventObjects: string[] = [];
+
+      for (const event of events) {
+        if (event.type === 'key') {
+          // Keyboard key event
+          const keycode = event.keycode || 'Space';
+          // Convert key name to Godot key constant
+          const keyConstant = this.getGodotKeyConstant(keycode);
+          eventObjects.push(`Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":${keyConstant},"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false)`);
+        } else if (event.type === 'mouse_button') {
+          // Mouse button event
+          const button = event.button !== undefined ? event.button : 0;
+          eventObjects.push(`Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":0,"position":Vector2(0, 0),"global_position":Vector2(0, 0),"factor":1.0,"button_index":${button + 1},"canceled":false,"pressed":false,"double_click":false)`);
+        } else if (event.type === 'joypad_button') {
+          // Joypad button event
+          const button = event.button !== undefined ? event.button : 0;
+          eventObjects.push(`Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":${button},"pressure":0.0,"pressed":false)`);
+        } else if (event.type === 'joypad_axis') {
+          // Joypad axis event
+          const axis = event.axis !== undefined ? event.axis : 0;
+          const axisValue = event.axisValue !== undefined ? event.axisValue : 1.0;
+          eventObjects.push(`Object(InputEventJoypadMotion,"resource_local_to_scene":false,"resource_name":"","device":-1,"axis":${axis},"axis_value":${axisValue})`);
+        }
+      }
+
+      // Build the complete action value
+      const actionValue = `{"deadzone": ${deadzone}, "events": [${eventObjects.join(', ')}]}`;
+
+      // Parse the file and update/add the input action
+      const lines = content.split('\n');
+      const sections: Map<string, string[]> = new Map();
+      let currentSection = '';
+      let headerLines: string[] = [];
+
+      for (const line of lines) {
+        const sectionMatch = line.match(/^\[(\w+)\]$/);
+        if (sectionMatch) {
+          currentSection = sectionMatch[1];
+          if (!sections.has(currentSection)) {
+            sections.set(currentSection, []);
+          }
+        } else if (currentSection) {
+          sections.get(currentSection)!.push(line);
+        } else {
+          headerLines.push(line);
+        }
+      }
+
+      // Update or add the input action in [input] section
+      const inputKey = actionName;
+      let keyFound = false;
+
+      if (sections.has('input')) {
+        const sectionLines = sections.get('input')!;
+        for (let i = 0; i < sectionLines.length; i++) {
+          const line = sectionLines[i];
+          const keyPattern = new RegExp(`^${inputKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`);
+          if (keyPattern.test(line)) {
+            sectionLines[i] = `${inputKey}=${actionValue}`;
+            keyFound = true;
+            break;
+          }
+        }
+        if (!keyFound) {
+          sectionLines.push(`${inputKey}=${actionValue}`);
+        }
+      } else {
+        sections.set('input', [`${inputKey}=${actionValue}`]);
+      }
+
+      // Rebuild the file content
+      let newContent = headerLines.join('\n');
+      if (!newContent.endsWith('\n')) {
+        newContent += '\n';
+      }
+
+      for (const [sectionName, sectionLines] of sections) {
+        newContent += `\n[${sectionName}]\n`;
+        newContent += sectionLines.filter(l => l.trim() !== '').join('\n');
+        newContent += '\n';
+      }
+
+      writeFileSync(projectFile, newContent, 'utf-8');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              action_name: actionName,
+              events_count: events.length,
+              deadzone: deadzone,
+              action: keyFound ? 'updated' : 'created',
+              events_summary: events.map(e => `${e.type}: ${e.keycode || e.button || e.axis || 'default'}`),
+              message: `Input action "${actionName}" has been ${keyFound ? 'updated' : 'created'} with ${events.length} event(s)`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to configure input action: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+          'Ensure event types are valid (key, mouse_button, joypad_button, joypad_axis)',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Convert a key name to Godot's key constant value
+   */
+  private getGodotKeyConstant(keyName: string): number {
+    // Common key mappings to Godot 4.x Key enum values
+    const keyMap: Record<string, number> = {
+      // Letters (ASCII values)
+      'A': 65, 'B': 66, 'C': 67, 'D': 68, 'E': 69, 'F': 70, 'G': 71, 'H': 72,
+      'I': 73, 'J': 74, 'K': 75, 'L': 76, 'M': 77, 'N': 78, 'O': 79, 'P': 80,
+      'Q': 81, 'R': 82, 'S': 83, 'T': 84, 'U': 85, 'V': 86, 'W': 87, 'X': 88,
+      'Y': 89, 'Z': 90,
+      // Numbers
+      '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57,
+      // Special keys (Godot 4.x Key enum)
+      'Space': 32,
+      'Escape': 4194305,
+      'Tab': 4194306,
+      'Backspace': 4194308,
+      'Enter': 4194309,
+      'Return': 4194309,
+      'Insert': 4194311,
+      'Delete': 4194312,
+      'Pause': 4194313,
+      'Home': 4194315,
+      'End': 4194316,
+      'Left': 4194319,
+      'Up': 4194320,
+      'Right': 4194321,
+      'Down': 4194322,
+      'PageUp': 4194323,
+      'PageDown': 4194324,
+      'Shift': 4194325,
+      'Ctrl': 4194326,
+      'Control': 4194326,
+      'Alt': 4194328,
+      'CapsLock': 4194327,
+      'F1': 4194332, 'F2': 4194333, 'F3': 4194334, 'F4': 4194335,
+      'F5': 4194336, 'F6': 4194337, 'F7': 4194338, 'F8': 4194339,
+      'F9': 4194340, 'F10': 4194341, 'F11': 4194342, 'F12': 4194343,
+    };
+
+    // Try exact match first
+    if (keyMap[keyName]) {
+      return keyMap[keyName];
+    }
+
+    // Try uppercase
+    const upper = keyName.toUpperCase();
+    if (keyMap[upper]) {
+      return keyMap[upper];
+    }
+
+    // Try lowercase first letter uppercase
+    const capitalized = keyName.charAt(0).toUpperCase() + keyName.slice(1).toLowerCase();
+    if (keyMap[capitalized]) {
+      return keyMap[capitalized];
+    }
+
+    // Default to the ASCII value if single character
+    if (keyName.length === 1) {
+      return keyName.toUpperCase().charCodeAt(0);
+    }
+
+    // Default to Space
+    return 32;
+  }
+
+  /**
+   * Handle the setup_render_layers tool
+   * Configures physics and render layer names in project settings
+   */
+  private async handleSetupRenderLayers(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.layerType || !args.layerNames) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath, layerType, and layerNames object']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      const { readFileSync, writeFileSync } = await import('fs');
+      let content = readFileSync(projectFile, 'utf-8');
+
+      const layerType = args.layerType as string;
+      const layerNames = args.layerNames as Record<string, string>;
+
+      // Determine section and key prefix based on layer type
+      let section: string;
+      let keyPrefix: string;
+      let maxLayer: number;
+
+      switch (layerType) {
+        case '2d_physics':
+          section = 'layer_names';
+          keyPrefix = '2d_physics/layer_';
+          maxLayer = 32;
+          break;
+        case '3d_physics':
+          section = 'layer_names';
+          keyPrefix = '3d_physics/layer_';
+          maxLayer = 32;
+          break;
+        case '2d_render':
+          section = 'layer_names';
+          keyPrefix = '2d_render/layer_';
+          maxLayer = 20;
+          break;
+        case '3d_render':
+          section = 'layer_names';
+          keyPrefix = '3d_render/layer_';
+          maxLayer = 20;
+          break;
+        default:
+          return this.createErrorResponse(
+            'Invalid layer type',
+            ['Valid types: 2d_physics, 3d_physics, 2d_render, 3d_render']
+          );
+      }
+
+      // Validate layer numbers
+      const invalidLayers: string[] = [];
+      for (const layerNum of Object.keys(layerNames)) {
+        const num = parseInt(layerNum, 10);
+        if (isNaN(num) || num < 1 || num > maxLayer) {
+          invalidLayers.push(layerNum);
+        }
+      }
+
+      if (invalidLayers.length > 0) {
+        return this.createErrorResponse(
+          `Invalid layer numbers: ${invalidLayers.join(', ')}`,
+          [`Layer numbers must be between 1 and ${maxLayer} for ${layerType}`]
+        );
+      }
+
+      // Parse the file into sections
+      const lines = content.split('\n');
+      const sections: Map<string, string[]> = new Map();
+      let currentSection = '';
+      let headerLines: string[] = [];
+
+      for (const line of lines) {
+        const sectionMatch = line.match(/^\[(\w+)\]$/);
+        if (sectionMatch) {
+          currentSection = sectionMatch[1];
+          if (!sections.has(currentSection)) {
+            sections.set(currentSection, []);
+          }
+        } else if (currentSection) {
+          sections.get(currentSection)!.push(line);
+        } else {
+          headerLines.push(line);
+        }
+      }
+
+      // Ensure section exists
+      if (!sections.has(section)) {
+        sections.set(section, []);
+      }
+
+      const sectionLines = sections.get(section)!;
+      const updatedLayers: string[] = [];
+      const createdLayers: string[] = [];
+
+      // Update or add each layer name
+      for (const [layerNum, layerName] of Object.entries(layerNames)) {
+        const key = `${keyPrefix}${layerNum}`;
+        const formattedValue = `"${layerName}"`;
+        let found = false;
+
+        for (let i = 0; i < sectionLines.length; i++) {
+          const line = sectionLines[i];
+          const keyPattern = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`);
+          if (keyPattern.test(line)) {
+            sectionLines[i] = `${key}=${formattedValue}`;
+            found = true;
+            updatedLayers.push(`Layer ${layerNum}: ${layerName}`);
+            break;
+          }
+        }
+
+        if (!found) {
+          sectionLines.push(`${key}=${formattedValue}`);
+          createdLayers.push(`Layer ${layerNum}: ${layerName}`);
+        }
+      }
+
+      // Rebuild the file content
+      let newContent = headerLines.join('\n');
+      if (!newContent.endsWith('\n')) {
+        newContent += '\n';
+      }
+
+      for (const [sectionName, sectionLinesArr] of sections) {
+        newContent += `\n[${sectionName}]\n`;
+        newContent += sectionLinesArr.filter(l => l.trim() !== '').join('\n');
+        newContent += '\n';
+      }
+
+      writeFileSync(projectFile, newContent, 'utf-8');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              layer_type: layerType,
+              layers_configured: Object.keys(layerNames).length,
+              updated: updatedLayers,
+              created: createdLayers,
+              message: `Configured ${Object.keys(layerNames).length} layer name(s) for ${layerType}`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to setup render layers: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+          'Ensure layer numbers are valid (1-32 for physics, 1-20 for render)',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the configure_autoload tool
+   * Adds or removes autoload singletons in project settings
+   */
+  private async handleConfigureAutoload(args: any) {
+    // Normalize parameters to camelCase
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath || !args.name) {
+      return this.createErrorResponse(
+        'Missing required parameters',
+        ['Provide projectPath and name']
+      );
+    }
+
+    if (!this.validatePath(args.projectPath)) {
+      return this.createErrorResponse(
+        'Invalid path',
+        ['Provide valid paths without ".." or other potentially unsafe characters']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          [
+            'Ensure the path points to a directory containing a project.godot file',
+            'Use list_projects to find valid Godot projects',
+          ]
+        );
+      }
+
+      const { readFileSync, writeFileSync } = await import('fs');
+      let content = readFileSync(projectFile, 'utf-8');
+
+      const name = args.name as string;
+      const scriptPath = args.scriptPath as string | undefined;
+      const enabled = args.enabled !== undefined ? args.enabled : true;
+      const remove = args.remove === true;
+
+      // For adding/updating, scriptPath is required
+      if (!remove && !scriptPath) {
+        return this.createErrorResponse(
+          'scriptPath is required when adding an autoload',
+          ['Provide the path to the script or scene file (e.g., "res://autoload/game_manager.gd")']
+        );
+      }
+
+      // Verify script exists if adding
+      if (!remove && scriptPath) {
+        // Convert res:// path to actual path
+        let actualScriptPath = scriptPath;
+        if (scriptPath.startsWith('res://')) {
+          actualScriptPath = join(args.projectPath, scriptPath.substring(6));
+        } else if (!scriptPath.startsWith('/') && !scriptPath.match(/^[A-Za-z]:/)) {
+          actualScriptPath = join(args.projectPath, scriptPath);
+        }
+
+        if (!existsSync(actualScriptPath)) {
+          return this.createErrorResponse(
+            `Script file not found: ${scriptPath}`,
+            [
+              'Ensure the script file exists at the specified path',
+              'Use create_script to create a new script first',
+            ]
+          );
+        }
+      }
+
+      // Parse the file into sections
+      const lines = content.split('\n');
+      const sections: Map<string, string[]> = new Map();
+      let currentSection = '';
+      let headerLines: string[] = [];
+
+      for (const line of lines) {
+        const sectionMatch = line.match(/^\[(\w+)\]$/);
+        if (sectionMatch) {
+          currentSection = sectionMatch[1];
+          if (!sections.has(currentSection)) {
+            sections.set(currentSection, []);
+          }
+        } else if (currentSection) {
+          sections.get(currentSection)!.push(line);
+        } else {
+          headerLines.push(line);
+        }
+      }
+
+      // Ensure autoload section exists
+      if (!sections.has('autoload')) {
+        sections.set('autoload', []);
+      }
+
+      const sectionLines = sections.get('autoload')!;
+      let action: 'created' | 'updated' | 'removed' | 'not_found' = 'created';
+
+      if (remove) {
+        // Remove the autoload
+        const keyPattern = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`);
+        const originalLength = sectionLines.length;
+        const newLines = sectionLines.filter(line => !keyPattern.test(line));
+
+        if (newLines.length < originalLength) {
+          sections.set('autoload', newLines);
+          action = 'removed';
+        } else {
+          action = 'not_found';
+        }
+      } else {
+        // Add or update the autoload
+        // Format: Name="*res://path/to/script.gd" (* prefix means enabled)
+        const prefix = enabled ? '*' : '';
+        const resPath = scriptPath!.startsWith('res://') ? scriptPath : `res://${scriptPath}`;
+        const autoloadValue = `"${prefix}${resPath}"`;
+
+        let found = false;
+        for (let i = 0; i < sectionLines.length; i++) {
+          const line = sectionLines[i];
+          const keyPattern = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`);
+          if (keyPattern.test(line)) {
+            sectionLines[i] = `${name}=${autoloadValue}`;
+            found = true;
+            action = 'updated';
+            break;
+          }
+        }
+
+        if (!found) {
+          sectionLines.push(`${name}=${autoloadValue}`);
+          action = 'created';
+        }
+      }
+
+      // Rebuild the file content
+      let newContent = headerLines.join('\n');
+      if (!newContent.endsWith('\n')) {
+        newContent += '\n';
+      }
+
+      for (const [sectionName, sectionLinesArr] of sections) {
+        newContent += `\n[${sectionName}]\n`;
+        newContent += sectionLinesArr.filter(l => l.trim() !== '').join('\n');
+        newContent += '\n';
+      }
+
+      writeFileSync(projectFile, newContent, 'utf-8');
+
+      const response: any = {
+        success: action !== 'not_found',
+        name: name,
+        action: action,
+      };
+
+      if (!remove && action !== 'not_found') {
+        response.script_path = scriptPath;
+        response.enabled = enabled;
+        response.message = `Autoload "${name}" has been ${action}. Access it globally as ${name} in your scripts.`;
+      } else if (action === 'removed') {
+        response.message = `Autoload "${name}" has been removed from the project.`;
+      } else {
+        response.message = `Autoload "${name}" was not found in the project.`;
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to configure autoload: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+          'Ensure the script path is valid',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the create_export_preset tool
+   * Creates or updates export presets for target platforms
+   * @param args Tool arguments
+   */
+  private async handleCreateExportPreset(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.presetName) {
+      return this.createErrorResponse(
+        'Preset name is required',
+        ['Provide a name for the export preset (e.g., "Windows Release", "Web Debug")']
+      );
+    }
+
+    if (!args.platform) {
+      return this.createErrorResponse(
+        'Platform is required',
+        ['Specify the target platform: Windows Desktop, Linux/X11, macOS, Web, Android, iOS']
+      );
+    }
+
+    const validPlatforms = ['Windows Desktop', 'Linux/X11', 'macOS', 'Web', 'Android', 'iOS'];
+    if (!validPlatforms.includes(args.platform)) {
+      return this.createErrorResponse(
+        `Invalid platform: ${args.platform}`,
+        [`Valid platforms: ${validPlatforms.join(', ')}`]
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          ['Ensure the directory contains a project.godot file']
+        );
+      }
+
+      const exportPresetsPath = join(args.projectPath, 'export_presets.cfg');
+      let existingContent = '';
+      let presetCount = 0;
+
+      // Read existing export_presets.cfg if it exists
+      if (existsSync(exportPresetsPath)) {
+        existingContent = readFileSync(exportPresetsPath, 'utf8');
+        // Count existing presets
+        const presetMatches = existingContent.match(/\[preset\.\d+\]/g);
+        if (presetMatches) {
+          presetCount = presetMatches.length;
+        }
+      }
+
+      // Check if preset with same name already exists
+      const nameRegex = new RegExp(`name="${args.presetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'g');
+      if (nameRegex.test(existingContent)) {
+        return this.createErrorResponse(
+          `Preset with name "${args.presetName}" already exists`,
+          ['Use a different name or modify the existing preset manually']
+        );
+      }
+
+      // Get platform-specific file extension
+      const getExportExtension = (platform: string): string => {
+        switch (platform) {
+          case 'Windows Desktop': return '.exe';
+          case 'Linux/X11': return '.x86_64';
+          case 'macOS': return '.zip';
+          case 'Web': return '.html';
+          case 'Android': return '.apk';
+          case 'iOS': return '.ipa';
+          default: return '';
+        }
+      };
+
+      // Default export path if not provided
+      const exportPath = args.exportPath || `export/${args.platform.replace(/[\/\\]/g, '_')}/${args.presetName.replace(/\s+/g, '_')}${getExportExtension(args.platform)}`;
+
+      // Build the preset configuration
+      const runnable = args.runnable !== false; // Default to true
+      const debugMode = args.debugMode !== false; // Default to true (for debug builds)
+
+      let presetSection = `
+[preset.${presetCount}]
+
+name="${args.presetName}"
+platform="${args.platform}"
+runnable=${runnable}
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter="${args.includeFilter || ''}"
+exclude_filter="${args.excludeFilter || ''}"
+export_path="${exportPath}"
+encryption_include_filters=""
+encryption_exclude_filters=""
+encrypt_pck=${args.encryptionKey ? 'true' : 'false'}
+encrypt_directory=false
+`;
+
+      // Add platform-specific options section
+      presetSection += `
+[preset.${presetCount}.options]
+
+`;
+
+      // Add platform-specific options
+      switch (args.platform) {
+        case 'Windows Desktop':
+          presetSection += `custom_template/debug=""
+custom_template/release=""
+debug/export_console_wrapper=1
+binary_format/embed_pck=false
+texture_format/bptc=true
+texture_format/s3tc=true
+texture_format/etc=false
+texture_format/etc2=false
+binary_format/architecture="x86_64"
+codesign/enable=false
+application/modify_resources=true
+application/icon=""
+application/icon_interpolation=4
+application/file_version=""
+application/product_version=""
+application/company_name=""
+application/product_name=""
+application/file_description=""
+application/copyright=""
+application/trademarks=""
+ssh_remote_deploy/enabled=false
+`;
+          break;
+        case 'Linux/X11':
+          presetSection += `custom_template/debug=""
+custom_template/release=""
+debug/export_console_wrapper=1
+binary_format/embed_pck=false
+texture_format/bptc=true
+texture_format/s3tc=true
+texture_format/etc=false
+texture_format/etc2=false
+binary_format/architecture="x86_64"
+ssh_remote_deploy/enabled=false
+`;
+          break;
+        case 'macOS':
+          presetSection += `custom_template/debug=""
+custom_template/release=""
+debug/export_console_wrapper=1
+binary_format/architecture="universal"
+application/icon=""
+application/icon_interpolation=4
+application/bundle_identifier=""
+application/signature=""
+application/app_category="Games"
+application/short_version=""
+application/version=""
+application/copyright=""
+application/copyright_localized={}
+application/min_macos_version="10.12"
+display/high_res=true
+codesign/codesign=1
+codesign/installer_identity=""
+codesign/apple_team_id=""
+codesign/identity=""
+codesign/entitlements/custom_file=""
+codesign/entitlements/allow_jit_code_execution=false
+codesign/entitlements/allow_unsigned_executable_memory=false
+codesign/entitlements/allow_dyld_environment_variables=false
+codesign/custom_options=PackedStringArray()
+notarization/notarization=0
+ssh_remote_deploy/enabled=false
+`;
+          break;
+        case 'Web':
+          presetSection += `custom_template/debug=""
+custom_template/release=""
+variant/extensions_support=false
+vram_texture_compression/for_desktop=true
+vram_texture_compression/for_mobile=false
+html/export_icon=true
+html/custom_html_shell=""
+html/head_include=""
+html/canvas_resize_policy=2
+html/focus_canvas_on_start=true
+html/experimental_virtual_keyboard=false
+progressive_web_app/enabled=false
+progressive_web_app/offline_page=""
+progressive_web_app/display=1
+progressive_web_app/orientation=0
+progressive_web_app/icon_144x144=""
+progressive_web_app/icon_180x180=""
+progressive_web_app/icon_512x512=""
+progressive_web_app/background_color=Color(0, 0, 0, 1)
+`;
+          break;
+        case 'Android':
+          presetSection += `custom_template/debug=""
+custom_template/release=""
+gradle_build/use_gradle_build=false
+gradle_build/export_format=0
+gradle_build/min_sdk=""
+gradle_build/target_sdk=""
+architectures/armeabi-v7a=true
+architectures/arm64-v8a=true
+architectures/x86=false
+architectures/x86_64=false
+version/code=1
+version/name=""
+package/unique_name="com.example.$genname"
+package/name=""
+package/signed=true
+package/app_category=2
+package/retain_data_on_uninstall=false
+package/exclude_from_recents=false
+package/show_in_android_tv=false
+package/show_in_app_library=true
+package/show_as_launcher_app=false
+launcher_icons/main_192x192=""
+launcher_icons/adaptive_foreground_432x432=""
+launcher_icons/adaptive_background_432x432=""
+graphics/opengl_debug=false
+xr_features/xr_mode=0
+screen/immersive_mode=true
+screen/support_small=true
+screen/support_normal=true
+screen/support_large=true
+screen/support_xlarge=true
+user_data_backup/allow=false
+command_line/extra_args=""
+apk_expansion/enable=false
+apk_expansion/SALT=""
+apk_expansion/public_key=""
+permissions/custom_permissions=PackedStringArray()
+permissions/access_checkin_properties=false
+permissions/access_coarse_location=false
+permissions/access_fine_location=false
+permissions/access_location_extra_commands=false
+permissions/access_mock_location=false
+permissions/access_network_state=false
+permissions/access_surface_flinger=false
+permissions/access_wifi_state=false
+permissions/account_manager=false
+permissions/add_voicemail=false
+permissions/authenticate_accounts=false
+permissions/battery_stats=false
+permissions/bind_accessibility_service=false
+permissions/bind_appwidget=false
+permissions/bind_device_admin=false
+permissions/bind_input_method=false
+permissions/bind_nfc_service=false
+permissions/bind_notification_listener_service=false
+permissions/bind_print_service=false
+permissions/bind_remoteviews=false
+permissions/bind_text_service=false
+permissions/bind_vpn_service=false
+permissions/bind_wallpaper=false
+permissions/bluetooth=false
+permissions/bluetooth_admin=false
+permissions/bluetooth_privileged=false
+permissions/brick=false
+permissions/broadcast_package_removed=false
+permissions/broadcast_sms=false
+permissions/broadcast_sticky=false
+permissions/broadcast_wap_push=false
+permissions/call_phone=false
+permissions/call_privileged=false
+permissions/camera=false
+permissions/capture_audio_output=false
+permissions/capture_secure_video_output=false
+permissions/capture_video_output=false
+permissions/change_component_enabled_state=false
+permissions/change_configuration=false
+permissions/change_network_state=false
+permissions/change_wifi_multicast_state=false
+permissions/change_wifi_state=false
+permissions/clear_app_cache=false
+permissions/clear_app_user_data=false
+permissions/control_location_updates=false
+permissions/delete_cache_files=false
+permissions/delete_packages=false
+permissions/device_power=false
+permissions/diagnostic=false
+permissions/disable_keyguard=false
+permissions/dump=false
+permissions/expand_status_bar=false
+permissions/factory_test=false
+permissions/flashlight=false
+permissions/force_back=false
+permissions/get_accounts=false
+permissions/get_package_size=false
+permissions/get_tasks=false
+permissions/get_top_activity_info=false
+permissions/global_search=false
+permissions/hardware_test=false
+permissions/inject_events=false
+permissions/install_location_provider=false
+permissions/install_packages=false
+permissions/install_shortcut=false
+permissions/internal_system_window=false
+permissions/internet=false
+permissions/kill_background_processes=false
+permissions/location_hardware=false
+permissions/manage_accounts=false
+permissions/manage_app_tokens=false
+permissions/manage_documents=false
+permissions/manage_external_storage=false
+permissions/master_clear=false
+permissions/media_content_control=false
+permissions/modify_audio_settings=false
+permissions/modify_phone_state=false
+permissions/mount_format_filesystems=false
+permissions/mount_unmount_filesystems=false
+permissions/nfc=false
+permissions/persistent_activity=false
+permissions/process_outgoing_calls=false
+permissions/read_calendar=false
+permissions/read_call_log=false
+permissions/read_contacts=false
+permissions/read_external_storage=false
+permissions/read_frame_buffer=false
+permissions/read_history_bookmarks=false
+permissions/read_input_state=false
+permissions/read_logs=false
+permissions/read_phone_state=false
+permissions/read_profile=false
+permissions/read_sms=false
+permissions/read_social_stream=false
+permissions/read_sync_settings=false
+permissions/read_sync_stats=false
+permissions/read_user_dictionary=false
+permissions/reboot=false
+permissions/receive_boot_completed=false
+permissions/receive_mms=false
+permissions/receive_sms=false
+permissions/receive_wap_push=false
+permissions/record_audio=false
+permissions/reorder_tasks=false
+permissions/request_ignore_battery_optimizations=false
+permissions/request_install_packages=false
+permissions/restart_packages=false
+permissions/send_respond_via_message=false
+permissions/send_sms=false
+permissions/set_activity_watcher=false
+permissions/set_alarm=false
+permissions/set_always_finish=false
+permissions/set_animation_scale=false
+permissions/set_debug_app=false
+permissions/set_orientation=false
+permissions/set_pointer_speed=false
+permissions/set_preferred_applications=false
+permissions/set_process_limit=false
+permissions/set_time=false
+permissions/set_time_zone=false
+permissions/set_wallpaper=false
+permissions/set_wallpaper_hints=false
+permissions/signal_persistent_processes=false
+permissions/status_bar=false
+permissions/subscribed_feeds_read=false
+permissions/subscribed_feeds_write=false
+permissions/system_alert_window=false
+permissions/transmit_ir=false
+permissions/uninstall_shortcut=false
+permissions/update_device_stats=false
+permissions/use_credentials=false
+permissions/use_sip=false
+permissions/vibrate=false
+permissions/wake_lock=false
+permissions/write_apn_settings=false
+permissions/write_calendar=false
+permissions/write_call_log=false
+permissions/write_contacts=false
+permissions/write_external_storage=false
+permissions/write_gservices=false
+permissions/write_history_bookmarks=false
+permissions/write_profile=false
+permissions/write_secure_settings=false
+permissions/write_settings=false
+permissions/write_sms=false
+permissions/write_social_stream=false
+permissions/write_sync_settings=false
+permissions/write_user_dictionary=false
+`;
+          break;
+        case 'iOS':
+          presetSection += `custom_template/debug=""
+custom_template/release=""
+architectures/arm64=true
+application/icon=""
+application/icon_interpolation=4
+application/launch_screens_interpolation=4
+application/export_project_only=false
+application/bundle_identifier=""
+application/signature=""
+application/short_version=""
+application/version=""
+application/min_ios_version="12.0"
+capabilities/access_wifi=false
+capabilities/push_notifications=false
+user_data/accessible_from_files_app=false
+user_data/accessible_from_itunes_sharing=false
+privacy/camera_usage_description=""
+privacy/camera_usage_description_localized={}
+privacy/microphone_usage_description=""
+privacy/microphone_usage_description_localized={}
+privacy/photolibrary_usage_description=""
+privacy/photolibrary_usage_description_localized={}
+icons/iphone_120x120=""
+icons/iphone_180x180=""
+icons/ipad_76x76=""
+icons/ipad_152x152=""
+icons/ipad_167x167=""
+icons/app_store_1024x1024=""
+storyboard/use_launch_screen_storyboard=false
+storyboard/image_scale_mode=0
+storyboard/custom_image@2x=""
+storyboard/custom_image@3x=""
+storyboard/use_custom_bg_color=false
+storyboard/custom_bg_color=Color(0, 0, 0, 1)
+`;
+          break;
+      }
+
+      // Write or append to export_presets.cfg
+      const finalContent = existingContent + presetSection;
+      writeFileSync(exportPresetsPath, finalContent, 'utf8');
+
+      const response = {
+        success: true,
+        message: `Created export preset "${args.presetName}" for ${args.platform}`,
+        presetIndex: presetCount,
+        exportPath: exportPath,
+        platform: args.platform,
+        runnable: runnable,
+        debugMode: debugMode,
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to create export preset: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+          'Ensure Godot 4.x is installed',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the export_project tool
+   * Build/export a Godot project for a specific platform
+   * @param args Tool arguments
+   */
+  private async handleExportProject(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.presetName) {
+      return this.createErrorResponse(
+        'Preset name is required',
+        ['Provide the name of an export preset defined in export_presets.cfg']
+      );
+    }
+
+    if (!args.outputPath) {
+      return this.createErrorResponse(
+        'Output path is required',
+        ['Provide the destination path for the exported build']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          ['Ensure the directory contains a project.godot file']
+        );
+      }
+
+      const exportPresetsPath = join(args.projectPath, 'export_presets.cfg');
+      if (!existsSync(exportPresetsPath)) {
+        return this.createErrorResponse(
+          'No export presets found',
+          [
+            'Create an export preset first using create_export_preset',
+            'Or configure export presets in the Godot editor (Project → Export...)',
+          ]
+        );
+      }
+
+      // Verify preset exists
+      const presetsContent = readFileSync(exportPresetsPath, 'utf8');
+      const nameRegex = new RegExp(`name="${args.presetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'g');
+      if (!nameRegex.test(presetsContent)) {
+        return this.createErrorResponse(
+          `Export preset "${args.presetName}" not found`,
+          [
+            'Check the preset name matches exactly',
+            'List available presets in export_presets.cfg',
+            'Create a new preset using create_export_preset',
+          ]
+        );
+      }
+
+      // Ensure godotPath is set
+      if (!this.godotPath) {
+        await this.detectGodotPath();
+        if (!this.godotPath) {
+          return this.createErrorResponse(
+            'Could not find a valid Godot executable path',
+            [
+              'Ensure Godot is installed correctly',
+              'Set GODOT_PATH environment variable',
+            ]
+          );
+        }
+      }
+
+      // Create output directory if it doesn't exist
+      const outputDir = dirname(args.outputPath);
+      if (!existsSync(outputDir)) {
+        mkdirSync(outputDir, { recursive: true });
+      }
+
+      // Build export command
+      const releaseMode = args.releaseMode === true;
+      const packOnly = args.packOnly === true;
+
+      let exportFlag = '--headless';
+      if (packOnly) {
+        exportFlag += releaseMode ? ' --export-pack' : ' --export-debug-pack';
+      } else {
+        exportFlag += releaseMode ? ' --export-release' : ' --export-debug';
+      }
+
+      // Construct the command
+      const exportArgs = [
+        '--headless',
+        '--path', args.projectPath,
+        releaseMode
+          ? (packOnly ? '--export-pack' : '--export-release')
+          : (packOnly ? '--export-debug-pack' : '--export-debug'),
+        args.presetName,
+        args.outputPath,
+      ];
+
+      // Execute export
+      const startTime = Date.now();
+
+      return new Promise((resolve) => {
+        const exportProcess = spawn(this.godotPath!, exportArgs, {
+          cwd: args.projectPath,
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        exportProcess.stdout.on('data', (data: Buffer) => {
+          stdout += data.toString();
+        });
+
+        exportProcess.stderr.on('data', (data: Buffer) => {
+          stderr += data.toString();
+        });
+
+        exportProcess.on('close', (code: number) => {
+          const duration = Date.now() - startTime;
+
+          if (code === 0) {
+            // Check if output file was created
+            const outputExists = existsSync(args.outputPath);
+
+            const response = {
+              success: true,
+              message: outputExists
+                ? `Successfully exported project to ${args.outputPath}`
+                : `Export completed but output file may need verification`,
+              presetName: args.presetName,
+              outputPath: args.outputPath,
+              releaseMode: releaseMode,
+              packOnly: packOnly,
+              duration: `${duration}ms`,
+              exitCode: code,
+              outputExists: outputExists,
+            };
+
+            resolve({
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(response, null, 2),
+                },
+              ],
+            });
+          } else {
+            resolve(this.createErrorResponse(
+              `Export failed with exit code ${code}`,
+              [
+                'Check if export templates are installed in Godot',
+                'Verify the preset configuration is correct',
+                'Check the output path is writable',
+                stderr ? `Error output: ${stderr.substring(0, 500)}` : 'No error output available',
+              ]
+            ));
+          }
+        });
+
+        exportProcess.on('error', (error: Error) => {
+          resolve(this.createErrorResponse(
+            `Failed to start export process: ${error.message}`,
+            [
+              'Verify Godot executable path is correct',
+              'Check if Godot is properly installed',
+            ]
+          ));
+        });
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to export project: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+          'Ensure export templates are installed',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the validate_export tool
+   * Check a Godot project for export issues before building
+   * @param args Tool arguments
+   */
+  private async handleValidateExport(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          ['Ensure the directory contains a project.godot file']
+        );
+      }
+
+      const issues: Array<{ type: string; severity: 'error' | 'warning' | 'info'; message: string; file?: string }> = [];
+      const checkTemplates = args.checkTemplates !== false;
+      const checkScripts = args.checkScripts !== false;
+      const warnLargeAssets = args.warnLargeAssets !== false;
+      const largeAssetThreshold = args.largeAssetThreshold || 10 * 1024 * 1024; // 10MB default
+
+      // Check for export_presets.cfg
+      const exportPresetsPath = join(args.projectPath, 'export_presets.cfg');
+      let presetFound = false;
+      let availablePresets: string[] = [];
+
+      if (!existsSync(exportPresetsPath)) {
+        issues.push({
+          type: 'missing_presets',
+          severity: 'error',
+          message: 'No export_presets.cfg file found - export presets need to be configured',
+        });
+      } else {
+        const presetsContent = readFileSync(exportPresetsPath, 'utf8');
+        const presetMatches = presetsContent.match(/name="([^"]+)"/g);
+        if (presetMatches) {
+          availablePresets = presetMatches.map((m: string) => m.replace('name="', '').replace('"', ''));
+          presetFound = true;
+        }
+
+        // Check for specific preset if provided
+        if (args.presetName) {
+          const nameRegex = new RegExp(`name="${args.presetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'g');
+          if (!nameRegex.test(presetsContent)) {
+            issues.push({
+              type: 'preset_not_found',
+              severity: 'error',
+              message: `Preset "${args.presetName}" not found in export_presets.cfg`,
+            });
+          }
+        }
+      }
+
+      // Check export templates if requested
+      if (checkTemplates && this.godotPath) {
+        // Get Godot version to check templates path
+        try {
+          const { stdout: versionResult } = await execAsync(`"${this.godotPath}" --version`);
+          const version = versionResult.trim().split('.').slice(0, 2).join('.');
+
+          // Common template paths
+          const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+          const templatePaths = [
+            // Windows
+            join(homeDir, 'AppData', 'Roaming', 'Godot', 'export_templates', version),
+            // macOS/Linux
+            join(homeDir, '.local', 'share', 'godot', 'export_templates', version),
+            join(homeDir, 'Library', 'Application Support', 'Godot', 'export_templates', version),
+          ];
+
+          let templatesFound = false;
+          for (const templatePath of templatePaths) {
+            if (existsSync(templatePath)) {
+              templatesFound = true;
+              break;
+            }
+          }
+
+          if (!templatesFound) {
+            issues.push({
+              type: 'missing_templates',
+              severity: 'warning',
+              message: `Export templates for Godot ${version} may not be installed`,
+            });
+          }
+        } catch (e) {
+          issues.push({
+            type: 'template_check_failed',
+            severity: 'info',
+            message: 'Could not verify export templates installation',
+          });
+        }
+      }
+
+      // Validate scripts if requested
+      if (checkScripts) {
+        const findScripts = (dir: string, scripts: string[] = []): string[] => {
+          try {
+            const entries = readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+              const fullPath = join(dir, entry.name);
+              if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== '.godot') {
+                findScripts(fullPath, scripts);
+              } else if (entry.isFile() && entry.name.endsWith('.gd')) {
+                scripts.push(fullPath);
+              }
+            }
+          } catch (e) {
+            // Skip directories we can't read
+          }
+          return scripts;
+        };
+
+        const scripts = findScripts(args.projectPath);
+
+        // Check each script for basic issues
+        for (const scriptPath of scripts) {
+          try {
+            const content = readFileSync(scriptPath, 'utf8');
+            const relativePath = scriptPath.replace(args.projectPath, '').replace(/^[\/\\]/, '');
+
+            // Check for common issues
+            if (content.includes('print(') && !content.includes('#')) {
+              // Many print statements without comments might indicate debug code
+              const printCount = (content.match(/print\(/g) || []).length;
+              if (printCount > 10) {
+                issues.push({
+                  type: 'debug_code',
+                  severity: 'info',
+                  message: `Script contains ${printCount} print statements - consider removing debug code for release`,
+                  file: relativePath,
+                });
+              }
+            }
+
+            // Check for TODO/FIXME comments
+            const todoMatches = content.match(/(?:#|\/\/)\s*(TODO|FIXME|XXX|HACK):/gi);
+            if (todoMatches && todoMatches.length > 0) {
+              issues.push({
+                type: 'todo_comments',
+                severity: 'info',
+                message: `Script contains ${todoMatches.length} TODO/FIXME comments`,
+                file: relativePath,
+              });
+            }
+
+            // Check for breakpoint() calls
+            if (content.includes('breakpoint()')) {
+              issues.push({
+                type: 'breakpoint',
+                severity: 'warning',
+                message: 'Script contains breakpoint() call - remove before release',
+                file: relativePath,
+              });
+            }
+
+          } catch (e) {
+            // Skip files we can't read
+          }
+        }
+      }
+
+      // Check for large assets if requested
+      if (warnLargeAssets) {
+        const checkLargeFiles = (dir: string, files: Array<{ path: string; size: number }> = []): Array<{ path: string; size: number }> => {
+          try {
+            const entries = readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+              const fullPath = join(dir, entry.name);
+              if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== '.godot') {
+                checkLargeFiles(fullPath, files);
+              } else if (entry.isFile()) {
+                const stat = statSync(fullPath);
+                if (stat.size > largeAssetThreshold) {
+                  files.push({
+                    path: fullPath.replace(args.projectPath, '').replace(/^[\/\\]/, ''),
+                    size: stat.size,
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            // Skip directories we can't read
+          }
+          return files;
+        };
+
+        const largeFiles = checkLargeFiles(args.projectPath);
+        for (const file of largeFiles) {
+          const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+          issues.push({
+            type: 'large_asset',
+            severity: 'warning',
+            message: `Large asset (${sizeMB} MB) may increase build size significantly`,
+            file: file.path,
+          });
+        }
+      }
+
+      // Check for common missing files
+      const commonFiles = ['icon.svg', 'icon.png'];
+      let hasIcon = false;
+      for (const iconFile of commonFiles) {
+        if (existsSync(join(args.projectPath, iconFile))) {
+          hasIcon = true;
+          break;
+        }
+      }
+      if (!hasIcon) {
+        issues.push({
+          type: 'missing_icon',
+          severity: 'info',
+          message: 'No project icon found (icon.svg or icon.png) - default icon will be used',
+        });
+      }
+
+      // Compile summary
+      const errorCount = issues.filter(i => i.severity === 'error').length;
+      const warningCount = issues.filter(i => i.severity === 'warning').length;
+      const infoCount = issues.filter(i => i.severity === 'info').length;
+
+      const response = {
+        success: errorCount === 0,
+        projectPath: args.projectPath,
+        presetName: args.presetName || null,
+        availablePresets: availablePresets,
+        summary: {
+          errors: errorCount,
+          warnings: warningCount,
+          info: infoCount,
+          total: issues.length,
+          exportReady: errorCount === 0 && presetFound,
+        },
+        issues: issues,
+        recommendations: [] as string[],
+      };
+
+      // Add recommendations based on issues
+      if (!presetFound) {
+        response.recommendations.push('Create export presets using create_export_preset or the Godot editor');
+      }
+      if (errorCount === 0 && warningCount > 0) {
+        response.recommendations.push('Review warnings before creating a release build');
+      }
+      if (errorCount === 0 && presetFound) {
+        response.recommendations.push('Project is ready for export - use export_project to build');
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to validate export: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Check file permissions',
+        ]
+      );
+    }
   }
 
   /**
