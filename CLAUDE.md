@@ -29,7 +29,9 @@ The current implementation plan follows a phased approach:
 - **Phase 8:** Project Settings & Configuration (COMPLETE ✅)
 - **Phase 9:** Build & Export Pipeline (COMPLETE ✅)
 - **Phase 10:** Tilemap & Level Design (COMPLETE ✅)
-- Future phases cover dialogue systems, localization, and plugin management
+- **Phase 11:** Dialogue & Localization Management (COMPLETE ✅)
+- **Phase 12:** Plugin Management (COMPLETE ✅)
+- Future phases cover specialized workflows as needed
 
 ## Build and Development Commands
 
@@ -58,7 +60,7 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~8860 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~11200 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
 **Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~4420 lines, ~160KB) that handles all complex Godot operations. This script:
 
@@ -92,7 +94,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 41 tools via the MCP protocol:
+The server exposes 52 tools via the MCP protocol:
 
 **Project Management**:
 
@@ -307,6 +309,69 @@ The server exposes 41 tools via the MCP protocol:
   - Cell configuration: cell size and height for voxelization
   - Source geometry modes: static_colliders, meshes, physics_bodies
   - Ready for runtime baking with NavigationServer3D
+
+**Dialogue & Localization Management** (Phase 11 - COMPLETE):
+
+- `create_translation_file` - Create translation files for localization (CSV or PO format)
+  - CSV format with multiple locale columns
+  - PO format (GNU gettext) for single locale
+  - Pre-populate with initial translation keys
+  - Automatic directory creation and UTF-8 encoding
+- `add_translation` - Add or update translation entries in existing files
+  - Add new keys or update existing translations
+  - Partial updates preserve other locales
+  - Support for placeholder syntax ({variable}, %s, %d)
+  - Comments and context hints for PO format
+- `remove_translation` - Remove translation keys from files
+  - Remove single or multiple keys by name
+  - Pattern matching with regex for bulk removal
+  - Dry run mode to preview changes
+- `validate_translations` - Validate translation files for completeness and consistency
+  - Detect missing translations for any locale
+  - Check placeholder consistency across translations
+  - Find duplicate keys
+  - Generate actionable recommendations
+- `create_dialogue_resource` - Create dialogue resources for conversations
+  - Linear dialogue sequences with next entry linking
+  - Branching choices with conditions (GDScript expressions)
+  - Character metadata (portraits, colors, voice)
+  - Signal emission for game integration
+- `configure_localization` - Configure project.godot localization settings
+  - Add/remove supported locales
+  - Register translation files
+  - Set fallback locale for missing translations
+  - Set test locale for development
+- `extract_translatable_strings` - Scan project for translatable content
+  - Find tr() calls in GDScript with context
+  - Extract UI text from .tscn files (Label.text, Button.text, etc.)
+  - Detect hardcoded strings that should use tr()
+  - Output to CSV, PO, or JSON format
+
+**Plugin Management** (Phase 12 - COMPLETE):
+
+- `list_plugins` - List installed plugins with status from project.godot
+  - Scan addons/ directory for plugin folders
+  - Parse plugin.cfg for name, version, author metadata
+  - Check [editor_plugins] section for enabled/disabled status
+  - Verbose mode includes raw configuration
+- `configure_plugin` - Enable, disable, or configure plugin settings
+  - Manages [editor_plugins] PackedStringArray in project.godot
+  - Add plugin-specific settings sections
+  - Track previous and new state for change reporting
+- `create_plugin` - Generate plugin scaffolds with templates
+  - 5 templates: basic, dock, inspector, import, tool
+  - Creates plugin.cfg and main plugin.gd
+  - Dock template includes dock.tscn scene
+  - Inspector template includes EditorInspectorPlugin script
+  - Import template includes EditorImportPlugin script
+  - Tool template adds tool menu item
+  - Auto-enable option after creation
+- `install_plugin` - Install plugins from Asset Library or Git
+  - Asset Library: search by query or install by ID
+  - Git: clone from any repository with branch selection
+  - Handles ZIP extraction and addon folder detection
+  - Auto-enable option after installation
+  - Overwrite protection for existing plugins
 
 ## Configuration
 

@@ -589,6 +589,161 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     )
     ```
 
+- **Dialogue & Localization Management** (Phase 11 - COMPLETE):
+  - **`create_translation_file`**: Create translation files for localization
+    - **Formats**: CSV (multi-locale columns) and PO (GNU gettext)
+    - **Initial Keys**: Pre-populate with translation entries
+    - **Locale Support**: Any locale code (en, es, fr, de, ja, zh, etc.)
+    - Automatic directory creation and UTF-8 encoding
+  - **`add_translation`**: Add or update translation entries
+    - **Smart Updates**: Add new keys or update existing translations
+    - **Partial Updates**: Update specific locales without affecting others
+    - **Placeholder Support**: {variable} and %s/%d format strings
+    - **Comments**: Add translator hints (PO format)
+  - **`remove_translation`**: Remove translation keys from files
+    - **Single/Multiple**: Remove specific keys by name
+    - **Pattern Matching**: Remove by regex pattern (e.g., "DEPRECATED_*")
+    - **Dry Run**: Preview changes without modifying files
+  - **`validate_translations`**: Check translation files for issues
+    - **Missing Detection**: Find empty translations for any locale
+    - **Placeholder Validation**: Ensure placeholders match across translations
+    - **Duplicate Detection**: Find duplicate translation keys
+    - **Actionable Recommendations**: Get specific fixes for issues
+  - **`create_dialogue_resource`**: Create branching dialogue systems
+    - **Linear/Branching**: Support both sequential and choice-based dialogue
+    - **Conditions**: GDScript expressions for conditional choices
+    - **Character Metadata**: Speaker portraits, colors, voice settings
+    - **Signals**: Emit signals when dialogue entries are shown
+  - **`configure_localization`**: Configure project localization settings
+    - **Locale Management**: Add/remove supported locales
+    - **Translation Registration**: Register .translation files
+    - **Fallback Locale**: Set default when translation missing
+    - **Test Locale**: Override for development testing
+  - **`extract_translatable_strings`**: Scan project for translatable content
+    - **GDScript Scanning**: Find all tr() calls with context
+    - **Scene Scanning**: Extract UI text from Label, Button, etc.
+    - **Hardcoded Detection**: Warn about strings needing localization
+    - **Multiple Formats**: Output to CSV, PO, or JSON
+  - **Complete Localization Workflow**:
+    ```gdscript
+    # Step 1: Create translation file
+    create_translation_file(
+      projectPath="/path/to/project",
+      translationPath="localization/translations.csv",
+      format="csv",
+      locales=["en", "es", "fr", "de"],
+      initialKeys=[
+        {key: "MENU_START", translations: {en: "Start Game", es: "Iniciar Juego"}}
+      ]
+    )
+
+    # Step 2: Add more translations
+    add_translation(
+      projectPath="/path/to/project",
+      translationPath="localization/translations.csv",
+      key="DIALOG_GREETING",
+      translations={en: "Hello, {name}!", es: "¡Hola, {name}!"}
+    )
+
+    # Step 3: Create dialogue with translation keys
+    create_dialogue_resource(
+      projectPath="/path/to/project",
+      dialoguePath="dialogues/intro.tres",
+      dialogueId="intro_dialogue",
+      entries=[
+        {id: "entry_1", speaker: "NPC", text: "DIALOG_GREETING", nextId: "entry_2"},
+        {id: "entry_2", text: "DIALOG_QUESTION", choices: [
+          {text: "CHOICE_YES", nextId: "entry_yes"},
+          {text: "CHOICE_NO", nextId: null}
+        ]}
+      ]
+    )
+
+    # Step 4: Configure project localization
+    configure_localization(
+      projectPath="/path/to/project",
+      locales=["en", "es", "fr", "de"],
+      translationFiles=["localization/translations.csv"],
+      fallbackLocale="en"
+    )
+
+    # Step 5: Validate translations
+    validate_translations(
+      projectPath="/path/to/project",
+      translationPath="localization/translations.csv",
+      checkPlaceholders=true
+    )
+
+    # Step 6: Extract strings from existing project
+    extract_translatable_strings(
+      projectPath="/path/to/project",
+      outputPath="localization/extracted.csv",
+      includeScenes=true
+    )
+    ```
+
+- **Plugin Management** (Phase 12 - COMPLETE):
+  - **`list_plugins`**: List all installed plugins with status
+    - **Status Detection**: Shows enabled/disabled state from project.godot
+    - **Metadata Parsing**: Extracts name, version, author from plugin.cfg
+    - **Verbose Mode**: Include raw configuration for debugging
+  - **`configure_plugin`**: Enable, disable, or configure plugins
+    - **Enable/Disable**: Manages [editor_plugins] section in project.godot
+    - **Custom Settings**: Add plugin-specific configuration sections
+    - **State Tracking**: Reports previous and new state
+  - **`create_plugin`**: Generate plugin scaffolds with templates
+    - **5 Templates**: basic, dock, inspector, import, tool
+    - **Full Structure**: Creates plugin.cfg, plugin.gd, and template files
+    - **Auto-Enable**: Optionally enable after creation
+    - **Validation**: Enforces snake_case plugin IDs
+  - **`install_plugin`**: Install from Asset Library or Git
+    - **Asset Library**: Search by name or install by ID
+    - **Git Support**: Clone from GitHub, GitLab, or any Git URL
+    - **Branch Selection**: Specify branch/tag to install
+    - **Auto-Enable**: Optionally enable after installation
+  - **Complete Plugin Workflow**:
+    ```gdscript
+    # Step 1: List existing plugins
+    list_plugins(
+      projectPath="/path/to/project",
+      verbose=true
+    )
+
+    # Step 2: Create a new plugin
+    create_plugin(
+      projectPath="/path/to/project",
+      pluginId="my_awesome_tool",
+      pluginName="My Awesome Tool",
+      author="Developer Name",
+      template="dock",
+      autoEnable=true
+    )
+
+    # Step 3: Install a plugin from Git
+    install_plugin(
+      projectPath="/path/to/project",
+      source="git",
+      gitUrl="https://github.com/user/plugin-repo",
+      gitBranch="main",
+      autoEnable=true
+    )
+
+    # Step 4: Configure plugin settings
+    configure_plugin(
+      projectPath="/path/to/project",
+      pluginId="my_awesome_tool",
+      enabled=true,
+      settings={debug_mode: true, log_level: "verbose"}
+    )
+
+    # Step 5: Search Asset Library
+    install_plugin(
+      projectPath="/path/to/project",
+      source="asset_library",
+      searchQuery="dialogue system"
+    )
+    ```
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
@@ -671,7 +826,18 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "create_tilemap",
         "paint_tiles",
         "configure_tileset",
-        "generate_navmesh"
+        "generate_navmesh",
+        "create_translation_file",
+        "add_translation",
+        "remove_translation",
+        "validate_translations",
+        "create_dialogue_resource",
+        "configure_localization",
+        "extract_translatable_strings",
+        "list_plugins",
+        "configure_plugin",
+        "create_plugin",
+        "install_plugin"
       ]
     }
   }

@@ -9,7 +9,7 @@
 
 import { fileURLToPath } from 'url';
 import { join, dirname, basename, normalize } from 'path';
-import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs';
+import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, statSync, copyFileSync, unlinkSync, rmdirSync, createWriteStream } from 'fs';
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { exec } from 'child_process';
@@ -2137,6 +2137,415 @@ class GodotServer {
             required: ['projectPath', 'scenePath'],
           },
         },
+        // Phase 11: Dialogue & Localization Management
+        {
+          name: 'create_translation_file',
+          description: 'Create a new translation file for localization (CSV, PO, or Godot translation format).',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              translationPath: {
+                type: 'string',
+                description: 'Output path for translation file (e.g., "localization/translations.csv")',
+              },
+              format: {
+                type: 'string',
+                enum: ['csv', 'po'],
+                description: 'Translation file format (default: "csv")',
+              },
+              locales: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'List of locale codes (e.g., ["en", "es", "fr", "de", "ja"])',
+              },
+              initialKeys: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    key: { type: 'string' },
+                    translations: { type: 'object' },
+                  },
+                },
+                description: 'Initial translation keys to add',
+              },
+            },
+            required: ['projectPath', 'translationPath', 'locales'],
+          },
+        },
+        {
+          name: 'add_translation',
+          description: 'Add or update a translation entry in an existing translation file.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              translationPath: {
+                type: 'string',
+                description: 'Path to the translation file',
+              },
+              key: {
+                type: 'string',
+                description: 'Translation key (e.g., "MENU_START", "DIALOG_GREETING")',
+              },
+              translations: {
+                type: 'object',
+                description: 'Locale to translation mapping (e.g., {"en": "Hello", "es": "Hola"})',
+              },
+              context: {
+                type: 'string',
+                description: 'Context hint for translators (PO format only)',
+              },
+              comment: {
+                type: 'string',
+                description: 'Comment for translators',
+              },
+            },
+            required: ['projectPath', 'translationPath', 'key', 'translations'],
+          },
+        },
+        {
+          name: 'remove_translation',
+          description: 'Remove translation keys from a translation file.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              translationPath: {
+                type: 'string',
+                description: 'Path to the translation file',
+              },
+              keys: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'List of translation keys to remove',
+              },
+              pattern: {
+                type: 'string',
+                description: 'Regex pattern to match keys for removal',
+              },
+              dryRun: {
+                type: 'boolean',
+                description: 'Preview removals without modifying file (default: false)',
+              },
+            },
+            required: ['projectPath', 'translationPath'],
+          },
+        },
+        {
+          name: 'validate_translations',
+          description: 'Validate translation files for completeness and consistency.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              translationPath: {
+                type: 'string',
+                description: 'Path to translation file or directory',
+              },
+              referenceLocale: {
+                type: 'string',
+                description: 'Base locale to compare against (default: "en" or first locale)',
+              },
+              checkPlaceholders: {
+                type: 'boolean',
+                description: 'Verify placeholders match across translations (default: true)',
+              },
+              reportUnused: {
+                type: 'boolean',
+                description: 'Find keys not used in scripts (default: false)',
+              },
+            },
+            required: ['projectPath', 'translationPath'],
+          },
+        },
+        {
+          name: 'create_dialogue_resource',
+          description: 'Create a dialogue resource for in-game conversations with branching support.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              dialoguePath: {
+                type: 'string',
+                description: 'Output path for dialogue resource (e.g., "dialogues/intro.tres")',
+              },
+              dialogueId: {
+                type: 'string',
+                description: 'Unique identifier for this dialogue',
+              },
+              entries: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string', description: 'Entry ID' },
+                    speaker: { type: 'string', description: 'Speaker character ID' },
+                    text: { type: 'string', description: 'Translation key for dialogue text' },
+                    choices: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          text: { type: 'string' },
+                          nextId: { type: 'string' },
+                          condition: { type: 'string' },
+                        },
+                      },
+                    },
+                    nextId: { type: 'string', description: 'Next entry ID (for linear flow)' },
+                    signals: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Signals to emit when this entry is shown',
+                    },
+                  },
+                },
+                description: 'Dialogue entries in sequence',
+              },
+              characters: {
+                type: 'object',
+                description: 'Character metadata (portraits, colors, voice)',
+              },
+              variables: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Dialogue-local variable names',
+              },
+            },
+            required: ['projectPath', 'dialoguePath', 'dialogueId', 'entries'],
+          },
+        },
+        {
+          name: 'configure_localization',
+          description: 'Configure project localization settings in project.godot.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              locales: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'List of supported locales to add (e.g., ["en", "es", "fr"])',
+              },
+              translationFiles: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Paths to translation files to register',
+              },
+              fallbackLocale: {
+                type: 'string',
+                description: 'Locale to use when translation missing (default: "en")',
+              },
+              testLocale: {
+                type: 'string',
+                description: 'Override locale for testing',
+              },
+              removeLocales: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Locales to remove from project',
+              },
+            },
+            required: ['projectPath'],
+          },
+        },
+        {
+          name: 'extract_translatable_strings',
+          description: 'Scan project files to extract strings that need translation.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              outputPath: {
+                type: 'string',
+                description: 'Output file for extracted strings',
+              },
+              outputFormat: {
+                type: 'string',
+                enum: ['csv', 'po', 'json'],
+                description: 'Output format (default: "csv")',
+              },
+              scanPaths: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Specific paths to scan (default: entire project)',
+              },
+              includeScenes: {
+                type: 'boolean',
+                description: 'Scan .tscn files for UI text (default: true)',
+              },
+              excludePatterns: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Patterns to exclude (e.g., ["test/*", "addons/*"])',
+              },
+            },
+            required: ['projectPath'],
+          },
+        },
+        // Phase 12: Plugin Management
+        {
+          name: 'list_plugins',
+          description: 'List all installed plugins in a Godot project with their configuration status.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              includeBuiltin: {
+                type: 'boolean',
+                description: 'Include editor built-in plugins (default: false)',
+              },
+              verbose: {
+                type: 'boolean',
+                description: 'Include full plugin.cfg contents (default: false)',
+              },
+            },
+            required: ['projectPath'],
+          },
+        },
+        {
+          name: 'configure_plugin',
+          description: 'Enable, disable, or configure plugin settings in project.godot.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              pluginId: {
+                type: 'string',
+                description: 'Plugin folder name in addons/ directory',
+              },
+              enabled: {
+                type: 'boolean',
+                description: 'Enable (true) or disable (false) the plugin',
+              },
+              settings: {
+                type: 'object',
+                description: 'Plugin-specific settings to configure',
+                additionalProperties: true,
+              },
+            },
+            required: ['projectPath', 'pluginId'],
+          },
+        },
+        {
+          name: 'create_plugin',
+          description: 'Generate a new plugin scaffold with plugin.cfg, main script, and directory structure.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              pluginId: {
+                type: 'string',
+                description: 'Plugin folder name (snake_case recommended)',
+              },
+              pluginName: {
+                type: 'string',
+                description: 'Display name for the plugin',
+              },
+              author: {
+                type: 'string',
+                description: 'Plugin author name',
+              },
+              description: {
+                type: 'string',
+                description: 'Plugin description',
+              },
+              version: {
+                type: 'string',
+                description: 'Initial version (default: "1.0.0")',
+              },
+              template: {
+                type: 'string',
+                enum: ['basic', 'dock', 'inspector', 'import', 'tool'],
+                description: 'Plugin template type (default: "basic")',
+              },
+              autoEnable: {
+                type: 'boolean',
+                description: 'Enable plugin after creation (default: false)',
+              },
+            },
+            required: ['projectPath', 'pluginId', 'pluginName', 'author'],
+          },
+        },
+        {
+          name: 'install_plugin',
+          description: 'Install plugins from the Godot Asset Library or Git repositories.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              source: {
+                type: 'string',
+                enum: ['asset_library', 'git'],
+                description: 'Installation source: "asset_library" or "git"',
+              },
+              assetId: {
+                type: 'number',
+                description: 'Asset Library asset ID (for asset_library source)',
+              },
+              searchQuery: {
+                type: 'string',
+                description: 'Search Asset Library by name (for asset_library source)',
+              },
+              gitUrl: {
+                type: 'string',
+                description: 'Git repository URL (for git source)',
+              },
+              gitBranch: {
+                type: 'string',
+                description: 'Git branch/tag to checkout (default: "main")',
+              },
+              gitSubfolder: {
+                type: 'string',
+                description: 'Subfolder within repo containing addon (default: "addons/")',
+              },
+              autoEnable: {
+                type: 'boolean',
+                description: 'Enable plugin after installation (default: false)',
+              },
+              overwrite: {
+                type: 'boolean',
+                description: 'Overwrite existing plugin (default: false)',
+              },
+            },
+            required: ['projectPath', 'source'],
+          },
+        },
       ],
     }));
 
@@ -2238,6 +2647,30 @@ class GodotServer {
           return await this.handleConfigureTileset(request.params.arguments);
         case 'generate_navmesh':
           return await this.handleGenerateNavmesh(request.params.arguments);
+        // Phase 11: Dialogue & Localization Management
+        case 'create_translation_file':
+          return await this.handleCreateTranslationFile(request.params.arguments);
+        case 'add_translation':
+          return await this.handleAddTranslation(request.params.arguments);
+        case 'remove_translation':
+          return await this.handleRemoveTranslation(request.params.arguments);
+        case 'validate_translations':
+          return await this.handleValidateTranslations(request.params.arguments);
+        case 'create_dialogue_resource':
+          return await this.handleCreateDialogueResource(request.params.arguments);
+        case 'configure_localization':
+          return await this.handleConfigureLocalization(request.params.arguments);
+        case 'extract_translatable_strings':
+          return await this.handleExtractTranslatableStrings(request.params.arguments);
+        // Phase 12: Plugin Management
+        case 'list_plugins':
+          return await this.handleListPlugins(request.params.arguments);
+        case 'configure_plugin':
+          return await this.handleConfigurePlugin(request.params.arguments);
+        case 'create_plugin':
+          return await this.handleCreatePlugin(request.params.arguments);
+        case 'install_plugin':
+          return await this.handleInstallPlugin(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -8822,6 +9255,2051 @@ storyboard/custom_bg_color=Color(0, 0, 0, 1)
         ]
       );
     }
+  }
+
+  // ==========================================
+  // Phase 11: Dialogue & Localization Management
+  // ==========================================
+
+  /**
+   * Handle the create_translation_file tool
+   * Creates a new translation file (CSV or PO format)
+   */
+  private async handleCreateTranslationFile(args: any) {
+    args = this.normalizeParameters(args);
+
+    const projectPath = args.projectPath;
+    const translationPath = args.translationPath;
+    const format = args.format || 'csv';
+    const locales: string[] = args.locales || [];
+    const initialKeys: Array<{ key: string; translations: Record<string, string> }> = args.initialKeys || [];
+
+    if (!projectPath) {
+      return this.createErrorResponse('Project path is required');
+    }
+
+    if (!translationPath) {
+      return this.createErrorResponse('Translation path is required');
+    }
+
+    if (!locales || locales.length === 0) {
+      return this.createErrorResponse('At least one locale is required');
+    }
+
+    const fullPath = join(projectPath, translationPath);
+    const dirPath = dirname(fullPath);
+
+    try {
+      // Create directory if it doesn't exist
+      if (!existsSync(dirPath)) {
+        mkdirSync(dirPath, { recursive: true });
+      }
+
+      let content = '';
+
+      if (format === 'csv') {
+        // CSV format: key,locale1,locale2,...
+        const header = ['key', ...locales].join(',');
+        const rows = [header];
+
+        for (const entry of initialKeys) {
+          const row = [this.escapeCsvValue(entry.key)];
+          for (const locale of locales) {
+            const translation = entry.translations[locale] || '';
+            row.push(this.escapeCsvValue(translation));
+          }
+          rows.push(row.join(','));
+        }
+
+        content = rows.join('\n') + '\n';
+      } else if (format === 'po') {
+        // PO format: GNU gettext
+        const poHeader = `# Translation file
+# Language: ${locales[0]}
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Language: ${locales[0]}\\n"
+
+`;
+        const entries: string[] = [poHeader];
+
+        for (const entry of initialKeys) {
+          const translation = entry.translations[locales[0]] || '';
+          entries.push(`msgid "${this.escapePoString(entry.key)}"\nmsgstr "${this.escapePoString(translation)}"\n`);
+        }
+
+        content = entries.join('\n');
+      } else {
+        return this.createErrorResponse(`Unsupported format: ${format}. Use 'csv' or 'po'.`);
+      }
+
+      writeFileSync(fullPath, content, 'utf-8');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              translationPath: translationPath,
+              format: format,
+              locales: locales,
+              keysAdded: initialKeys.length,
+              message: `Translation file created at ${translationPath}`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to create translation file: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the add_translation tool
+   * Add or update a translation entry
+   */
+  private async handleAddTranslation(args: any) {
+    args = this.normalizeParameters(args);
+
+    const projectPath = args.projectPath;
+    const translationPath = args.translationPath;
+    const key = args.key;
+    const translations: Record<string, string> = args.translations || {};
+    const comment = args.comment;
+
+    if (!projectPath || !translationPath || !key) {
+      return this.createErrorResponse('Project path, translation path, and key are required');
+    }
+
+    const fullPath = join(projectPath, translationPath);
+
+    if (!existsSync(fullPath)) {
+      return this.createErrorResponse(`Translation file not found: ${translationPath}`);
+    }
+
+    try {
+      const content = readFileSync(fullPath, 'utf-8');
+      const ext = translationPath.toLowerCase();
+
+      if (ext.endsWith('.csv')) {
+        // Parse and update CSV
+        const lines = content.split('\n').filter(l => l.trim());
+        if (lines.length === 0) {
+          return this.createErrorResponse('Translation file is empty');
+        }
+
+        const header = this.parseCsvLine(lines[0]);
+        const locales = header.slice(1);
+
+        // Find or add the key
+        let found = false;
+        const newLines = [lines[0]];
+
+        for (let i = 1; i < lines.length; i++) {
+          const row = this.parseCsvLine(lines[i]);
+          if (row[0] === key) {
+            // Update existing key
+            found = true;
+            const newRow = [this.escapeCsvValue(key)];
+            for (const locale of locales) {
+              const translation = translations[locale] !== undefined ? translations[locale] : (row[locales.indexOf(locale) + 1] || '');
+              newRow.push(this.escapeCsvValue(translation));
+            }
+            newLines.push(newRow.join(','));
+          } else {
+            newLines.push(lines[i]);
+          }
+        }
+
+        if (!found) {
+          // Add new key
+          const newRow = [this.escapeCsvValue(key)];
+          for (const locale of locales) {
+            newRow.push(this.escapeCsvValue(translations[locale] || ''));
+          }
+          newLines.push(newRow.join(','));
+        }
+
+        writeFileSync(fullPath, newLines.join('\n') + '\n', 'utf-8');
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: true,
+                key: key,
+                action: found ? 'updated' : 'added',
+                translations: translations,
+              }, null, 2),
+            },
+          ],
+        };
+      } else if (ext.endsWith('.po')) {
+        // Parse and update PO file
+        let newContent = content;
+        const msgidPattern = new RegExp(`msgid "${this.escapeRegex(key)}"\\nmsgstr "[^"]*"`, 'g');
+
+        if (msgidPattern.test(content)) {
+          // Update existing entry
+          const locale = Object.keys(translations)[0];
+          const translation = translations[locale] || '';
+          newContent = content.replace(msgidPattern, `msgid "${this.escapePoString(key)}"\nmsgstr "${this.escapePoString(translation)}"`);
+        } else {
+          // Add new entry
+          const locale = Object.keys(translations)[0];
+          const translation = translations[locale] || '';
+          let entry = '';
+          if (comment) {
+            entry += `# ${comment}\n`;
+          }
+          entry += `msgid "${this.escapePoString(key)}"\nmsgstr "${this.escapePoString(translation)}"\n`;
+          newContent = content.trimEnd() + '\n\n' + entry;
+        }
+
+        writeFileSync(fullPath, newContent, 'utf-8');
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: true,
+                key: key,
+                action: msgidPattern.test(content) ? 'updated' : 'added',
+                translations: translations,
+              }, null, 2),
+            },
+          ],
+        };
+      } else {
+        return this.createErrorResponse('Unsupported file format. Use .csv or .po files.');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to add translation: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the remove_translation tool
+   * Remove translation keys from a file
+   */
+  private async handleRemoveTranslation(args: any) {
+    args = this.normalizeParameters(args);
+
+    const projectPath = args.projectPath;
+    const translationPath = args.translationPath;
+    const keys: string[] = args.keys || [];
+    const pattern = args.pattern;
+    const dryRun = args.dryRun || false;
+
+    if (!projectPath || !translationPath) {
+      return this.createErrorResponse('Project path and translation path are required');
+    }
+
+    if (!keys.length && !pattern) {
+      return this.createErrorResponse('Either keys or pattern is required');
+    }
+
+    const fullPath = join(projectPath, translationPath);
+
+    if (!existsSync(fullPath)) {
+      return this.createErrorResponse(`Translation file not found: ${translationPath}`);
+    }
+
+    try {
+      const content = readFileSync(fullPath, 'utf-8');
+      const ext = translationPath.toLowerCase();
+      const removedKeys: string[] = [];
+
+      if (ext.endsWith('.csv')) {
+        const lines = content.split('\n').filter(l => l.trim());
+        if (lines.length === 0) {
+          return this.createErrorResponse('Translation file is empty');
+        }
+
+        const newLines = [lines[0]]; // Keep header
+        const patternRegex = pattern ? new RegExp(pattern) : null;
+
+        for (let i = 1; i < lines.length; i++) {
+          const row = this.parseCsvLine(lines[i]);
+          const rowKey = row[0];
+
+          const shouldRemove = keys.includes(rowKey) || (patternRegex && patternRegex.test(rowKey));
+
+          if (shouldRemove) {
+            removedKeys.push(rowKey);
+          } else {
+            newLines.push(lines[i]);
+          }
+        }
+
+        if (!dryRun && removedKeys.length > 0) {
+          writeFileSync(fullPath, newLines.join('\n') + '\n', 'utf-8');
+        }
+      } else if (ext.endsWith('.po')) {
+        const patternRegex = pattern ? new RegExp(pattern) : null;
+        let newContent = content;
+
+        // Find all msgid entries
+        const msgidRegex = /msgid "([^"]+)"\nmsgstr "[^"]*"\n?/g;
+        let match;
+        const entriesToRemove: string[] = [];
+
+        while ((match = msgidRegex.exec(content)) !== null) {
+          const msgid = match[1];
+          const shouldRemove = keys.includes(msgid) || (patternRegex && patternRegex.test(msgid));
+          if (shouldRemove) {
+            entriesToRemove.push(match[0]);
+            removedKeys.push(msgid);
+          }
+        }
+
+        if (!dryRun && entriesToRemove.length > 0) {
+          for (const entry of entriesToRemove) {
+            newContent = newContent.replace(entry, '');
+          }
+          // Clean up extra newlines
+          newContent = newContent.replace(/\n{3,}/g, '\n\n');
+          writeFileSync(fullPath, newContent, 'utf-8');
+        }
+      } else {
+        return this.createErrorResponse('Unsupported file format. Use .csv or .po files.');
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              dryRun: dryRun,
+              removedCount: removedKeys.length,
+              removedKeys: removedKeys,
+              message: dryRun ? 'Dry run - no changes made' : `Removed ${removedKeys.length} translation(s)`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to remove translation: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the validate_translations tool
+   * Validate translation files for completeness
+   */
+  private async handleValidateTranslations(args: any) {
+    args = this.normalizeParameters(args);
+
+    const projectPath = args.projectPath;
+    const translationPath = args.translationPath;
+    const referenceLocale = args.referenceLocale;
+    const checkPlaceholders = args.checkPlaceholders !== false;
+
+    if (!projectPath || !translationPath) {
+      return this.createErrorResponse('Project path and translation path are required');
+    }
+
+    const fullPath = join(projectPath, translationPath);
+
+    if (!existsSync(fullPath)) {
+      return this.createErrorResponse(`Translation file not found: ${translationPath}`);
+    }
+
+    try {
+      const content = readFileSync(fullPath, 'utf-8');
+      const ext = translationPath.toLowerCase();
+
+      const issues: Array<{
+        type: string;
+        severity: string;
+        key?: string;
+        locale?: string;
+        message: string;
+        details?: any;
+      }> = [];
+
+      let totalKeys = 0;
+      let completeKeys = 0;
+      let missingTranslations = 0;
+      let placeholderMismatches = 0;
+      let duplicateKeys = 0;
+
+      if (ext.endsWith('.csv')) {
+        const lines = content.split('\n').filter(l => l.trim());
+        if (lines.length === 0) {
+          return this.createErrorResponse('Translation file is empty');
+        }
+
+        const header = this.parseCsvLine(lines[0]);
+        const locales = header.slice(1);
+        const refLocaleIndex = referenceLocale ? locales.indexOf(referenceLocale) : 0;
+        const refLocale = locales[refLocaleIndex] || locales[0];
+        const seenKeys = new Set<string>();
+
+        for (let i = 1; i < lines.length; i++) {
+          const row = this.parseCsvLine(lines[i]);
+          const key = row[0];
+          totalKeys++;
+
+          // Check for duplicates
+          if (seenKeys.has(key)) {
+            duplicateKeys++;
+            issues.push({
+              type: 'duplicate_key',
+              severity: 'error',
+              key: key,
+              message: `Duplicate key: '${key}'`,
+            });
+          }
+          seenKeys.add(key);
+
+          // Check for missing translations
+          let keyComplete = true;
+          const refTranslation = row[refLocaleIndex + 1] || '';
+
+          for (let j = 0; j < locales.length; j++) {
+            const translation = row[j + 1] || '';
+            if (!translation.trim()) {
+              keyComplete = false;
+              missingTranslations++;
+              issues.push({
+                type: 'missing_translation',
+                severity: 'warning',
+                key: key,
+                locale: locales[j],
+                message: `Missing ${locales[j]} translation for key '${key}'`,
+              });
+            }
+
+            // Check placeholders
+            if (checkPlaceholders && translation.trim() && refTranslation.trim() && j !== refLocaleIndex) {
+              const refPlaceholders = this.extractPlaceholders(refTranslation);
+              const transPlaceholders = this.extractPlaceholders(translation);
+
+              if (refPlaceholders.length !== transPlaceholders.length ||
+                  !refPlaceholders.every(p => transPlaceholders.includes(p))) {
+                placeholderMismatches++;
+                issues.push({
+                  type: 'placeholder_mismatch',
+                  severity: 'error',
+                  key: key,
+                  message: `Placeholder mismatch in '${key}' between ${refLocale} and ${locales[j]}`,
+                  details: {
+                    [refLocale]: refTranslation,
+                    [locales[j]]: translation,
+                    refPlaceholders: refPlaceholders,
+                    transPlaceholders: transPlaceholders,
+                  },
+                });
+              }
+            }
+          }
+
+          if (keyComplete) {
+            completeKeys++;
+          }
+        }
+      } else if (ext.endsWith('.po')) {
+        // Basic PO validation
+        const msgidRegex = /msgid "([^"]+)"\nmsgstr "([^"]*)"/g;
+        let match;
+        const seenKeys = new Set<string>();
+
+        while ((match = msgidRegex.exec(content)) !== null) {
+          const msgid = match[1];
+          const msgstr = match[2];
+          totalKeys++;
+
+          if (seenKeys.has(msgid)) {
+            duplicateKeys++;
+            issues.push({
+              type: 'duplicate_key',
+              severity: 'error',
+              key: msgid,
+              message: `Duplicate key: '${msgid}'`,
+            });
+          }
+          seenKeys.add(msgid);
+
+          if (!msgstr.trim()) {
+            missingTranslations++;
+            issues.push({
+              type: 'missing_translation',
+              severity: 'warning',
+              key: msgid,
+              message: `Missing translation for key '${msgid}'`,
+            });
+          } else {
+            completeKeys++;
+
+            // Check placeholders
+            if (checkPlaceholders) {
+              const refPlaceholders = this.extractPlaceholders(msgid);
+              const transPlaceholders = this.extractPlaceholders(msgstr);
+
+              if (refPlaceholders.length > 0 &&
+                  (refPlaceholders.length !== transPlaceholders.length ||
+                   !refPlaceholders.every(p => transPlaceholders.includes(p)))) {
+                placeholderMismatches++;
+                issues.push({
+                  type: 'placeholder_mismatch',
+                  severity: 'error',
+                  key: msgid,
+                  message: `Placeholder mismatch in '${msgid}'`,
+                  details: {
+                    msgid: msgid,
+                    msgstr: msgstr,
+                  },
+                });
+              }
+            }
+          }
+        }
+      }
+
+      const errors = issues.filter(i => i.severity === 'error').length;
+      const warnings = issues.filter(i => i.severity === 'warning').length;
+
+      const recommendations: string[] = [];
+      if (missingTranslations > 0) {
+        recommendations.push(`Add missing translations (${missingTranslations} total)`);
+      }
+      if (placeholderMismatches > 0) {
+        recommendations.push('Fix placeholder mismatches to ensure proper variable substitution');
+      }
+      if (duplicateKeys > 0) {
+        recommendations.push('Remove or rename duplicate keys');
+      }
+      if (issues.length === 0) {
+        recommendations.push('All translations are complete and valid');
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              valid: errors === 0,
+              translationPath: translationPath,
+              summary: {
+                totalKeys: totalKeys,
+                completeKeys: completeKeys,
+                missingTranslations: missingTranslations,
+                placeholderMismatches: placeholderMismatches,
+                duplicateKeys: duplicateKeys,
+                warnings: warnings,
+                errors: errors,
+              },
+              issues: issues,
+              recommendations: recommendations,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to validate translations: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the create_dialogue_resource tool
+   * Create a dialogue resource file
+   */
+  private async handleCreateDialogueResource(args: any) {
+    args = this.normalizeParameters(args);
+
+    const projectPath = args.projectPath;
+    const dialoguePath = args.dialoguePath;
+    const dialogueId = args.dialogueId;
+    const entries: Array<{
+      id: string;
+      speaker?: string;
+      text: string;
+      choices?: Array<{ text: string; nextId?: string; condition?: string }>;
+      nextId?: string;
+      signals?: string[];
+    }> = args.entries || [];
+    const characters = args.characters || {};
+    const variables: string[] = args.variables || [];
+
+    if (!projectPath || !dialoguePath || !dialogueId) {
+      return this.createErrorResponse('Project path, dialogue path, and dialogue ID are required');
+    }
+
+    if (!entries || entries.length === 0) {
+      return this.createErrorResponse('At least one dialogue entry is required');
+    }
+
+    const fullPath = join(projectPath, dialoguePath);
+    const dirPath = dirname(fullPath);
+
+    try {
+      // Create directory if it doesn't exist
+      if (!existsSync(dirPath)) {
+        mkdirSync(dirPath, { recursive: true });
+      }
+
+      // Generate .tres file content
+      const uid = this.generateUID();
+
+      // Build entries array for the resource
+      const entriesContent: string[] = [];
+      for (const entry of entries) {
+        const entryLines: string[] = ['{'];
+        entryLines.push(`"id": "${entry.id}",`);
+        if (entry.speaker) {
+          entryLines.push(`"speaker": "${entry.speaker}",`);
+        }
+        entryLines.push(`"text": "${entry.text}",`);
+
+        if (entry.choices && entry.choices.length > 0) {
+          const choicesContent = entry.choices.map(c => {
+            const parts = [`"text": "${c.text}"`];
+            if (c.nextId !== undefined) {
+              parts.push(`"next_id": ${c.nextId === null ? 'null' : `"${c.nextId}"`}`);
+            }
+            if (c.condition) {
+              parts.push(`"condition": "${c.condition}"`);
+            }
+            return `{ ${parts.join(', ')} }`;
+          });
+          entryLines.push(`"choices": [${choicesContent.join(', ')}],`);
+        }
+
+        if (entry.nextId !== undefined) {
+          entryLines.push(`"next_id": ${entry.nextId === null ? 'null' : `"${entry.nextId}"`},`);
+        }
+
+        if (entry.signals && entry.signals.length > 0) {
+          entryLines.push(`"signals": [${entry.signals.map(s => `"${s}"`).join(', ')}],`);
+        }
+
+        // Remove trailing comma from last property
+        const lastLine = entryLines[entryLines.length - 1];
+        entryLines[entryLines.length - 1] = lastLine.replace(/,$/, '');
+        entryLines.push('}');
+
+        entriesContent.push(entryLines.join('\n'));
+      }
+
+      // Build characters dictionary
+      const charsContent: string[] = [];
+      for (const [charId, charData] of Object.entries(characters)) {
+        const charProps: string[] = [];
+        for (const [key, value] of Object.entries(charData as Record<string, any>)) {
+          if (typeof value === 'string') {
+            charProps.push(`"${key}": "${value}"`);
+          } else {
+            charProps.push(`"${key}": ${JSON.stringify(value)}`);
+          }
+        }
+        charsContent.push(`"${charId}": { ${charProps.join(', ')} }`);
+      }
+
+      const tresContent = `[gd_resource type="Resource" script_class="DialogueResource" format=3 uid="uid://${uid}"]
+
+[resource]
+script = null
+dialogue_id = "${dialogueId}"
+entries = [${entriesContent.join(',\n')}]
+characters = {${charsContent.join(', ')}}
+variables = [${variables.map(v => `"${v}"`).join(', ')}]
+`;
+
+      writeFileSync(fullPath, tresContent, 'utf-8');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              dialoguePath: dialoguePath,
+              dialogueId: dialogueId,
+              entryCount: entries.length,
+              characterCount: Object.keys(characters).length,
+              variableCount: variables.length,
+              message: `Dialogue resource created at ${dialoguePath}`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to create dialogue resource: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the configure_localization tool
+   * Configure project localization settings
+   */
+  private async handleConfigureLocalization(args: any) {
+    args = this.normalizeParameters(args);
+
+    const projectPath = args.projectPath;
+    const locales: string[] = args.locales || [];
+    const translationFiles: string[] = args.translationFiles || [];
+    const fallbackLocale = args.fallbackLocale;
+    const testLocale = args.testLocale;
+    const removeLocales: string[] = args.removeLocales || [];
+
+    if (!projectPath) {
+      return this.createErrorResponse('Project path is required');
+    }
+
+    const projectFile = join(projectPath, 'project.godot');
+
+    if (!existsSync(projectFile)) {
+      return this.createErrorResponse(`Project file not found: ${projectFile}`);
+    }
+
+    try {
+      let content = readFileSync(projectFile, 'utf-8');
+      const changes: string[] = [];
+
+      // Ensure [internationalization] section exists
+      if (!content.includes('[internationalization]')) {
+        content = content.trimEnd() + '\n\n[internationalization]\n';
+      }
+
+      // Add translation files
+      if (translationFiles.length > 0) {
+        const filesArray = translationFiles.map(f => `"res://${f}"`).join(', ');
+        const translationsLine = `locale/translations=PackedStringArray(${filesArray})`;
+
+        if (content.includes('locale/translations=')) {
+          content = content.replace(/locale\/translations=.*/, translationsLine);
+        } else {
+          content = content.replace('[internationalization]', `[internationalization]\n${translationsLine}`);
+        }
+        changes.push(`Registered ${translationFiles.length} translation file(s)`);
+      }
+
+      // Set fallback locale
+      if (fallbackLocale) {
+        const fallbackLine = `locale/fallback="${fallbackLocale}"`;
+
+        if (content.includes('locale/fallback=')) {
+          content = content.replace(/locale\/fallback=.*/, fallbackLine);
+        } else {
+          content = content.replace('[internationalization]', `[internationalization]\n${fallbackLine}`);
+        }
+        changes.push(`Set fallback locale to ${fallbackLocale}`);
+      }
+
+      // Set test locale
+      if (testLocale) {
+        const testLine = `locale/test="${testLocale}"`;
+
+        if (content.includes('locale/test=')) {
+          content = content.replace(/locale\/test=.*/, testLine);
+        } else {
+          content = content.replace('[internationalization]', `[internationalization]\n${testLine}`);
+        }
+        changes.push(`Set test locale to ${testLocale}`);
+      }
+
+      // Configure locale filter (enabled locales)
+      if (locales.length > 0 || removeLocales.length > 0) {
+        // Get existing locales
+        let existingLocales: string[] = [];
+        const filterMatch = content.match(/locale\/locale_filter=\[(\d+),\s*PackedStringArray\(([^)]*)\)\]/);
+        if (filterMatch) {
+          existingLocales = filterMatch[2].split(',').map(s => s.trim().replace(/"/g, '')).filter(s => s);
+        }
+
+        // Add new locales
+        for (const locale of locales) {
+          if (!existingLocales.includes(locale)) {
+            existingLocales.push(locale);
+          }
+        }
+
+        // Remove specified locales
+        existingLocales = existingLocales.filter(l => !removeLocales.includes(l));
+
+        const localesArray = existingLocales.map(l => `"${l}"`).join(', ');
+        const filterLine = `locale/locale_filter=[1, PackedStringArray(${localesArray})]`;
+
+        if (content.includes('locale/locale_filter=')) {
+          content = content.replace(/locale\/locale_filter=.*/, filterLine);
+        } else {
+          content = content.replace('[internationalization]', `[internationalization]\n${filterLine}`);
+        }
+
+        if (locales.length > 0) {
+          changes.push(`Added locales: ${locales.join(', ')}`);
+        }
+        if (removeLocales.length > 0) {
+          changes.push(`Removed locales: ${removeLocales.join(', ')}`);
+        }
+      }
+
+      writeFileSync(projectFile, content, 'utf-8');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              changes: changes,
+              message: changes.length > 0 ? 'Localization settings updated' : 'No changes made',
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to configure localization: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the extract_translatable_strings tool
+   * Scan project files for translatable strings
+   */
+  private async handleExtractTranslatableStrings(args: any) {
+    args = this.normalizeParameters(args);
+
+    const projectPath = args.projectPath;
+    const outputPath = args.outputPath;
+    const outputFormat = args.outputFormat || 'csv';
+    const scanPaths: string[] = args.scanPaths || ['.'];
+    const includeScenes = args.includeScenes !== false;
+    const excludePatterns: string[] = args.excludePatterns || ['addons/*', '.godot/*'];
+
+    if (!projectPath) {
+      return this.createErrorResponse('Project path is required');
+    }
+
+    if (!existsSync(projectPath)) {
+      return this.createErrorResponse(`Project path not found: ${projectPath}`);
+    }
+
+    try {
+      const extractedStrings: Map<string, {
+        key: string;
+        sources: string[];
+        context?: string;
+        occurrences: number;
+      }> = new Map();
+
+      const warnings: string[] = [];
+      let fromScripts = 0;
+      let fromScenes = 0;
+
+      // Helper to check if path should be excluded
+      const shouldExclude = (filePath: string): boolean => {
+        const relativePath = filePath.replace(projectPath, '').replace(/^[\/\\]/, '');
+        return excludePatterns.some(pattern => {
+          const regexPattern = pattern.replace(/\*/g, '.*');
+          return new RegExp(`^${regexPattern}`).test(relativePath);
+        });
+      };
+
+      // Recursively scan directory
+      const scanDirectory = (dir: string) => {
+        if (!existsSync(dir)) return;
+
+        const entries = readdirSync(dir, { withFileTypes: true });
+
+        for (const entry of entries) {
+          const fullEntryPath = join(dir, entry.name);
+
+          if (shouldExclude(fullEntryPath)) continue;
+
+          if (entry.isDirectory()) {
+            scanDirectory(fullEntryPath);
+          } else if (entry.isFile()) {
+            if (entry.name.endsWith('.gd')) {
+              // Scan GDScript file
+              const content = readFileSync(fullEntryPath, 'utf-8');
+              const relativePath = fullEntryPath.replace(projectPath, '').replace(/^[\/\\]/, '');
+
+              // Find tr() calls
+              const trRegex = /tr\s*\(\s*"([^"]+)"(?:\s*,\s*"([^"]+)")?\s*\)/g;
+              let match;
+              let lineNum = 0;
+              const lines = content.split('\n');
+
+              for (const line of lines) {
+                lineNum++;
+                const lineRegex = /tr\s*\(\s*"([^"]+)"(?:\s*,\s*"([^"]+)")?\s*\)/g;
+                while ((match = lineRegex.exec(line)) !== null) {
+                  const key = match[1];
+                  const context = match[2];
+                  const source = `res://${relativePath}:${lineNum}`;
+
+                  if (extractedStrings.has(key)) {
+                    const existing = extractedStrings.get(key)!;
+                    existing.sources.push(source);
+                    existing.occurrences++;
+                  } else {
+                    extractedStrings.set(key, {
+                      key: key,
+                      sources: [source],
+                      context: context,
+                      occurrences: 1,
+                    });
+                  }
+                  fromScripts++;
+                }
+
+                // Detect potential hardcoded strings (simple heuristic)
+                const hardcodedRegex = /(?:text|title|hint_tooltip)\s*=\s*"([^"]+)"/g;
+                while ((match = hardcodedRegex.exec(line)) !== null) {
+                  const str = match[1];
+                  if (str.length > 2 && !/^[A-Z_]+$/.test(str) && !/^res:\/\//.test(str)) {
+                    warnings.push(`Potential hardcoded string at res://${relativePath}:${lineNum} - consider using tr()`);
+                  }
+                }
+              }
+            } else if (includeScenes && entry.name.endsWith('.tscn')) {
+              // Scan scene file for UI text
+              const content = readFileSync(fullEntryPath, 'utf-8');
+              const relativePath = fullEntryPath.replace(projectPath, '').replace(/^[\/\\]/, '');
+
+              // Find text properties
+              const textRegex = /(?:text|placeholder_text|tooltip_text|window_title)\s*=\s*"([^"]+)"/g;
+              let match;
+
+              while ((match = textRegex.exec(content)) !== null) {
+                const text = match[1];
+                // Skip if it looks like a translation key
+                if (/^[A-Z_]+$/.test(text)) {
+                  const source = `res://${relativePath}`;
+                  if (extractedStrings.has(text)) {
+                    const existing = extractedStrings.get(text)!;
+                    if (!existing.sources.includes(source)) {
+                      existing.sources.push(source);
+                    }
+                    existing.occurrences++;
+                  } else {
+                    extractedStrings.set(text, {
+                      key: text,
+                      sources: [source],
+                      occurrences: 1,
+                    });
+                  }
+                  fromScenes++;
+                } else if (text.length > 2) {
+                  warnings.push(`Hardcoded UI text in res://${relativePath}: "${text.substring(0, 50)}..." - consider using tr()`);
+                }
+              }
+            }
+          }
+        }
+      };
+
+      // Scan specified paths
+      for (const scanPath of scanPaths) {
+        const fullScanPath = join(projectPath, scanPath);
+        scanDirectory(fullScanPath);
+      }
+
+      // Generate output
+      const stringsArray = Array.from(extractedStrings.values());
+      const duplicates = stringsArray.filter(s => s.occurrences > 1).length;
+
+      if (outputPath) {
+        const fullOutputPath = join(projectPath, outputPath);
+        const outputDir = dirname(fullOutputPath);
+
+        if (!existsSync(outputDir)) {
+          mkdirSync(outputDir, { recursive: true });
+        }
+
+        if (outputFormat === 'csv') {
+          const lines = ['key,context,sources'];
+          for (const str of stringsArray) {
+            lines.push(`${this.escapeCsvValue(str.key)},${this.escapeCsvValue(str.context || '')},${this.escapeCsvValue(str.sources.join(';'))}`);
+          }
+          writeFileSync(fullOutputPath, lines.join('\n') + '\n', 'utf-8');
+        } else if (outputFormat === 'po') {
+          const entries = [`# Extracted strings
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\\n"
+`];
+          for (const str of stringsArray) {
+            let entry = '';
+            if (str.sources.length > 0) {
+              entry += `#: ${str.sources.join(' ')}\n`;
+            }
+            entry += `msgid "${this.escapePoString(str.key)}"\nmsgstr ""\n`;
+            entries.push(entry);
+          }
+          writeFileSync(fullOutputPath, entries.join('\n'), 'utf-8');
+        } else if (outputFormat === 'json') {
+          writeFileSync(fullOutputPath, JSON.stringify(stringsArray, null, 2), 'utf-8');
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              outputPath: outputPath || null,
+              summary: {
+                totalStrings: stringsArray.length,
+                fromScripts: fromScripts,
+                fromScenes: fromScenes,
+                uniqueKeys: stringsArray.length,
+                duplicates: duplicates,
+              },
+              strings: stringsArray.slice(0, 50), // Limit output
+              warnings: warnings.slice(0, 20), // Limit warnings
+              message: outputPath ? `Extracted ${stringsArray.length} strings to ${outputPath}` : `Found ${stringsArray.length} translatable strings`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to extract translatable strings: ${errorMessage}`);
+    }
+  }
+
+  // ==================== Phase 12: Plugin Management ====================
+
+  /**
+   * Handle the list_plugins tool
+   * Lists all installed plugins in a Godot project with their status
+   */
+  private async handleListPlugins(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse('Project path is required');
+    }
+
+    const projectPath = normalize(args.projectPath);
+    const projectFile = join(projectPath, 'project.godot');
+    const addonsPath = join(projectPath, 'addons');
+    const includeBuiltin = args.includeBuiltin || false;
+    const verbose = args.verbose || false;
+
+    if (!existsSync(projectFile)) {
+      return this.createErrorResponse(
+        `Invalid project path: ${projectPath}`,
+        ['Ensure the path contains a project.godot file']
+      );
+    }
+
+    try {
+      const plugins: any[] = [];
+
+      // Get enabled plugins from project.godot
+      const enabledPlugins: string[] = [];
+      const projectContent = readFileSync(projectFile, 'utf-8');
+      const enabledMatch = projectContent.match(/\[editor_plugins\][\s\S]*?enabled\s*=\s*PackedStringArray\(([\s\S]*?)\)/);
+      if (enabledMatch) {
+        const enabledStr = enabledMatch[1];
+        const matches = enabledStr.matchAll(/"([^"]+)"/g);
+        for (const match of matches) {
+          enabledPlugins.push(match[1]);
+        }
+      }
+
+      // Scan addons directory
+      if (existsSync(addonsPath)) {
+        const addonFolders = readdirSync(addonsPath, { withFileTypes: true })
+          .filter(dirent => dirent.isDirectory())
+          .map(dirent => dirent.name);
+
+        for (const folder of addonFolders) {
+          const pluginCfgPath = join(addonsPath, folder, 'plugin.cfg');
+          const pluginInfo: any = {
+            id: folder,
+            path: `res://addons/${folder}`,
+            enabled: enabledPlugins.some(p => p.includes(`addons/${folder}/plugin.cfg`)),
+          };
+
+          if (existsSync(pluginCfgPath)) {
+            const cfgContent = readFileSync(pluginCfgPath, 'utf-8');
+
+            // Parse INI-style plugin.cfg
+            const getName = cfgContent.match(/name\s*=\s*"([^"]+)"/);
+            const getDesc = cfgContent.match(/description\s*=\s*"([^"]+)"/);
+            const getAuthor = cfgContent.match(/author\s*=\s*"([^"]+)"/);
+            const getVersion = cfgContent.match(/version\s*=\s*"([^"]+)"/);
+            const getScript = cfgContent.match(/script\s*=\s*"([^"]+)"/);
+
+            pluginInfo.name = getName ? getName[1] : folder;
+            pluginInfo.description = getDesc ? getDesc[1] : '';
+            pluginInfo.author = getAuthor ? getAuthor[1] : '';
+            pluginInfo.version = getVersion ? getVersion[1] : '';
+            pluginInfo.script = getScript ? getScript[1] : '';
+            pluginInfo.hasPluginCfg = true;
+
+            if (verbose) {
+              pluginInfo.rawConfig = cfgContent;
+            }
+          } else {
+            pluginInfo.name = folder;
+            pluginInfo.hasPluginCfg = false;
+            pluginInfo.warning = 'Missing plugin.cfg file';
+          }
+
+          plugins.push(pluginInfo);
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              projectPath: projectPath,
+              pluginCount: plugins.length,
+              enabledCount: plugins.filter(p => p.enabled).length,
+              plugins: plugins,
+              message: `Found ${plugins.length} plugin(s) in ${projectPath}`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to list plugins: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the configure_plugin tool
+   * Enable, disable, or configure plugin settings
+   */
+  private async handleConfigurePlugin(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse('Project path is required');
+    }
+    if (!args.pluginId) {
+      return this.createErrorResponse('Plugin ID is required');
+    }
+
+    const projectPath = normalize(args.projectPath);
+    const projectFile = join(projectPath, 'project.godot');
+    const addonsPath = join(projectPath, 'addons');
+    const pluginPath = join(addonsPath, args.pluginId);
+    const pluginCfgPath = join(pluginPath, 'plugin.cfg');
+
+    if (!existsSync(projectFile)) {
+      return this.createErrorResponse(
+        `Invalid project path: ${projectPath}`,
+        ['Ensure the path contains a project.godot file']
+      );
+    }
+
+    if (!existsSync(pluginPath)) {
+      return this.createErrorResponse(
+        `Plugin not found: ${args.pluginId}`,
+        ['Ensure the plugin is installed in addons/ directory', `Use list_plugins to see available plugins`]
+      );
+    }
+
+    try {
+      let projectContent = readFileSync(projectFile, 'utf-8');
+      const pluginCfgRef = `res://addons/${args.pluginId}/plugin.cfg`;
+      const results: any = {
+        pluginId: args.pluginId,
+        changes: [],
+      };
+
+      // Handle enable/disable
+      if (args.enabled !== undefined) {
+        // Find or create [editor_plugins] section
+        let enabledPlugins: string[] = [];
+        const enabledMatch = projectContent.match(/\[editor_plugins\][\s\S]*?enabled\s*=\s*PackedStringArray\(([\s\S]*?)\)/);
+
+        if (enabledMatch) {
+          const enabledStr = enabledMatch[1];
+          const matches = enabledStr.matchAll(/"([^"]+)"/g);
+          for (const match of matches) {
+            enabledPlugins.push(match[1]);
+          }
+        }
+
+        const wasEnabled = enabledPlugins.includes(pluginCfgRef);
+        results.previouslyEnabled = wasEnabled;
+        results.enabled = args.enabled;
+
+        if (args.enabled && !wasEnabled) {
+          // Enable plugin
+          enabledPlugins.push(pluginCfgRef);
+          results.changes.push(`Enabled plugin: ${args.pluginId}`);
+        } else if (!args.enabled && wasEnabled) {
+          // Disable plugin
+          enabledPlugins = enabledPlugins.filter(p => p !== pluginCfgRef);
+          results.changes.push(`Disabled plugin: ${args.pluginId}`);
+        } else {
+          results.changes.push(`Plugin already ${args.enabled ? 'enabled' : 'disabled'}`);
+        }
+
+        // Update project.godot
+        const newEnabledArray = enabledPlugins.map(p => `"${p}"`).join(', ');
+        const newEditorPlugins = `[editor_plugins]\n\nenabled=PackedStringArray(${newEnabledArray})`;
+
+        if (projectContent.includes('[editor_plugins]')) {
+          // Replace existing section
+          projectContent = projectContent.replace(
+            /\[editor_plugins\][\s\S]*?enabled\s*=\s*PackedStringArray\([^)]*\)/,
+            newEditorPlugins
+          );
+        } else {
+          // Add new section
+          projectContent = projectContent.trimEnd() + '\n\n' + newEditorPlugins + '\n';
+        }
+      }
+
+      // Handle custom settings
+      if (args.settings && typeof args.settings === 'object') {
+        const settingsSection = `[${args.pluginId}]`;
+        const settingsUpdated: string[] = [];
+
+        for (const [key, value] of Object.entries(args.settings)) {
+          let formattedValue: string;
+          if (typeof value === 'string') {
+            formattedValue = `"${value}"`;
+          } else if (typeof value === 'boolean') {
+            formattedValue = value ? 'true' : 'false';
+          } else if (typeof value === 'number') {
+            formattedValue = String(value);
+          } else {
+            formattedValue = JSON.stringify(value);
+          }
+
+          // Check if section exists
+          if (projectContent.includes(settingsSection)) {
+            // Check if key exists in section
+            const keyRegex = new RegExp(`(\\[${args.pluginId}\\][\\s\\S]*?)${key}\\s*=\\s*[^\\n]+`);
+            if (keyRegex.test(projectContent)) {
+              // Update existing key
+              projectContent = projectContent.replace(keyRegex, `$1${key}=${formattedValue}`);
+            } else {
+              // Add key to section
+              projectContent = projectContent.replace(
+                new RegExp(`(\\[${args.pluginId}\\]\\n)`),
+                `$1${key}=${formattedValue}\n`
+              );
+            }
+          } else {
+            // Create new section
+            projectContent = projectContent.trimEnd() + `\n\n${settingsSection}\n${key}=${formattedValue}\n`;
+          }
+          settingsUpdated.push(key);
+        }
+
+        results.settingsUpdated = settingsUpdated;
+        results.changes.push(`Updated settings: ${settingsUpdated.join(', ')}`);
+      }
+
+      // Write updated project.godot
+      writeFileSync(projectFile, projectContent, 'utf-8');
+
+      results.message = results.changes.length > 0
+        ? `Plugin configured: ${results.changes.join('; ')}`
+        : 'No changes made';
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(results, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to configure plugin: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the create_plugin tool
+   * Generate a new plugin scaffold with plugin.cfg and main script
+   */
+  private async handleCreatePlugin(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse('Project path is required');
+    }
+    if (!args.pluginId) {
+      return this.createErrorResponse('Plugin ID is required');
+    }
+    if (!args.pluginName) {
+      return this.createErrorResponse('Plugin name is required');
+    }
+    if (!args.author) {
+      return this.createErrorResponse('Author is required');
+    }
+
+    const projectPath = normalize(args.projectPath);
+    const projectFile = join(projectPath, 'project.godot');
+
+    if (!existsSync(projectFile)) {
+      return this.createErrorResponse(
+        `Invalid project path: ${projectPath}`,
+        ['Ensure the path contains a project.godot file']
+      );
+    }
+
+    // Validate plugin ID format
+    if (!/^[a-z][a-z0-9_]*$/.test(args.pluginId)) {
+      return this.createErrorResponse(
+        `Invalid plugin ID: ${args.pluginId}`,
+        ['Plugin ID should be lowercase alphanumeric with underscores', 'Example: my_plugin, awesome_tool']
+      );
+    }
+
+    const addonsPath = join(projectPath, 'addons');
+    const pluginPath = join(addonsPath, args.pluginId);
+
+    if (existsSync(pluginPath)) {
+      return this.createErrorResponse(
+        `Plugin already exists: ${args.pluginId}`,
+        ['Use a different plugin ID', 'Or delete the existing plugin first']
+      );
+    }
+
+    try {
+      const template = args.template || 'basic';
+      const version = args.version || '1.0.0';
+      const description = args.description || '';
+      const filesCreated: string[] = [];
+
+      // Create directory structure
+      mkdirSync(pluginPath, { recursive: true });
+
+      // Generate plugin.cfg
+      const pluginCfg = `[plugin]
+
+name="${args.pluginName}"
+description="${description}"
+author="${args.author}"
+version="${version}"
+script="plugin.gd"
+`;
+      writeFileSync(join(pluginPath, 'plugin.cfg'), pluginCfg, 'utf-8');
+      filesCreated.push('plugin.cfg');
+
+      // Generate main script based on template
+      let pluginScript = '';
+
+      switch (template) {
+        case 'dock':
+          // Create dock.tscn
+          const dockScene = `[gd_scene format=3]
+
+[node name="Dock" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "${args.pluginName}"
+horizontal_alignment = 1
+`;
+          writeFileSync(join(pluginPath, 'dock.tscn'), dockScene, 'utf-8');
+          filesCreated.push('dock.tscn');
+
+          pluginScript = `@tool
+extends EditorPlugin
+
+var dock: Control
+
+func _enter_tree() -> void:
+	dock = preload("res://addons/${args.pluginId}/dock.tscn").instantiate()
+	add_control_to_dock(DOCK_SLOT_LEFT_UL, dock)
+
+func _exit_tree() -> void:
+	remove_control_from_docks(dock)
+	dock.free()
+`;
+          break;
+
+        case 'inspector':
+          // Create inspector plugin script
+          const inspectorScript = `@tool
+extends EditorInspectorPlugin
+
+func _can_handle(object: Object) -> bool:
+	# Return true for objects this plugin should handle
+	return false
+
+func _parse_begin(object: Object) -> void:
+	pass
+
+func _parse_property(object: Object, type: Variant.Type, name: String, hint_type: PropertyHint, hint_string: String, usage_flags: int, wide: bool) -> bool:
+	# Return true if property was handled
+	return false
+
+func _parse_end(object: Object) -> void:
+	pass
+`;
+          writeFileSync(join(pluginPath, 'inspector_plugin.gd'), inspectorScript, 'utf-8');
+          filesCreated.push('inspector_plugin.gd');
+
+          pluginScript = `@tool
+extends EditorPlugin
+
+var inspector_plugin: EditorInspectorPlugin
+
+func _enter_tree() -> void:
+	inspector_plugin = preload("res://addons/${args.pluginId}/inspector_plugin.gd").new()
+	add_inspector_plugin(inspector_plugin)
+
+func _exit_tree() -> void:
+	remove_inspector_plugin(inspector_plugin)
+`;
+          break;
+
+        case 'import':
+          // Create import plugin script
+          const importScript = `@tool
+extends EditorImportPlugin
+
+func _get_importer_name() -> String:
+	return "${args.pluginId}_importer"
+
+func _get_visible_name() -> String:
+	return "${args.pluginName} Importer"
+
+func _get_recognized_extensions() -> PackedStringArray:
+	return PackedStringArray(["example"])
+
+func _get_save_extension() -> String:
+	return "res"
+
+func _get_resource_type() -> String:
+	return "Resource"
+
+func _get_preset_count() -> int:
+	return 1
+
+func _get_preset_name(preset_index: int) -> String:
+	return "Default"
+
+func _get_import_options(path: String, preset_index: int) -> Array[Dictionary]:
+	return []
+
+func _import(source_file: String, save_path: String, options: Dictionary, platform_variants: Array[String], gen_files: Array[String]) -> Error:
+	# Implement import logic here
+	return OK
+`;
+          writeFileSync(join(pluginPath, 'import_plugin.gd'), importScript, 'utf-8');
+          filesCreated.push('import_plugin.gd');
+
+          pluginScript = `@tool
+extends EditorPlugin
+
+var import_plugin: EditorImportPlugin
+
+func _enter_tree() -> void:
+	import_plugin = preload("res://addons/${args.pluginId}/import_plugin.gd").new()
+	add_import_plugin(import_plugin)
+
+func _exit_tree() -> void:
+	remove_import_plugin(import_plugin)
+`;
+          break;
+
+        case 'tool':
+          pluginScript = `@tool
+extends EditorPlugin
+
+const TOOL_NAME = "${args.pluginName}"
+
+func _enter_tree() -> void:
+	add_tool_menu_item(TOOL_NAME, _on_tool_pressed)
+
+func _exit_tree() -> void:
+	remove_tool_menu_item(TOOL_NAME)
+
+func _on_tool_pressed() -> void:
+	print("${args.pluginName} tool activated!")
+	# Add your tool logic here
+`;
+          break;
+
+        case 'basic':
+        default:
+          pluginScript = `@tool
+extends EditorPlugin
+
+func _enter_tree() -> void:
+	# Called when the plugin is enabled
+	print("${args.pluginName} enabled")
+
+func _exit_tree() -> void:
+	# Called when the plugin is disabled
+	print("${args.pluginName} disabled")
+`;
+          break;
+      }
+
+      writeFileSync(join(pluginPath, 'plugin.gd'), pluginScript, 'utf-8');
+      filesCreated.push('plugin.gd');
+
+      // Auto-enable if requested
+      let enabled = false;
+      if (args.autoEnable) {
+        const configResult = await this.handleConfigurePlugin({
+          projectPath: projectPath,
+          pluginId: args.pluginId,
+          enabled: true,
+        });
+        enabled = true;
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              pluginId: args.pluginId,
+              pluginName: args.pluginName,
+              path: `res://addons/${args.pluginId}`,
+              template: template,
+              version: version,
+              filesCreated: filesCreated,
+              enabled: enabled,
+              message: `Plugin '${args.pluginName}' created successfully at addons/${args.pluginId}`,
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to create plugin: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle the install_plugin tool
+   * Install plugins from Asset Library or Git repositories
+   */
+  private async handleInstallPlugin(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse('Project path is required');
+    }
+    if (!args.source) {
+      return this.createErrorResponse('Source is required ("asset_library" or "git")');
+    }
+
+    const projectPath = normalize(args.projectPath);
+    const projectFile = join(projectPath, 'project.godot');
+    const addonsPath = join(projectPath, 'addons');
+
+    if (!existsSync(projectFile)) {
+      return this.createErrorResponse(
+        `Invalid project path: ${projectPath}`,
+        ['Ensure the path contains a project.godot file']
+      );
+    }
+
+    try {
+      if (args.source === 'asset_library') {
+        // Handle Asset Library installation
+        if (!args.assetId && !args.searchQuery) {
+          return this.createErrorResponse(
+            'Asset ID or search query required for Asset Library installation',
+            ['Provide assetId for direct installation', 'Or provide searchQuery to search']
+          );
+        }
+
+        if (args.searchQuery && !args.assetId) {
+          // Search Asset Library
+          const searchUrl = `https://godotengine.org/asset-library/api/asset?filter=${encodeURIComponent(args.searchQuery)}&godot_version=4.0`;
+
+          return new Promise((resolve) => {
+            const https = require('https');
+            https.get(searchUrl, (res: any) => {
+              let data = '';
+              res.on('data', (chunk: any) => data += chunk);
+              res.on('end', () => {
+                try {
+                  const results = JSON.parse(data);
+                  const assets = results.result || [];
+
+                  if (assets.length === 0) {
+                    resolve(this.createErrorResponse(
+                      `No assets found for "${args.searchQuery}"`,
+                      ['Try a different search query', 'Check Asset Library directly at https://godotengine.org/asset-library']
+                    ));
+                    return;
+                  }
+
+                  resolve({
+                    content: [
+                      {
+                        type: 'text',
+                        text: JSON.stringify({
+                          searchQuery: args.searchQuery,
+                          resultCount: assets.length,
+                          assets: assets.slice(0, 10).map((a: any) => ({
+                            assetId: a.asset_id,
+                            title: a.title,
+                            author: a.author,
+                            category: a.category,
+                            version: a.version_string,
+                            godotVersion: a.godot_version,
+                            rating: a.rating,
+                          })),
+                          message: `Found ${assets.length} assets. Use assetId to install.`,
+                        }, null, 2),
+                      },
+                    ],
+                  });
+                } catch (e) {
+                  resolve(this.createErrorResponse(`Failed to parse Asset Library response: ${e}`));
+                }
+              });
+            }).on('error', (e: any) => {
+              resolve(this.createErrorResponse(`Failed to search Asset Library: ${e.message}`));
+            });
+          });
+        }
+
+        // Download and install asset by ID
+        const assetId = args.assetId;
+        const assetUrl = `https://godotengine.org/asset-library/api/asset/${assetId}`;
+
+        return new Promise((resolve) => {
+          const https = require('https');
+          https.get(assetUrl, (res: any) => {
+            let data = '';
+            res.on('data', (chunk: any) => data += chunk);
+            res.on('end', async () => {
+              try {
+                const asset = JSON.parse(data);
+
+                if (!asset.download_url) {
+                  resolve(this.createErrorResponse(`Asset ${assetId} not found or has no download URL`));
+                  return;
+                }
+
+                const downloadUrl = asset.download_url;
+                const tempDir = join(projectPath, '.godot', 'temp_plugin_download');
+                const zipPath = join(tempDir, 'plugin.zip');
+
+                // Create temp directory
+                mkdirSync(tempDir, { recursive: true });
+
+                // Download ZIP
+                const downloadFile = (url: string, dest: string): Promise<void> => {
+                  return new Promise((resolveDownload, rejectDownload) => {
+                    const file = createWriteStream(dest);
+                    https.get(url, (response: any) => {
+                      // Handle redirects
+                      if (response.statusCode === 301 || response.statusCode === 302) {
+                        downloadFile(response.headers.location, dest).then(resolveDownload).catch(rejectDownload);
+                        return;
+                      }
+                      response.pipe(file);
+                      file.on('finish', () => {
+                        file.close();
+                        resolveDownload();
+                      });
+                    }).on('error', (e: any) => {
+                      rejectDownload(e);
+                    });
+                  });
+                };
+
+                await downloadFile(downloadUrl, zipPath);
+
+                // Extract ZIP using Node.js built-in or spawn unzip
+                const { execSync } = require('child_process');
+                const extractDir = join(tempDir, 'extracted');
+                mkdirSync(extractDir, { recursive: true });
+
+                // Try to extract using tar (works on most systems with modern Node)
+                try {
+                  // Use PowerShell on Windows, unzip on Unix
+                  if (process.platform === 'win32') {
+                    execSync(`powershell -command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractDir}' -Force"`, { stdio: 'pipe' });
+                  } else {
+                    execSync(`unzip -o "${zipPath}" -d "${extractDir}"`, { stdio: 'pipe' });
+                  }
+                } catch (extractError) {
+                  // Clean up
+                  this.removeDirectorySync(tempDir);
+                  resolve(this.createErrorResponse(
+                    `Failed to extract ZIP: ${extractError}`,
+                    ['Ensure unzip is installed on your system']
+                  ));
+                  return;
+                }
+
+                // Find addons folder in extracted content
+                const findAddons = (dir: string): string | null => {
+                  const items = readdirSync(dir, { withFileTypes: true });
+                  for (const item of items) {
+                    if (item.isDirectory()) {
+                      if (item.name === 'addons') {
+                        return join(dir, item.name);
+                      }
+                      const nested = findAddons(join(dir, item.name));
+                      if (nested) return nested;
+                    }
+                  }
+                  return null;
+                };
+
+                const extractedAddons = findAddons(extractDir);
+                if (!extractedAddons) {
+                  this.removeDirectorySync(tempDir);
+                  resolve(this.createErrorResponse(
+                    'No addons folder found in downloaded asset',
+                    ['This asset may not be a plugin', 'Check the asset structure on Asset Library']
+                  ));
+                  return;
+                }
+
+                // Copy addons to project
+                mkdirSync(addonsPath, { recursive: true });
+                const installedPlugins: string[] = [];
+
+                const copyDir = (src: string, dest: string) => {
+                  mkdirSync(dest, { recursive: true });
+                  const items = readdirSync(src, { withFileTypes: true });
+                  for (const item of items) {
+                    const srcPath = join(src, item.name);
+                    const destPath = join(dest, item.name);
+                    if (item.isDirectory()) {
+                      copyDir(srcPath, destPath);
+                    } else {
+                      copyFileSync(srcPath, destPath);
+                    }
+                  }
+                };
+
+                const addonFolders = readdirSync(extractedAddons, { withFileTypes: true })
+                  .filter(d => d.isDirectory());
+
+                for (const folder of addonFolders) {
+                  const targetPath = join(addonsPath, folder.name);
+                  if (existsSync(targetPath) && !args.overwrite) {
+                    continue; // Skip existing
+                  }
+                  if (existsSync(targetPath)) {
+                    this.removeDirectorySync(targetPath);
+                  }
+                  copyDir(join(extractedAddons, folder.name), targetPath);
+                  installedPlugins.push(folder.name);
+                }
+
+                // Clean up temp
+                this.removeDirectorySync(tempDir);
+
+                // Auto-enable if requested
+                if (args.autoEnable && installedPlugins.length > 0) {
+                  for (const pluginId of installedPlugins) {
+                    await this.handleConfigurePlugin({
+                      projectPath: projectPath,
+                      pluginId: pluginId,
+                      enabled: true,
+                    });
+                  }
+                }
+
+                resolve({
+                  content: [
+                    {
+                      type: 'text',
+                      text: JSON.stringify({
+                        source: 'asset_library',
+                        assetId: assetId,
+                        assetTitle: asset.title,
+                        assetAuthor: asset.author,
+                        assetVersion: asset.version_string,
+                        installedPlugins: installedPlugins,
+                        enabled: args.autoEnable || false,
+                        message: `Installed ${installedPlugins.length} plugin(s) from Asset Library: ${installedPlugins.join(', ')}`,
+                      }, null, 2),
+                    },
+                  ],
+                });
+              } catch (e) {
+                resolve(this.createErrorResponse(`Failed to install from Asset Library: ${e}`));
+              }
+            });
+          }).on('error', (e: any) => {
+            resolve(this.createErrorResponse(`Failed to fetch asset info: ${e.message}`));
+          });
+        });
+
+      } else if (args.source === 'git') {
+        // Handle Git installation
+        if (!args.gitUrl) {
+          return this.createErrorResponse(
+            'Git URL required for Git installation',
+            ['Provide gitUrl parameter with repository URL']
+          );
+        }
+
+        const gitUrl = args.gitUrl;
+        const gitBranch = args.gitBranch || 'main';
+        const gitSubfolder = args.gitSubfolder || 'addons';
+        const tempDir = join(projectPath, '.godot', 'temp_git_clone');
+
+        try {
+          const { execSync } = require('child_process');
+
+          // Clean up any existing temp dir
+          if (existsSync(tempDir)) {
+            this.removeDirectorySync(tempDir);
+          }
+
+          // Clone repository
+          execSync(`git clone --depth 1 --branch ${gitBranch} "${gitUrl}" "${tempDir}"`, {
+            stdio: 'pipe',
+            timeout: 60000 // 60 second timeout
+          });
+
+          // Find addons in cloned repo
+          let sourceAddons = join(tempDir, gitSubfolder);
+          if (!existsSync(sourceAddons)) {
+            // Try common alternatives
+            const alternatives = ['addons', 'addon', 'plugin', 'plugins'];
+            for (const alt of alternatives) {
+              const altPath = join(tempDir, alt);
+              if (existsSync(altPath)) {
+                sourceAddons = altPath;
+                break;
+              }
+            }
+          }
+
+          if (!existsSync(sourceAddons)) {
+            this.removeDirectorySync(tempDir);
+            return this.createErrorResponse(
+              `No addons folder found at "${gitSubfolder}"`,
+              ['Check the repository structure', 'Use gitSubfolder parameter to specify correct path']
+            );
+          }
+
+          // Copy addons to project
+          mkdirSync(addonsPath, { recursive: true });
+          const installedPlugins: string[] = [];
+
+          const copyDir = (src: string, dest: string) => {
+            mkdirSync(dest, { recursive: true });
+            const items = readdirSync(src, { withFileTypes: true });
+            for (const item of items) {
+              const srcPath = join(src, item.name);
+              const destPath = join(dest, item.name);
+              if (item.isDirectory()) {
+                copyDir(srcPath, destPath);
+              } else {
+                copyFileSync(srcPath, destPath);
+              }
+            }
+          };
+
+          const addonFolders = readdirSync(sourceAddons, { withFileTypes: true })
+            .filter(d => d.isDirectory());
+
+          for (const folder of addonFolders) {
+            const targetPath = join(addonsPath, folder.name);
+            if (existsSync(targetPath) && !args.overwrite) {
+              continue; // Skip existing
+            }
+            if (existsSync(targetPath)) {
+              this.removeDirectorySync(targetPath);
+            }
+            copyDir(join(sourceAddons, folder.name), targetPath);
+            installedPlugins.push(folder.name);
+          }
+
+          // Clean up
+          this.removeDirectorySync(tempDir);
+
+          // Auto-enable if requested
+          if (args.autoEnable && installedPlugins.length > 0) {
+            for (const pluginId of installedPlugins) {
+              await this.handleConfigurePlugin({
+                projectPath: projectPath,
+                pluginId: pluginId,
+                enabled: true,
+              });
+            }
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  source: 'git',
+                  gitUrl: gitUrl,
+                  gitBranch: gitBranch,
+                  installedPlugins: installedPlugins,
+                  enabled: args.autoEnable || false,
+                  message: `Installed ${installedPlugins.length} plugin(s) from Git: ${installedPlugins.join(', ')}`,
+                }, null, 2),
+              },
+            ],
+          };
+
+        } catch (gitError: any) {
+          // Clean up on error
+          if (existsSync(tempDir)) {
+            this.removeDirectorySync(tempDir);
+          }
+          return this.createErrorResponse(
+            `Failed to clone Git repository: ${gitError.message}`,
+            ['Ensure git is installed and accessible', 'Check the repository URL is correct', 'Try a different branch with gitBranch parameter']
+          );
+        }
+
+      } else {
+        return this.createErrorResponse(
+          `Invalid source: ${args.source}`,
+          ['Use "asset_library" or "git"']
+        );
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(`Failed to install plugin: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Helper to recursively remove a directory
+   */
+  private removeDirectorySync(dir: string): void {
+    if (existsSync(dir)) {
+      const items = readdirSync(dir, { withFileTypes: true });
+      for (const item of items) {
+        const itemPath = join(dir, item.name);
+        if (item.isDirectory()) {
+          this.removeDirectorySync(itemPath);
+        } else {
+          unlinkSync(itemPath);
+        }
+      }
+      rmdirSync(dir);
+    }
+  }
+
+  // Helper methods for localization
+
+  /**
+   * Escape a value for CSV format
+   */
+  private escapeCsvValue(value: string): string {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
+
+  /**
+   * Parse a CSV line handling quoted values
+   */
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+
+      if (inQuotes) {
+        if (char === '"' && nextChar === '"') {
+          current += '"';
+          i++; // Skip next quote
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          current += char;
+        }
+      } else {
+        if (char === '"') {
+          inQuotes = true;
+        } else if (char === ',') {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+    }
+
+    result.push(current);
+    return result;
+  }
+
+  /**
+   * Escape a string for PO format
+   */
+  private escapePoString(value: string): string {
+    return value
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t');
+  }
+
+  /**
+   * Escape special regex characters
+   */
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Extract placeholders from a string
+   */
+  private extractPlaceholders(text: string): string[] {
+    const placeholders: string[] = [];
+
+    // Match {variable} style
+    const braceRegex = /\{([^}]+)\}/g;
+    let match;
+    while ((match = braceRegex.exec(text)) !== null) {
+      placeholders.push(match[0]);
+    }
+
+    // Match %s, %d, %f style
+    const percentRegex = /%[sdfiox]/gi;
+    while ((match = percentRegex.exec(text)) !== null) {
+      placeholders.push(match[0]);
+    }
+
+    return placeholders;
   }
 
   /**

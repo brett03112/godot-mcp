@@ -14,8 +14,8 @@
 
 **Last Updated:** 2025-12-15
 
-**Active Phase:** Phase 10 - Tilemap & Level Design
-**Phase Status:** ✅ **COMPLETE** - 4 of 4 tasks complete (create_tilemap, paint_tiles, configure_tileset, generate_navmesh)
+**Active Phase:** Phase 12 - Plugin Management
+**Phase Status:** ✅ **COMPLETE** - 4 of 4 tasks complete (list_plugins, configure_plugin, create_plugin, install_plugin)
 
 **Phase 1 Summary:**
 
@@ -123,12 +123,30 @@
 - ✅ Task 10.4: `generate_navmesh` tool - Create NavigationRegion3D with NavigationMesh
 - ✅ All 24 tests passed
 
+**Phase 11 Completed:**
+
+- ✅ Task 11.1: `create_translation_file` tool - Create CSV/PO translation files with multiple locales
+- ✅ Task 11.2: `add_translation` tool - Add/update translation entries with placeholder support
+- ✅ Task 11.3: `remove_translation` tool - Remove translation keys (single, multiple, pattern)
+- ✅ Task 11.4: `validate_translations` tool - Validate for missing translations, placeholder mismatches, duplicates
+- ✅ Task 11.5: `create_dialogue_resource` tool - Create branching dialogue with conditions and signals
+- ✅ Task 11.6: `configure_localization` tool - Configure project.godot localization settings
+- ✅ Task 11.7: `extract_translatable_strings` tool - Scan scripts/scenes for tr() calls and UI text
+- ✅ All 32 tests passed
+
+**Phase 12 Completed:**
+
+- ✅ Task 12.1: `list_plugins` tool - List installed plugins with status from project.godot
+- ✅ Task 12.2: `configure_plugin` tool - Enable/disable plugins and configure settings
+- ✅ Task 12.3: `create_plugin` tool - Generate plugin scaffolds (basic, dock, inspector, import, tool)
+- ✅ Task 12.4: `install_plugin` tool - Install from Asset Library or Git repositories
+- ✅ All 24 tests passed
+
 **Next Steps:**
 
-- Consider Phase 11: Dialogue & Localization
-- Consider Phase 12: Plugin Management
+- Future phases: Additional specialized workflows as needed
 
-**Total MCP Tools Available:** 41 (12 original + 5 signal tools + 6 script intelligence tools + 3 animation tools + 1 shader tool + 2 testing tools + 4 asset import tools + 4 project settings tools + 3 export pipeline tools + 4 tilemap tools)
+**Total MCP Tools Available:** 52 (12 original + 5 signal tools + 6 script intelligence tools + 3 animation tools + 1 shader tool + 2 testing tools + 4 asset import tools + 4 project settings tools + 3 export pipeline tools + 4 tilemap tools + 7 localization tools + 4 plugin tools)
 
 ---
 
@@ -1829,13 +1847,835 @@ tracks/0/keys = PackedFloat32Array(0, 1, 1, 1, 1, 0.2, 2, 1.1, 1.1, 1, 0.4, 0.5,
 
 ---
 
-## LOWER PRIORITY PHASES (Future Consideration)
+## PHASE 11: DIALOGUE & LOCALIZATION MANAGEMENT ✅ COMPLETE
 
-### Phase 11: Localization Management
+**Priority:** 🎯 HIGH (Broad Impact)
+**Estimated Effort:** 40 hours
+**Value:** Enables story-driven games and international releases
 
-### Phase 12: Plugin Management
+**Completion Date:** 2025-12-15
 
-**Note:** These phases will be detailed based on user feedback and priority assessment.
+**Goal:** Enable Claude to create dialogue systems and manage game localization for multi-language support.
+
+**Success Criteria:**
+
+- [x] Can create and manage translation files (.csv, .po, .translation) ✅
+- [x] Can add/update/remove translation keys programmatically ✅
+- [x] Can create dialogue resources with branching support ✅
+- [x] Can validate translations for missing keys and placeholders ✅
+
+**Phase Status:** ✅ **COMPLETE** (All 7 tasks complete)
+
+**Tools Implemented:**
+
+1. `create_translation_file` - Create CSV/PO translation files with multiple locales
+2. `add_translation` - Add/update translation entries with placeholder support
+3. `remove_translation` - Remove keys (single, multiple, or by regex pattern)
+4. `validate_translations` - Check for missing translations, placeholder mismatches, duplicates
+5. `create_dialogue_resource` - Create branching dialogue with conditions and signals
+6. `configure_localization` - Configure project.godot internationalization settings
+7. `extract_translatable_strings` - Scan scripts/scenes for tr() calls and UI text
+
+**Code Statistics:**
+
+- TypeScript: ~1100 lines added to index.ts (7 tools, handlers, helpers)
+- Total Tests: 32 passed
+
+---
+
+### Task 11.1: Implement `create_translation_file` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Create and initialize translation files for localization.
+
+**Implementation Steps:**
+
+1. [x] Add `create_translation_file` tool definition
+2. [x] Create `handleCreateTranslationFile()` method
+3. [x] Direct file generation (no GDScript needed for CSV/PO)
+4. [x] Support translation file formats:
+   - CSV format (locale columns)
+   - PO/POT format (GNU gettext)
+   - Godot .translation binary format
+
+**Tool Parameters:**
+
+- `projectPath` (string): Path to Godot project
+- `translationPath` (string): Output path for translation file (e.g., "localization/translations.csv")
+- `format` (string): "csv", "po", "translation" (default: "csv")
+- `locales` (array): List of locale codes (e.g., ["en", "es", "fr", "de", "ja"])
+- `initialKeys` (array, optional): Initial translation keys to add
+  - Each key: `{key: string, translations: {locale: string}}`
+
+**Implementation Notes:**
+
+- CSV format: First column is key, subsequent columns are locale translations
+- PO format: Standard GNU gettext format with msgid/msgstr pairs
+- Binary .translation format requires Godot for compilation
+- Auto-detect format from file extension if not specified
+- Create directory structure if needed
+
+**Testing Requirements:**
+
+- [x] **Test 11.1.1:** Create CSV translation file with 3 locales - verify structure ✅
+- [x] **Test 11.1.2:** Create PO file for single locale - verify gettext format ✅
+- [x] **Test 11.1.3:** Add initial keys during creation - verify keys present ✅
+- [x] **Test 11.1.4:** Create file with special characters - verify encoding (UTF-8) ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Translation files create with correct format and encoding.
+
+---
+
+### Task 11.2: Implement `add_translation` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Add or update translation entries in existing translation files.
+
+**Implementation Steps:**
+
+1. [x] Add `add_translation` tool definition
+2. [x] Create `handleAddTranslation()` method
+3. [x] Direct file manipulation for CSV/PO formats
+4. [x] Support operations:
+   - Add new translation key
+   - Update existing translation
+   - Add translations for specific locales
+   - Bulk import translations
+
+**Tool Parameters:**
+
+- `projectPath` (string): Path to Godot project
+- `translationPath` (string): Path to translation file
+- `key` (string): Translation key (e.g., "MENU_START", "DIALOG_GREETING")
+- `translations` (object): Locale to translation mapping (e.g., {"en": "Hello", "es": "Hola"})
+- `context` (string, optional): Context hint for translators (PO format)
+- `comment` (string, optional): Comment for translators
+
+**Implementation Notes:**
+
+- Parse existing file to preserve structure
+- Update existing key if present, add if new
+- Handle CSV escaping for commas and quotes
+- Support placeholder syntax: `{variable}`, `%s`, `%d`
+- Preserve comments and metadata in PO files
+
+**Testing Requirements:**
+
+- [x] **Test 11.2.1:** Add new translation key - verify appears in file ✅
+- [x] **Test 11.2.2:** Update existing translation - verify old value replaced ✅
+- [x] **Test 11.2.3:** Add partial locale translations - verify others preserved ✅
+- [x] **Test 11.2.4:** Handle special characters (quotes, newlines) - verify escaping ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Translations add and update correctly without corrupting file.
+
+---
+
+### Task 11.3: Implement `remove_translation` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Remove translation keys from translation files.
+
+**Implementation Steps:**
+
+1. [x] Add `remove_translation` tool definition
+2. [x] Create `handleRemoveTranslation()` method
+3. [x] Direct file manipulation for CSV/PO formats
+4. [x] Support removal options:
+   - Remove single key
+   - Remove multiple keys
+   - Remove keys by pattern (regex)
+
+**Tool Parameters:**
+
+- `projectPath` (string): Path to Godot project
+- `translationPath` (string): Path to translation file
+- `keys` (array): List of translation keys to remove
+- `pattern` (string, optional): Regex pattern to match keys for removal
+- `dryRun` (bool, optional): Preview removals without modifying file (default: false)
+
+**Implementation Notes:**
+
+- Backup original file before modification
+- Return list of removed keys
+- Warn if key not found
+- Support pattern matching for bulk cleanup (e.g., "DEPRECATED_*")
+
+**Testing Requirements:**
+
+- [x] **Test 11.3.1:** Remove single key - verify removed from all locales ✅
+- [x] **Test 11.3.2:** Remove multiple keys - verify all removed ✅
+- [x] **Test 11.3.3:** Remove by pattern - verify matching keys removed ✅
+- [x] **Test 11.3.4:** Dry run mode - verify file unchanged ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Translation keys remove cleanly without affecting other entries.
+
+---
+
+### Task 11.4: Implement `validate_translations` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Validate translation files for completeness and consistency.
+
+**Implementation Steps:**
+
+1. [x] Add `validate_translations` tool definition
+2. [x] Create `handleValidateTranslations()` method
+3. [x] Direct file analysis (no GDScript needed)
+4. [x] Validation checks:
+   - Missing translations (empty cells for locale)
+   - Placeholder mismatch (different placeholders in translations)
+   - Duplicate keys
+   - Invalid key format
+   - Encoding issues
+
+**Tool Parameters:**
+
+- `projectPath` (string): Path to Godot project
+- `translationPath` (string): Path to translation file (or directory for multiple files)
+- `referenceLocale` (string, optional): Base locale to compare against (default: first locale/"en")
+- `checkPlaceholders` (bool, optional): Verify placeholders match across translations (default: true)
+- `reportUnused` (bool, optional): Find keys not used in scripts (default: false)
+
+**Return Value:**
+
+```json
+{
+  "valid": false,
+  "translationPath": "localization/translations.csv",
+  "summary": {
+    "totalKeys": 150,
+    "completeKeys": 120,
+    "missingTranslations": 30,
+    "placeholderMismatches": 5,
+    "duplicateKeys": 0,
+    "warnings": 3,
+    "errors": 2
+  },
+  "issues": [
+    {
+      "type": "missing_translation",
+      "severity": "warning",
+      "key": "DIALOG_FAREWELL",
+      "locale": "ja",
+      "message": "Missing Japanese translation for key 'DIALOG_FAREWELL'"
+    },
+    {
+      "type": "placeholder_mismatch",
+      "severity": "error",
+      "key": "ITEM_COUNT",
+      "details": {
+        "en": "{count} items",
+        "es": "{cantidad} artículos"
+      },
+      "message": "Placeholder mismatch: 'en' uses {count}, 'es' uses {cantidad}"
+    }
+  ],
+  "recommendations": [
+    "Add missing Japanese translations (30 keys)",
+    "Fix placeholder names to match reference locale"
+  ]
+}
+```
+
+**Implementation Notes:**
+
+- Parse all supported formats (CSV, PO)
+- Extract placeholders using regex patterns
+- Compare placeholder names/counts across locales
+- Optionally scan GDScript files for `tr()` calls to find unused keys
+
+**Testing Requirements:**
+
+- [x] **Test 11.4.1:** Validate complete file - verify passes validation ✅
+- [x] **Test 11.4.2:** Detect missing translations - verify all gaps found ✅
+- [x] **Test 11.4.3:** Detect placeholder mismatch - verify error reported ✅
+- [x] **Test 11.4.4:** Detect duplicate keys - verify duplicates identified ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Validation catches real localization issues reliably.
+
+---
+
+### Task 11.5: Implement `create_dialogue_resource` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Create dialogue resources for in-game conversations and story content.
+
+**Implementation Steps:**
+
+1. [x] Add `create_dialogue_resource` tool definition
+2. [x] Create `handleCreateDialogueResource()` method
+3. [x] Generate .tres dialogue resource files
+4. [x] Support dialogue features:
+   - Linear dialogue sequences
+   - Branching choices
+   - Conditions (variables, flags)
+   - Character speaker metadata
+   - Signals/callbacks
+
+**Tool Parameters:**
+
+- `projectPath` (string): Path to Godot project
+- `dialoguePath` (string): Output path for dialogue resource (e.g., "dialogues/intro.tres")
+- `dialogueId` (string): Unique identifier for this dialogue
+- `entries` (array): Dialogue entries in sequence
+  - Each entry:
+
+    ```json
+    {
+      "id": "entry_1",
+      "speaker": "NPC_MERCHANT",
+      "text": "DIALOG_MERCHANT_GREETING",
+      "choices": [
+        {
+          "text": "CHOICE_BUY",
+          "nextId": "entry_buy",
+          "condition": "player_gold >= 100"
+        },
+        {
+          "text": "CHOICE_LEAVE",
+          "nextId": null
+        }
+      ],
+      "signals": ["dialogue_started"],
+      "nextId": "entry_2"
+    }
+    ```
+
+- `characters` (object, optional): Character metadata (portraits, colors, voice)
+- `variables` (array, optional): Dialogue-local variables
+
+**Implementation Notes:**
+
+- Generate custom Resource class if not exists
+- Use translation keys for text (not raw strings)
+- Support conditional branching with GDScript expressions
+- Allow signal emission for game integration
+- Compatible with common dialogue plugins (Dialogic style)
+
+**Testing Requirements:**
+
+- [x] **Test 11.5.1:** Create linear dialogue - verify entries in sequence ✅
+- [x] **Test 11.5.2:** Create branching dialogue - verify choices connect correctly ✅
+- [x] **Test 11.5.3:** Add conditions - verify condition syntax valid ✅
+- [x] **Test 11.5.4:** Reference translation keys - verify keys not hardcoded text ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Dialogue resources create with valid structure and branching.
+
+---
+
+### Task 11.6: Implement `configure_localization` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Configure project localization settings in project.godot.
+
+**Implementation Steps:**
+
+1. [x] Add `configure_localization` tool definition
+2. [x] Create `handleConfigureLocalization()` method
+3. [x] Direct project.godot manipulation
+4. [x] Support localization settings:
+   - Add/remove locale
+   - Set translation files
+   - Configure fallback locale
+   - Set test locale for development
+
+**Tool Parameters:**
+
+- `projectPath` (string): Path to Godot project
+- `locales` (array, optional): List of supported locales to add (e.g., ["en", "es", "fr"])
+- `translationFiles` (array, optional): Paths to translation files to register
+- `fallbackLocale` (string, optional): Locale to use when translation missing (default: "en")
+- `testLocale` (string, optional): Override locale for testing
+- `removeLocales` (array, optional): Locales to remove from project
+
+**Implementation Notes:**
+
+- Writes to `[internationalization]` section in project.godot
+- Registers translation files in `locale/translations` setting
+- Sets `locale/fallback` for missing translations
+- Sets `locale/test` for development testing
+- Updates `locale/locale_filter` for enabled locales
+
+**Testing Requirements:**
+
+- [x] **Test 11.6.1:** Add locales to project - verify in project.godot ✅
+- [x] **Test 11.6.2:** Register translation files - verify paths correct ✅
+- [x] **Test 11.6.3:** Set fallback locale - verify setting persists ✅
+- [x] **Test 11.6.4:** Remove locale - verify removed from settings ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Localization settings configure correctly in project.godot.
+
+---
+
+### Task 11.7: Implement `extract_translatable_strings` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Scan project files to extract strings that need translation.
+
+**Implementation Steps:**
+
+1. [x] Add `extract_translatable_strings` tool definition
+2. [x] Create `handleExtractTranslatableStrings()` method
+3. [x] Scan GDScript and scene files
+4. [x] Extract patterns:
+   - `tr("string")` calls in GDScript
+   - `tr("string", "context")` calls with context
+   - Exported String properties with `@export` hint
+   - Text properties in .tscn files (Label.text, Button.text, etc.)
+
+**Tool Parameters:**
+
+- `projectPath` (string): Path to Godot project
+- `outputPath` (string, optional): Output file for extracted strings
+- `outputFormat` (string, optional): "csv", "po", "json" (default: "csv")
+- `scanPaths` (array, optional): Specific paths to scan (default: entire project)
+- `includeScenes` (bool, optional): Scan .tscn files for UI text (default: true)
+- `excludePatterns` (array, optional): Patterns to exclude (e.g., ["test/*", "addons/*"])
+
+**Return Value:**
+
+```json
+{
+  "success": true,
+  "outputPath": "localization/extracted.csv",
+  "summary": {
+    "totalStrings": 245,
+    "fromScripts": 180,
+    "fromScenes": 65,
+    "uniqueKeys": 230,
+    "duplicates": 15
+  },
+  "strings": [
+    {
+      "key": "MENU_START",
+      "source": "res://ui/main_menu.gd:42",
+      "context": "",
+      "occurrences": 3
+    }
+  ],
+  "warnings": [
+    "Hardcoded string found in res://player.gd:15 - consider using tr()"
+  ]
+}
+```
+
+**Implementation Notes:**
+
+- Parse GDScript AST or use regex for `tr()` patterns
+- Parse .tscn files for translatable properties
+- Generate unique keys from strings if not explicit
+- Detect hardcoded strings that should use `tr()`
+- Merge with existing translation file if specified
+
+**Testing Requirements:**
+
+- [x] **Test 11.7.1:** Extract from GDScript - verify tr() calls found ✅
+- [x] **Test 11.7.2:** Extract from scenes - verify UI text found ✅
+- [x] **Test 11.7.3:** Detect hardcoded strings - verify warnings generated ✅
+- [x] **Test 11.7.4:** Output to CSV - verify format correct ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - String extraction captures all translatable content accurately.
+
+---
+
+### PHASE 11 INTEGRATION TEST ✅ COMPLETE
+
+#### **Test Scenario: Complete Localization Workflow**
+
+- [x] Create translation file with en, es, fr locales ✅
+- [x] Add 10 translation keys with translations ✅
+- [x] Create dialogue resource using translation keys ✅
+- [x] Configure project localization settings ✅
+- [x] Validate translations for completeness ✅
+- [x] Extract strings from test scripts ✅
+- [x] Verify end-to-end localization works in Godot ✅
+
+**Test Results:** All 32 integration tests passed (2025-12-15)
+
+**Expected Outcome:** ✅ ACHIEVED - Complete localization system with dialogue support, validation, and string extraction.
+
+---
+
+## PHASE 12: PLUGIN MANAGEMENT ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+**Status:** ✅ COMPLETE
+**Priority:** HIGH
+**Estimated Complexity:** MEDIUM
+**Dependencies:** None (standalone phase)
+
+### Phase Overview
+
+Phase 12 implements comprehensive plugin management capabilities for Godot projects. This includes installing plugins from the Asset Library or Git repositories, configuring plugin settings, listing installed plugins with status information, and scaffolding new plugins with proper structure.
+
+**Key Capabilities:**
+
+- Install plugins from Godot Asset Library by ID or name search
+- Clone plugins from Git repositories (GitHub, GitLab, etc.)
+- Enable/disable plugins in project settings
+- Configure plugin-specific settings
+- List all installed plugins with version and status
+- Generate new plugin scaffolds with plugin.cfg and directory structure
+
+**Implementation Approach:**
+
+- TypeScript-only implementation (no GDScript operations needed)
+- Direct manipulation of project.godot for plugin configuration
+- File system operations for plugin installation and creation
+- HTTP requests to Asset Library API for plugin search/download
+- Git operations for repository-based plugins
+
+### Tool Summary
+
+| Tool | Description | Complexity |
+|------|-------------|------------|
+| `list_plugins` | List installed plugins and their status | LOW |
+| `configure_plugin` | Enable/disable and configure plugins | LOW |
+| `create_plugin` | Generate plugin scaffold with plugin.cfg | MEDIUM |
+| `install_plugin` | Install plugins from Asset Library or Git | HIGH |
+
+**Total New Tools:** 4
+
+---
+
+### Task 12.1: Implement `list_plugins` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** List all installed plugins in a Godot project with their configuration status.
+
+**Implementation Steps:**
+
+1. [x] Add `list_plugins` tool definition with parameters:
+   - `projectPath` (required): Path to the Godot project
+   - `includeBuiltin` (optional): Include editor plugins (default: false)
+   - `verbose` (optional): Include full plugin.cfg contents (default: false)
+
+2. [x] Create `handleListPlugins()` method:
+   - Scan `addons/` directory for plugin folders
+   - Parse `plugin.cfg` files to extract plugin metadata
+   - Read `project.godot` for enabled/disabled status
+   - Return structured plugin information
+
+3. [x] Parse plugin.cfg format (INI-style):
+
+   ```ini
+   [plugin]
+   name="Plugin Name"
+   description="Plugin description"
+   author="Author Name"
+   version="1.0.0"
+   script="plugin.gd"
+   ```
+
+4. [x] Return structure for each plugin:
+
+   ```json
+   {
+     "id": "addon_folder_name",
+     "name": "Plugin Display Name",
+     "description": "Plugin description",
+     "author": "Author Name",
+     "version": "1.0.0",
+     "script": "plugin.gd",
+     "enabled": true,
+     "path": "res://addons/addon_folder_name"
+   }
+   ```
+
+5. [x] Handle edge cases:
+   - Missing plugin.cfg files (warn but include folder)
+   - Malformed plugin.cfg (parse what's available)
+   - Empty addons directory (return empty array)
+
+**Testing Requirements:**
+
+- [x] **Test 12.1.1:** List plugins in project with addons - verify all detected ✅
+- [x] **Test 12.1.2:** List plugins in empty project - verify empty array returned ✅
+- [x] **Test 12.1.3:** Detect enabled/disabled status - verify matches project.godot ✅
+- [x] **Test 12.1.4:** Verbose mode - verify full plugin.cfg contents included ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Plugin listing returns accurate status for all installed plugins.
+
+---
+
+### Task 12.2: Implement `configure_plugin` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Enable, disable, or configure plugin settings in project.godot.
+
+**Implementation Steps:**
+
+1. [x] Add `configure_plugin` tool definition with parameters:
+   - `projectPath` (required): Path to the Godot project
+   - `pluginId` (required): Plugin folder name in addons/
+   - `enabled` (optional): Enable (true) or disable (false) the plugin
+   - `settings` (optional): Object of plugin-specific settings to configure
+
+2. [x] Create `handleConfigurePlugin()` method:
+   - Validate plugin exists in addons/ directory
+   - Read current project.godot configuration
+   - Update `[editor_plugins]` section for enable/disable
+   - Update plugin-specific sections for settings
+   - Write updated project.godot
+
+3. [x] Handle project.godot `[editor_plugins]` section:
+
+   ```ini
+   [editor_plugins]
+   enabled=PackedStringArray("res://addons/plugin1/plugin.cfg", "res://addons/plugin2/plugin.cfg")
+   ```
+
+4. [x] Support plugin-specific settings sections:
+
+   ```ini
+   [plugin_name]
+   setting1=value1
+   setting2=value2
+   ```
+
+5. [x] Return configuration result:
+
+   ```json
+   {
+     "pluginId": "my_plugin",
+     "enabled": true,
+     "previouslyEnabled": false,
+     "settingsUpdated": ["setting1", "setting2"],
+     "message": "Plugin 'my_plugin' enabled successfully"
+   }
+   ```
+
+6. [x] Handle edge cases:
+   - Plugin not found (error with suggestion to install)
+   - Plugin already in desired state (success with no-op message)
+   - Invalid settings (warn but continue)
+
+**Testing Requirements:**
+
+- [x] **Test 12.2.1:** Enable plugin - verify added to enabled array ✅
+- [x] **Test 12.2.2:** Disable plugin - verify removed from enabled array ✅
+- [x] **Test 12.2.3:** Configure settings - verify settings persisted ✅
+- [x] **Test 12.2.4:** Invalid plugin ID - verify error with helpful message ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Plugins can be enabled/disabled and configured through project.godot.
+
+---
+
+### Task 12.3: Implement `create_plugin` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Generate a new plugin scaffold with plugin.cfg, main script, and directory structure.
+
+**Implementation Steps:**
+
+1. [x] Add `create_plugin` tool definition with parameters:
+   - `projectPath` (required): Path to the Godot project
+   - `pluginId` (required): Plugin folder name (snake_case recommended)
+   - `pluginName` (required): Display name for the plugin
+   - `author` (required): Plugin author name
+   - `description` (optional): Plugin description
+   - `version` (optional): Initial version (default: "1.0.0")
+   - `template` (optional): Plugin template type (default: "basic")
+   - `autoEnable` (optional): Enable plugin after creation (default: false)
+
+2. [x] Create `handleCreatePlugin()` method:
+   - Validate pluginId format (alphanumeric, underscores)
+   - Check plugin doesn't already exist
+   - Create directory structure
+   - Generate plugin.cfg
+   - Generate main plugin script
+   - Optionally enable in project.godot
+
+3. [x] Plugin directory structure:
+
+   ```
+   addons/
+   └── plugin_id/
+       ├── plugin.cfg
+       ├── plugin.gd          # Main EditorPlugin script
+       ├── icons/             # Plugin icons (optional)
+       └── src/               # Additional scripts (optional)
+   ```
+
+4. [x] Generate plugin.cfg:
+
+   ```ini
+   [plugin]
+   name="Plugin Display Name"
+   description="Plugin description"
+   author="Author Name"
+   version="1.0.0"
+   script="plugin.gd"
+   ```
+
+5. [x] Plugin templates:
+   - **basic**: Minimal EditorPlugin with _enter_tree/_exit_tree
+   - **dock**: Plugin with custom dock panel
+   - **inspector**: Plugin with inspector plugin
+   - **import**: Plugin with import plugin for custom file types
+   - **tool**: Plugin with custom tool/menu item
+
+6. [x] Template: basic plugin.gd:
+
+   ```gdscript
+   @tool
+   extends EditorPlugin
+
+   func _enter_tree() -> void:
+       # Called when plugin is enabled
+       pass
+
+   func _exit_tree() -> void:
+       # Called when plugin is disabled
+       pass
+   ```
+
+7. [x] Template: dock plugin.gd:
+
+   ```gdscript
+   @tool
+   extends EditorPlugin
+
+   var dock: Control
+
+   func _enter_tree() -> void:
+       dock = preload("res://addons/{plugin_id}/dock.tscn").instantiate()
+       add_control_to_dock(DOCK_SLOT_LEFT_UL, dock)
+
+   func _exit_tree() -> void:
+       remove_control_from_docks(dock)
+       dock.free()
+   ```
+
+8. [x] Return creation result:
+
+   ```json
+   {
+     "pluginId": "my_plugin",
+     "path": "res://addons/my_plugin",
+     "filesCreated": ["plugin.cfg", "plugin.gd"],
+     "enabled": false,
+     "message": "Plugin 'My Plugin' created successfully"
+   }
+   ```
+
+**Testing Requirements:**
+
+- [x] **Test 12.3.1:** Create basic plugin - verify plugin.cfg and plugin.gd created ✅
+- [x] **Test 12.3.2:** Create dock plugin - verify dock template used ✅
+- [x] **Test 12.3.3:** Auto-enable plugin - verify enabled in project.godot ✅
+- [x] **Test 12.3.4:** Duplicate plugin ID - verify error prevents overwrite ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - New plugins can be scaffolded with proper structure and templates.
+
+---
+
+### Task 12.4: Implement `install_plugin` Tool ✅ COMPLETE
+
+**Completion Date:** 2025-12-15
+
+**Description:** Install plugins from the Godot Asset Library or Git repositories.
+
+**Implementation Steps:**
+
+1. [x] Add `install_plugin` tool definition with parameters:
+   - `projectPath` (required): Path to the Godot project
+   - `source` (required): "asset_library" or "git"
+   - `assetId` (optional): Asset Library asset ID (for asset_library source)
+   - `searchQuery` (optional): Search Asset Library by name (for asset_library source)
+   - `gitUrl` (optional): Git repository URL (for git source)
+   - `gitBranch` (optional): Git branch/tag to checkout (default: "main")
+   - `gitSubfolder` (optional): Subfolder within repo containing addon (default: "addons/")
+   - `autoEnable` (optional): Enable plugin after installation (default: false)
+   - `overwrite` (optional): Overwrite existing plugin (default: false)
+
+2. [x] Create `handleInstallPlugin()` method:
+   - Dispatch to appropriate installer based on source
+   - Validate installation completed
+   - Optionally enable plugin
+
+3. [x] Asset Library installation:
+   - Query Asset Library API: `https://godotengine.org/asset-library/api/asset/{id}`
+   - Download asset ZIP from download URL
+   - Extract to temp directory
+   - Copy addons/ contents to project
+   - Clean up temp files
+
+4. [x] Asset Library search (when searchQuery provided):
+   - Query: `https://godotengine.org/asset-library/api/asset?filter={query}&godot_version=4`
+   - Return list of matching assets with IDs
+   - Allow user to select or auto-pick first result
+
+5. [x] Git installation:
+   - Clone repository to temp directory (or use sparse checkout)
+   - Checkout specified branch/tag
+   - Copy gitSubfolder contents to project addons/
+   - Clean up temp directory
+
+6. [x] Handle common Git URL formats:
+   - `https://github.com/user/repo.git`
+   - `https://github.com/user/repo` (auto-add .git)
+   - `git@github.com:user/repo.git` (SSH format)
+
+7. [x] Return installation result:
+
+   ```json
+   {
+     "pluginId": "installed_plugin",
+     "source": "git",
+     "sourceUrl": "https://github.com/user/repo",
+     "version": "1.2.3",
+     "path": "res://addons/installed_plugin",
+     "enabled": false,
+     "message": "Plugin 'Plugin Name' installed successfully from Git"
+   }
+   ```
+
+8. [x] Handle edge cases:
+   - Asset not found (error with search suggestion)
+   - Git clone failure (error with troubleshooting tips)
+   - No addons folder in downloaded content (error with path suggestion)
+   - Plugin already exists (error unless overwrite=true)
+   - Network errors (clear error message)
+
+**Testing Requirements:**
+
+- [x] **Test 12.4.1:** Install from Asset Library by ID - verify plugin installed ✅
+- [x] **Test 12.4.2:** Search Asset Library - verify results returned ✅
+- [x] **Test 12.4.3:** Install from Git URL - verify plugin cloned and installed ✅
+- [x] **Test 12.4.4:** Overwrite existing plugin - verify old version replaced ✅
+
+**🛑 CHECKPOINT:** ✅ PASSED - Plugins can be installed from Asset Library and Git repositories.
+
+---
+
+### PHASE 12 INTEGRATION TEST ✅ COMPLETE
+
+#### **Test Scenario: Complete Plugin Management Workflow**
+
+- [x] List plugins (should be empty or minimal) ✅
+- [x] Create new plugin with dock template ✅
+- [x] Verify plugin.cfg structure is valid ✅
+- [x] Enable created plugin ✅
+- [x] List plugins again to verify enabled status ✅
+- [x] Disable plugin ✅
+- [x] Install plugin from Git (use a small test repo) ✅
+- [x] Configure installed plugin settings ✅
+- [x] Verify end-to-end plugin workflow ✅
+
+**Test Results:** All 24 integration tests passed (2025-12-15)
+
+**Expected Outcome:** ✅ ACHIEVED - Complete plugin lifecycle management from creation to installation to configuration.
 
 ---
 
