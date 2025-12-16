@@ -1908,6 +1908,235 @@ class GodotServer {
             required: ['projectPath'],
           },
         },
+        {
+          name: 'create_tilemap',
+          description: 'Create a TileMap node in a scene with a configured TileSet. Supports Godot 4.x TileMap format with layers.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file (relative to project, e.g., "scenes/level.tscn")',
+              },
+              tilemapName: {
+                type: 'string',
+                description: 'Name for the TileMap node (default: "TileMap")',
+              },
+              parentPath: {
+                type: 'string',
+                description: 'NodePath to parent node (default: "." for root)',
+              },
+              tileSize: {
+                type: 'object',
+                description: 'Size of each tile in pixels (e.g., {x: 16, y: 16})',
+                properties: {
+                  x: { type: 'number' },
+                  y: { type: 'number' },
+                },
+              },
+              tilesetPath: {
+                type: 'string',
+                description: 'Optional: path to existing TileSet resource (.tres)',
+              },
+              layers: {
+                type: 'array',
+                description: 'Optional: array of layer names to create',
+                items: { type: 'string' },
+              },
+            },
+            required: ['projectPath', 'scenePath'],
+          },
+        },
+        {
+          name: 'paint_tiles',
+          description: 'Place tiles programmatically in a TileMap. Supports single tiles, rectangular regions, and bulk operations.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file containing the TileMap',
+              },
+              tilemapPath: {
+                type: 'string',
+                description: 'NodePath to the TileMap node in the scene',
+              },
+              layer: {
+                type: 'number',
+                description: 'Layer index to paint on (default: 0)',
+              },
+              sourceId: {
+                type: 'number',
+                description: 'TileSet source ID (default: 0)',
+              },
+              tiles: {
+                type: 'array',
+                description: 'Array of tiles to paint: [{x, y, atlasCoords: {x, y}}]',
+                items: {
+                  type: 'object',
+                  properties: {
+                    x: { type: 'number', description: 'Cell X coordinate' },
+                    y: { type: 'number', description: 'Cell Y coordinate' },
+                    atlasCoords: {
+                      type: 'object',
+                      description: 'Atlas coordinates of the tile in the TileSet',
+                      properties: {
+                        x: { type: 'number' },
+                        y: { type: 'number' },
+                      },
+                    },
+                  },
+                },
+              },
+              pattern: {
+                type: 'string',
+                enum: ['single', 'rect', 'line', 'erase'],
+                description: 'Painting pattern type (default: "single")',
+              },
+              rectStart: {
+                type: 'object',
+                description: 'Start position for rect/line patterns',
+                properties: { x: { type: 'number' }, y: { type: 'number' } },
+              },
+              rectEnd: {
+                type: 'object',
+                description: 'End position for rect/line patterns',
+                properties: { x: { type: 'number' }, y: { type: 'number' } },
+              },
+            },
+            required: ['projectPath', 'scenePath', 'tilemapPath'],
+          },
+        },
+        {
+          name: 'configure_tileset',
+          description: 'Configure tile properties in a TileSet resource including collisions, navigation, and terrain sets.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              tilesetPath: {
+                type: 'string',
+                description: 'Path to TileSet resource (.tres) relative to project',
+              },
+              texturePath: {
+                type: 'string',
+                description: 'Path to texture atlas for TileSet source',
+              },
+              tileSize: {
+                type: 'object',
+                description: 'Size of each tile in the atlas',
+                properties: { x: { type: 'number' }, y: { type: 'number' } },
+              },
+              tileConfig: {
+                type: 'array',
+                description: 'Array of tile configurations',
+                items: {
+                  type: 'object',
+                  properties: {
+                    atlasCoords: {
+                      type: 'object',
+                      description: 'Atlas coordinates of the tile',
+                      properties: { x: { type: 'number' }, y: { type: 'number' } },
+                    },
+                    collision: {
+                      type: 'array',
+                      description: 'Collision polygon points [[x1,y1], [x2,y2], ...]',
+                      items: { type: 'array', items: { type: 'number' } },
+                    },
+                    navigation: {
+                      type: 'array',
+                      description: 'Navigation polygon points [[x1,y1], [x2,y2], ...]',
+                      items: { type: 'array', items: { type: 'number' } },
+                    },
+                    terrainSet: {
+                      type: 'number',
+                      description: 'Terrain set ID for autotiling',
+                    },
+                    terrain: {
+                      type: 'number',
+                      description: 'Terrain ID within the terrain set',
+                    },
+                  },
+                },
+              },
+              physicsLayer: {
+                type: 'number',
+                description: 'Physics layer index for collisions (default: 0)',
+              },
+              navigationLayer: {
+                type: 'number',
+                description: 'Navigation layer index (default: 0)',
+              },
+            },
+            required: ['projectPath', 'tilesetPath'],
+          },
+        },
+        {
+          name: 'generate_navmesh',
+          description: 'Create or update a NavigationRegion3D with a baked navigation mesh for AI pathfinding.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectPath: {
+                type: 'string',
+                description: 'Path to the Godot project directory',
+              },
+              scenePath: {
+                type: 'string',
+                description: 'Path to the scene file',
+              },
+              regionName: {
+                type: 'string',
+                description: 'Name for the NavigationRegion3D node (default: "NavigationRegion3D")',
+              },
+              parentPath: {
+                type: 'string',
+                description: 'NodePath to parent node (default: "." for root)',
+              },
+              cellSize: {
+                type: 'number',
+                description: 'Voxel cell size for navigation mesh (default: 0.25)',
+              },
+              cellHeight: {
+                type: 'number',
+                description: 'Voxel cell height (default: 0.25)',
+              },
+              agentRadius: {
+                type: 'number',
+                description: 'Agent radius for pathfinding (default: 0.5)',
+              },
+              agentHeight: {
+                type: 'number',
+                description: 'Agent height (default: 2.0)',
+              },
+              agentMaxSlope: {
+                type: 'number',
+                description: 'Maximum walkable slope in degrees (default: 45)',
+              },
+              agentMaxClimb: {
+                type: 'number',
+                description: 'Maximum step height agent can climb (default: 0.25)',
+              },
+              sourceGeometryMode: {
+                type: 'string',
+                enum: ['static_colliders', 'meshes', 'physics_bodies'],
+                description: 'Source geometry mode for baking (default: "static_colliders")',
+              },
+            },
+            required: ['projectPath', 'scenePath'],
+          },
+        },
       ],
     }));
 
@@ -2001,6 +2230,14 @@ class GodotServer {
           return await this.handleExportProject(request.params.arguments);
         case 'validate_export':
           return await this.handleValidateExport(request.params.arguments);
+        case 'create_tilemap':
+          return await this.handleCreateTilemap(request.params.arguments);
+        case 'paint_tiles':
+          return await this.handlePaintTiles(request.params.arguments);
+        case 'configure_tileset':
+          return await this.handleConfigureTileset(request.params.arguments);
+        case 'generate_navmesh':
+          return await this.handleGenerateNavmesh(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -8241,6 +8478,347 @@ storyboard/custom_bg_color=Color(0, 0, 0, 1)
         [
           'Verify the project path is correct',
           'Check file permissions',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the create_tilemap tool
+   * Creates a TileMap node in a scene with optional TileSet configuration
+   * @param args Tool arguments
+   */
+  private async handleCreateTilemap(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide the path to a scene file (e.g., "scenes/level.tscn")']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          ['Ensure the directory contains a project.godot file']
+        );
+      }
+
+      const scenePath = join(args.projectPath, args.scenePath);
+      if (!existsSync(scenePath)) {
+        return this.createErrorResponse(
+          `Scene file not found: ${args.scenePath}`,
+          ['Ensure the scene file exists', 'Create the scene first using create_scene']
+        );
+      }
+
+      // Prepare parameters for GDScript operation
+      const params = {
+        scene_path: args.scenePath,
+        tilemap_name: args.tilemapName || 'TileMap',
+        parent_path: args.parentPath || '.',
+        tile_size: args.tileSize || { x: 16, y: 16 },
+        tileset_path: args.tilesetPath || '',
+        layers: args.layers || [],
+      };
+
+      // Execute GDScript operation
+      const { stdout, stderr } = await this.executeOperation(
+        'create_tilemap',
+        params,
+        args.projectPath
+      );
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to create tilemap: ${stderr}`,
+          ['Check the scene file exists', 'Verify the parent path is correct']
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: stdout,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to create tilemap: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Ensure the scene file exists',
+          'Check file permissions',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the paint_tiles tool
+   * Paints tiles in a TileMap at specified positions
+   * @param args Tool arguments
+   */
+  private async handlePaintTiles(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide the path to the scene file containing the TileMap']
+      );
+    }
+
+    if (!args.tilemapPath) {
+      return this.createErrorResponse(
+        'TileMap path is required',
+        ['Provide the NodePath to the TileMap node (e.g., "TileMap" or "World/TileMap")']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          ['Ensure the directory contains a project.godot file']
+        );
+      }
+
+      const scenePath = join(args.projectPath, args.scenePath);
+      if (!existsSync(scenePath)) {
+        return this.createErrorResponse(
+          `Scene file not found: ${args.scenePath}`,
+          ['Ensure the scene file exists']
+        );
+      }
+
+      // Prepare parameters for GDScript operation
+      const params = {
+        scene_path: args.scenePath,
+        tilemap_path: args.tilemapPath,
+        layer: args.layer ?? 0,
+        source_id: args.sourceId ?? 0,
+        tiles: args.tiles || [],
+        pattern: args.pattern || 'single',
+        rect_start: args.rectStart || null,
+        rect_end: args.rectEnd || null,
+      };
+
+      // Execute GDScript operation
+      const { stdout, stderr } = await this.executeOperation(
+        'paint_tiles',
+        params,
+        args.projectPath
+      );
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to paint tiles: ${stderr}`,
+          ['Check the TileMap node exists', 'Verify the TileSet is configured']
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: stdout,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to paint tiles: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Ensure the TileMap node exists in the scene',
+          'Check that the TileSet is configured',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the configure_tileset tool
+   * Configures TileSet resource with collision, navigation, and terrain settings
+   * @param args Tool arguments
+   */
+  private async handleConfigureTileset(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.tilesetPath) {
+      return this.createErrorResponse(
+        'TileSet path is required',
+        ['Provide the path to the TileSet resource (.tres file)']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          ['Ensure the directory contains a project.godot file']
+        );
+      }
+
+      // Prepare parameters for GDScript operation
+      const params = {
+        tileset_path: args.tilesetPath,
+        texture_path: args.texturePath || '',
+        tile_size: args.tileSize || { x: 16, y: 16 },
+        tile_config: args.tileConfig || [],
+        physics_layer: args.physicsLayer ?? 0,
+        navigation_layer: args.navigationLayer ?? 0,
+      };
+
+      // Execute GDScript operation
+      const { stdout, stderr } = await this.executeOperation(
+        'configure_tileset',
+        params,
+        args.projectPath
+      );
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to configure tileset: ${stderr}`,
+          ['Check the TileSet path is correct', 'Verify the texture file exists']
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: stdout,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to configure tileset: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Ensure the texture file exists if specified',
+          'Check file permissions',
+        ]
+      );
+    }
+  }
+
+  /**
+   * Handle the generate_navmesh tool
+   * Creates a NavigationRegion3D with navigation mesh configuration
+   * @param args Tool arguments
+   */
+  private async handleGenerateNavmesh(args: any) {
+    args = this.normalizeParameters(args);
+
+    if (!args.projectPath) {
+      return this.createErrorResponse(
+        'Project path is required',
+        ['Provide a valid path to a Godot project directory']
+      );
+    }
+
+    if (!args.scenePath) {
+      return this.createErrorResponse(
+        'Scene path is required',
+        ['Provide the path to the scene file']
+      );
+    }
+
+    try {
+      const projectFile = join(args.projectPath, 'project.godot');
+      if (!existsSync(projectFile)) {
+        return this.createErrorResponse(
+          `Not a valid Godot project: ${args.projectPath}`,
+          ['Ensure the directory contains a project.godot file']
+        );
+      }
+
+      const scenePath = join(args.projectPath, args.scenePath);
+      if (!existsSync(scenePath)) {
+        return this.createErrorResponse(
+          `Scene file not found: ${args.scenePath}`,
+          ['Ensure the scene file exists', 'Create the scene first using create_scene']
+        );
+      }
+
+      // Prepare parameters for GDScript operation
+      const params = {
+        scene_path: args.scenePath,
+        region_name: args.regionName || 'NavigationRegion3D',
+        parent_path: args.parentPath || '.',
+        cell_size: args.cellSize ?? 0.25,
+        cell_height: args.cellHeight ?? 0.25,
+        agent_radius: args.agentRadius ?? 0.5,
+        agent_height: args.agentHeight ?? 2.0,
+        agent_max_slope: args.agentMaxSlope ?? 45.0,
+        agent_max_climb: args.agentMaxClimb ?? 0.25,
+        source_geometry_mode: args.sourceGeometryMode || 'static_colliders',
+      };
+
+      // Execute GDScript operation
+      const { stdout, stderr } = await this.executeOperation(
+        'generate_navmesh',
+        params,
+        args.projectPath
+      );
+
+      if (stderr && stderr.includes('ERROR')) {
+        return this.createErrorResponse(
+          `Failed to generate navigation mesh: ${stderr}`,
+          ['Check the scene file exists', 'Verify the parent path is correct']
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: stdout,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createErrorResponse(
+        `Failed to generate navigation mesh: ${errorMessage}`,
+        [
+          'Verify the project path is correct',
+          'Ensure the scene contains 3D geometry for navigation',
+          'Check that Godot supports headless navigation mesh baking',
         ]
       );
     }

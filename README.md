@@ -521,6 +521,74 @@ This direct feedback loop helps AI assistants like Claude understand what works 
     )
     ```
 
+- **Tilemap & Level Design** (Phase 10 - COMPLETE):
+  - **`create_tilemap`**: Create TileMap nodes with TileSet configuration
+    - **Tile Size**: Configure custom tile dimensions (8x8, 16x16, 32x32, etc.)
+    - **TileSet Support**: Create new TileSet or reference existing one
+    - **Multiple Layers**: Create named layers for Ground, Objects, Collisions, etc.
+    - Proper Godot 4.x TileMap format with TileSetAtlasSource
+  - **`paint_tiles`**: Paint tiles programmatically with patterns
+    - **Pattern Types**: Single tile, rectangular region, line (Bresenham), erase
+    - **Layer Support**: Paint on specific layers by index
+    - **Atlas Coordinates**: Specify tile source and atlas position
+    - Supports bulk tile operations for efficient level generation
+  - **`configure_tileset`**: Configure TileSet with collision, navigation, terrain
+    - **Texture Atlas**: Set up texture source with tile size
+    - **Collision Shapes**: Add physics polygons to tiles
+    - **Navigation Polygons**: Configure tiles for pathfinding
+    - **Terrain Sets**: Set up terrain for autotiling
+    - Physics and navigation layer configuration
+  - **`generate_navmesh`**: Create NavigationRegion3D with NavigationMesh
+    - **Agent Parameters**: Radius, height, max slope, max climb
+    - **Cell Configuration**: Cell size and height for voxelization
+    - **Source Geometry**: static_colliders, meshes, physics_bodies modes
+    - Ready for runtime baking with NavigationServer3D
+  - **Complete Level Design Workflow**:
+    ```gdscript
+    # Step 1: Create TileMap with layers
+    create_tilemap(
+      projectPath="/path/to/project",
+      scenePath="scenes/level.tscn",
+      tilemapName="TileMap",
+      tileSize={x: 16, y: 16},
+      layers=["Ground", "Objects", "Collisions"]
+    )
+
+    # Step 2: Configure TileSet with texture and collision
+    configure_tileset(
+      projectPath="/path/to/project",
+      tilesetPath="resources/tileset.tres",
+      texturePath="sprites/tilemap.png",
+      tileSize={x: 16, y: 16},
+      tiles=[
+        {atlasCoords: {x: 0, y: 0}, collision: [[0,0], [16,0], [16,16], [0,16]]},
+        {atlasCoords: {x: 1, y: 0}, navigation: [[2,2], [14,2], [14,14], [2,14]]}
+      ]
+    )
+
+    # Step 3: Paint tiles with patterns
+    paint_tiles(
+      projectPath="/path/to/project",
+      scenePath="scenes/level.tscn",
+      tilemapPath="TileMap",
+      pattern="rect",
+      rectStart={x: 0, y: 0},
+      rectEnd={x: 10, y: 5},
+      atlasCoords={x: 0, y: 0}
+    )
+
+    # Step 4: Generate 3D navigation mesh
+    generate_navmesh(
+      projectPath="/path/to/project",
+      scenePath="scenes/level_3d.tscn",
+      regionName="NavigationRegion3D",
+      agentRadius=0.5,
+      agentHeight=2.0,
+      agentMaxSlope=45.0,
+      sourceGeometryMode="static_colliders"
+    )
+    ```
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
@@ -599,7 +667,11 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "configure_autoload",
         "create_export_preset",
         "export_project",
-        "validate_export"
+        "validate_export",
+        "create_tilemap",
+        "paint_tiles",
+        "configure_tileset",
+        "generate_navmesh"
       ]
     }
   }

@@ -28,7 +28,8 @@ The current implementation plan follows a phased approach:
 - **Phase 7:** Asset Import & Configuration (COMPLETE ✅)
 - **Phase 8:** Project Settings & Configuration (COMPLETE ✅)
 - **Phase 9:** Build & Export Pipeline (COMPLETE ✅)
-- Future phases cover tilemap design, dialogue systems, and specialized workflows
+- **Phase 10:** Tilemap & Level Design (COMPLETE ✅)
+- Future phases cover dialogue systems, localization, and plugin management
 
 ## Build and Development Commands
 
@@ -57,9 +58,9 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~8300 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: A ~8860 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
 
-**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~3930 lines, ~140KB) that handles all complex Godot operations. This script:
+**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~4420 lines, ~160KB) that handles all complex Godot operations. This script:
 
 - Accepts operation type and JSON parameters via command-line arguments
 - Executes operations directly within Godot's headless mode
@@ -91,7 +92,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 37 tools via the MCP protocol:
+The server exposes 41 tools via the MCP protocol:
 
 **Project Management**:
 
@@ -282,6 +283,30 @@ The server exposes 37 tools via the MCP protocol:
   - Severity levels: error, warning, info with actionable recommendations
   - Export readiness determination
   - Summary with error/warning/info counts
+
+**Tilemap & Level Design** (Phase 10 - COMPLETE):
+
+- `create_tilemap` - Create TileMap nodes with TileSet configuration
+  - Configure tile size (8x8, 16x16, 32x32, etc.)
+  - Create new TileSet or reference existing one
+  - Support multiple named layers (Ground, Objects, Collisions, etc.)
+  - Proper Godot 4.x TileMap format with TileSetAtlasSource
+- `paint_tiles` - Paint tiles programmatically with patterns
+  - Pattern types: single tile, rectangular region, line (Bresenham), erase
+  - Paint on specific layers by index
+  - Specify tile source ID and atlas coordinates
+  - Supports bulk tile operations for efficient level generation
+- `configure_tileset` - Configure TileSet with texture, collision, navigation, terrain
+  - Set up texture atlas source with tile size
+  - Add collision polygons to tiles for physics
+  - Add navigation polygons for pathfinding
+  - Configure terrain sets for autotiling
+  - Physics and navigation layer configuration
+- `generate_navmesh` - Create NavigationRegion3D with NavigationMesh for 3D pathfinding
+  - Agent parameters: radius, height, max slope, max climb
+  - Cell configuration: cell size and height for voxelization
+  - Source geometry modes: static_colliders, meshes, physics_bodies
+  - Ready for runtime baking with NavigationServer3D
 
 ## Configuration
 
