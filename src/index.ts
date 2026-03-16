@@ -23,6 +23,14 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 
+// New modular architecture imports
+import { ToolRegistry } from './registry.js';
+import { ServerContext, OperationParams as OpParams, ToolResponse } from './types.js';
+import { registerSceneTools } from './tools/scene.js';
+import { registerShaderTools } from './tools/shader.js';
+import { registerAnimationTreeTools } from './tools/animation-tree.js';
+import { registerRefactorTools } from './tools/refactor.js';
+
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
 const GODOT_DEBUG_MODE: boolean = true; // Always use GODOT DEBUG MODE
@@ -69,6 +77,7 @@ class GodotServer {
   private operationsScriptPath: string;
   private validatedPaths: Map<string, boolean> = new Map();
   private strictPathValidation: boolean = false;
+  private toolRegistry: ToolRegistry = new ToolRegistry();
 
   /**
    * Parameter name mappings between snake_case and camelCase
@@ -392,6 +401,50 @@ class GodotServer {
   }
 
   /**
+   * Create a ServerContext object that tool modules can use to access shared functionality.
+   * This decouples tool implementations from the GodotServer class.
+   */
+  public getServerContext(): ServerContext {
+    return {
+      logDebug: (msg: string) => this.logDebug(msg),
+      createErrorResponse: (msg: string, solutions?: string[]) => this.createErrorResponse(msg, solutions),
+      validatePath: (path: string) => this.validatePath(path),
+      executeOperation: (op: string, params: OperationParams, projectPath: string) =>
+        this.executeOperation(op, params, projectPath),
+      normalizeParameters: (params: OperationParams) => this.normalizeParameters(params),
+      convertCamelToSnakeCase: (params: OperationParams) => this.convertCamelToSnakeCase(params),
+      parseGodotErrors: (lines: string[]) => this.parseGodotErrors(lines),
+      formatTresValue: (value: any) => this.formatTresValue(value),
+      generateUID: () => this.generateUID(),
+      generateShortUID: () => this.generateShortUID(),
+      isGodot44OrLater: (version: string) => this.isGodot44OrLater(version),
+      getGodotPath: async () => {
+        if (!this.godotPath) await this.detectGodotPath();
+        return this.godotPath || '';
+      },
+      formatProjectSettingValue: (value: any) => this.formatProjectSettingValue(value),
+      escapeCsvValue: (value: string) => this.escapeCsvValue(value),
+      parseCsvLine: (line: string) => this.parseCsvLine(line),
+      escapePoString: (value: string) => this.escapePoString(value),
+      escapeRegex: (value: string) => this.escapeRegex(value),
+      extractPlaceholders: (text: string) => this.extractPlaceholders(text),
+    };
+  }
+
+  /**
+   * Register new modular tools with the tool registry.
+   * Called during setupToolHandlers to load all Tier 1+ tools.
+   */
+  private registerModularTools(): void {
+    const ctx = this.getServerContext();
+    registerSceneTools(this.toolRegistry, ctx);
+    registerShaderTools(this.toolRegistry, ctx);
+    registerAnimationTreeTools(this.toolRegistry, ctx);
+    registerRefactorTools(this.toolRegistry, ctx);
+    this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
+  }
+
+  /**
    * Check if the Godot version is 4.4 or later
    * @param version The Godot version string
    * @returns True if the version is 4.4 or later
@@ -663,9 +716,15 @@ class GodotServer {
    * Set up the tool handlers for the MCP server
    */
   private setupToolHandlers() {
-    // Define available tools
+    // Register new modular tools (Tier 1+)
+    this.registerModularTools();
+
+    // Define available tools (legacy + modular)
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
+        // --- Modular tools from registry ---
+        ...this.toolRegistry.getToolDefinitions(),
+        // --- Legacy tools (will be migrated to registry incrementally) ---
         {
           name: 'launch_editor',
           description: 'Launch Godot editor for a specific project',
@@ -2549,9 +2608,16 @@ class GodotServer {
       ],
     }));
 
-    // Handle tool calls
+    // Handle tool calls — registry-first dispatch with legacy fallback
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       this.logDebug(`Handling tool request: ${request.params.name}`);
+
+      // Check modular tool registry first
+      if (this.toolRegistry.has(request.params.name)) {
+        return await this.toolRegistry.dispatch(request.params.name, request.params.arguments);
+      }
+
+      // Legacy dispatch for existing tools
       switch (request.params.name) {
         case 'launch_editor':
           return await this.handleLaunchEditor(request.params.arguments);

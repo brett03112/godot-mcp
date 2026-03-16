@@ -111,6 +111,25 @@ func _init():
             configure_tileset(params)
         "generate_navmesh":
             generate_navmesh(params)
+        # Tier 1: Scene Inspection & Manipulation
+        "modify_node_property":
+            modify_node_property(params)
+        "remove_node":
+            remove_node_op(params)
+        "duplicate_node":
+            duplicate_node(params)
+        "reparent_node":
+            reparent_node(params)
+        # Tier 1: Shader Pipeline Completion
+        "apply_material":
+            apply_material(params)
+        "set_shader_parameter":
+            set_shader_parameter(params)
+        # Tier 1: AnimationTree Configuration
+        "configure_animation_tree":
+            configure_animation_tree(params)
+        "create_animation_library":
+            create_animation_library(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -4411,3 +4430,827 @@ func generate_navmesh(params):
 
     print(JSON.stringify(output))
     log_info("generate_navmesh operation completed successfully")
+
+
+# =============================================================================
+# Tier 1: Scene Inspection & Manipulation Operations
+# =============================================================================
+
+func modify_node_property(params: Dictionary):
+    log_info("Starting modify_node_property operation")
+    var scene_path = params.get("scene_path", "")
+    var node_path_str = params.get("node_path", "")
+    var property_name = params.get("property_name", "")
+    var property_value = params.get("property_value", null)
+
+    if scene_path.is_empty() or node_path_str.is_empty() or property_name.is_empty():
+        log_error("scene_path, node_path, and property_name are required")
+        quit(1)
+
+    var full_path = "res://" + scene_path
+    var packed_scene = ResourceLoader.load(full_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_path)
+        quit(1)
+
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene")
+        quit(1)
+
+    # Find the target node
+    var target_node: Node
+    if node_path_str == ".":
+        target_node = scene_root
+    else:
+        target_node = scene_root.get_node_or_null(NodePath(node_path_str))
+
+    if target_node == null:
+        log_error("Node not found at path: " + node_path_str)
+        scene_root.queue_free()
+        quit(1)
+
+    # Convert value to appropriate type
+    var converted_value = _convert_property_value(property_value, target_node, property_name)
+
+    # Set the property
+    target_node.set(property_name, converted_value)
+    log_info("Set property '%s' on node '%s'" % [property_name, node_path_str])
+
+    # Save the scene
+    var new_packed = PackedScene.new()
+    var err = new_packed.pack(scene_root)
+    if err != OK:
+        log_error("Failed to pack scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    err = ResourceSaver.save(new_packed, full_path)
+    if err != OK:
+        log_error("Failed to save scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    scene_root.queue_free()
+
+    var output = {
+        "success": true,
+        "scene_path": scene_path,
+        "node_path": node_path_str,
+        "property_name": property_name,
+        "property_value": str(converted_value)
+    }
+    print(JSON.stringify(output))
+    log_info("modify_node_property completed successfully")
+
+
+func remove_node_op(params: Dictionary):
+    log_info("Starting remove_node operation")
+    var scene_path = params.get("scene_path", "")
+    var node_path_str = params.get("node_path", "")
+    var keep_children = params.get("keep_children", false)
+
+    if scene_path.is_empty() or node_path_str.is_empty():
+        log_error("scene_path and node_path are required")
+        quit(1)
+
+    if node_path_str == ".":
+        log_error("Cannot remove root node")
+        quit(1)
+
+    var full_path = "res://" + scene_path
+    var packed_scene = ResourceLoader.load(full_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_path)
+        quit(1)
+
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene")
+        quit(1)
+
+    var target_node = scene_root.get_node_or_null(NodePath(node_path_str))
+    if target_node == null:
+        log_error("Node not found: " + node_path_str)
+        scene_root.queue_free()
+        quit(1)
+
+    var parent_node = target_node.get_parent()
+    var removed_children = 0
+
+    if keep_children and target_node.get_child_count() > 0:
+        # Reparent children to the removed node's parent
+        var children = []
+        for child in target_node.get_children():
+            children.append(child)
+        for child in children:
+            target_node.remove_child(child)
+            parent_node.add_child(child)
+            child.owner = scene_root
+            _set_owner_recursive(child, scene_root)
+            removed_children += 1
+
+    parent_node.remove_child(target_node)
+    target_node.queue_free()
+
+    # Save
+    var new_packed = PackedScene.new()
+    var err = new_packed.pack(scene_root)
+    if err != OK:
+        log_error("Failed to pack scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    err = ResourceSaver.save(new_packed, full_path)
+    if err != OK:
+        log_error("Failed to save scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    scene_root.queue_free()
+
+    var output = {
+        "success": true,
+        "removed_node": node_path_str,
+        "keep_children": keep_children,
+        "reparented_children": removed_children
+    }
+    print(JSON.stringify(output))
+    log_info("remove_node completed successfully")
+
+
+func duplicate_node(params: Dictionary):
+    log_info("Starting duplicate_node operation")
+    var scene_path = params.get("scene_path", "")
+    var node_path_str = params.get("node_path", "")
+    var new_name = params.get("new_name", "")
+
+    if scene_path.is_empty() or node_path_str.is_empty():
+        log_error("scene_path and node_path are required")
+        quit(1)
+
+    var full_path = "res://" + scene_path
+    var packed_scene = ResourceLoader.load(full_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_path)
+        quit(1)
+
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene")
+        quit(1)
+
+    var target_node: Node
+    if node_path_str == ".":
+        log_error("Cannot duplicate root node")
+        scene_root.queue_free()
+        quit(1)
+    else:
+        target_node = scene_root.get_node_or_null(NodePath(node_path_str))
+
+    if target_node == null:
+        log_error("Node not found: " + node_path_str)
+        scene_root.queue_free()
+        quit(1)
+
+    # Duplicate the node with children
+    var dup = target_node.duplicate()
+    if new_name.is_empty():
+        new_name = target_node.name + "2"
+    dup.name = new_name
+
+    # Add as sibling (same parent)
+    target_node.get_parent().add_child(dup)
+    dup.owner = scene_root
+    _set_owner_recursive(dup, scene_root)
+
+    # Save
+    var new_packed = PackedScene.new()
+    var err = new_packed.pack(scene_root)
+    if err != OK:
+        log_error("Failed to pack scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    err = ResourceSaver.save(new_packed, full_path)
+    if err != OK:
+        log_error("Failed to save scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    scene_root.queue_free()
+
+    var output = {
+        "success": true,
+        "original_node": node_path_str,
+        "new_name": new_name,
+        "scene_path": scene_path
+    }
+    print(JSON.stringify(output))
+    log_info("duplicate_node completed successfully")
+
+
+func reparent_node(params: Dictionary):
+    log_info("Starting reparent_node operation")
+    var scene_path = params.get("scene_path", "")
+    var node_path_str = params.get("node_path", "")
+    var new_parent_path = params.get("new_parent_path", "")
+
+    if scene_path.is_empty() or node_path_str.is_empty() or new_parent_path.is_empty():
+        log_error("scene_path, node_path, and new_parent_path are required")
+        quit(1)
+
+    if node_path_str == ".":
+        log_error("Cannot reparent root node")
+        quit(1)
+
+    var full_path = "res://" + scene_path
+    var packed_scene = ResourceLoader.load(full_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_path)
+        quit(1)
+
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene")
+        quit(1)
+
+    var target_node = scene_root.get_node_or_null(NodePath(node_path_str))
+    if target_node == null:
+        log_error("Node not found: " + node_path_str)
+        scene_root.queue_free()
+        quit(1)
+
+    var new_parent: Node
+    if new_parent_path == ".":
+        new_parent = scene_root
+    else:
+        new_parent = scene_root.get_node_or_null(NodePath(new_parent_path))
+
+    if new_parent == null:
+        log_error("New parent not found: " + new_parent_path)
+        scene_root.queue_free()
+        quit(1)
+
+    # Reparent
+    var old_parent = target_node.get_parent()
+    old_parent.remove_child(target_node)
+    new_parent.add_child(target_node)
+    target_node.owner = scene_root
+    _set_owner_recursive(target_node, scene_root)
+
+    # Save
+    var new_packed = PackedScene.new()
+    var err = new_packed.pack(scene_root)
+    if err != OK:
+        log_error("Failed to pack scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    err = ResourceSaver.save(new_packed, full_path)
+    if err != OK:
+        log_error("Failed to save scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    scene_root.queue_free()
+
+    var output = {
+        "success": true,
+        "node": node_path_str,
+        "old_parent": str(old_parent.get_path()),
+        "new_parent": new_parent_path,
+        "scene_path": scene_path
+    }
+    print(JSON.stringify(output))
+    log_info("reparent_node completed successfully")
+
+
+# Helper: recursively set owner for all descendants
+func _set_owner_recursive(node: Node, owner: Node):
+    for child in node.get_children():
+        child.owner = owner
+        _set_owner_recursive(child, owner)
+
+
+# Helper: convert a value to the appropriate Godot type based on the target property
+func _convert_property_value(value, node: Node, property_name: String):
+    if value == null:
+        return null
+
+    # If it's a string that looks like a Godot type constructor, evaluate it
+    if value is String:
+        var s = value.strip_edges()
+        if s.begins_with("Vector2("):
+            var inner = s.substr(8, s.length() - 9)
+            var parts = inner.split(",")
+            if parts.size() >= 2:
+                return Vector2(float(parts[0].strip_edges()), float(parts[1].strip_edges()))
+        elif s.begins_with("Vector3("):
+            var inner = s.substr(8, s.length() - 9)
+            var parts = inner.split(",")
+            if parts.size() >= 3:
+                return Vector3(float(parts[0].strip_edges()), float(parts[1].strip_edges()), float(parts[2].strip_edges()))
+        elif s.begins_with("Color("):
+            var inner = s.substr(6, s.length() - 7)
+            var parts = inner.split(",")
+            if parts.size() >= 4:
+                return Color(float(parts[0].strip_edges()), float(parts[1].strip_edges()), float(parts[2].strip_edges()), float(parts[3].strip_edges()))
+            elif parts.size() >= 3:
+                return Color(float(parts[0].strip_edges()), float(parts[1].strip_edges()), float(parts[2].strip_edges()))
+        elif s.begins_with("Transform3D("):
+            # Basic Transform3D parsing for identity or simple transforms
+            pass  # Complex types fall through
+        elif s == "true":
+            return true
+        elif s == "false":
+            return false
+        elif s.is_valid_float():
+            return float(s)
+        elif s.is_valid_int():
+            return int(s)
+        # Otherwise return as string
+        return s
+
+    return value
+
+
+# =============================================================================
+# Tier 1: Shader Pipeline Completion Operations
+# =============================================================================
+
+func apply_material(params: Dictionary):
+    log_info("Starting apply_material operation")
+    var scene_path = params.get("scene_path", "")
+    var node_path_str = params.get("node_path", "")
+    var material_path = params.get("material_path", "")
+    var slot = params.get("slot", "auto")
+
+    if scene_path.is_empty() or node_path_str.is_empty() or material_path.is_empty():
+        log_error("scene_path, node_path, and material_path are required")
+        quit(1)
+
+    var full_scene_path = "res://" + scene_path
+    var packed_scene = ResourceLoader.load(full_scene_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_scene_path)
+        quit(1)
+
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene")
+        quit(1)
+
+    var target_node: Node
+    if node_path_str == ".":
+        target_node = scene_root
+    else:
+        target_node = scene_root.get_node_or_null(NodePath(node_path_str))
+
+    if target_node == null:
+        log_error("Node not found: " + node_path_str)
+        scene_root.queue_free()
+        quit(1)
+
+    # Load the material
+    var full_mat_path = "res://" + material_path
+    var material = ResourceLoader.load(full_mat_path)
+    if material == null:
+        log_error("Failed to load material: " + full_mat_path)
+        scene_root.queue_free()
+        quit(1)
+
+    var applied_slot = slot
+
+    # Auto-detect appropriate slot
+    if slot == "auto":
+        if target_node is MeshInstance3D:
+            applied_slot = "override"
+        elif target_node is CSGPrimitive3D:
+            applied_slot = "material"
+        elif target_node is CanvasItem:
+            applied_slot = "material"
+        else:
+            applied_slot = "override"
+
+    # Apply based on slot
+    if applied_slot == "override":
+        if target_node.has_method("set"):
+            target_node.set("material_override", material)
+    elif applied_slot.begins_with("surface/"):
+        var surface_idx = int(applied_slot.split("/")[1])
+        if target_node is MeshInstance3D:
+            target_node.set("surface_material_override/" + str(surface_idx), material)
+    elif applied_slot == "material":
+        target_node.set("material", material)
+
+    # Save
+    var new_packed = PackedScene.new()
+    var err = new_packed.pack(scene_root)
+    if err != OK:
+        log_error("Failed to pack scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    err = ResourceSaver.save(new_packed, full_scene_path)
+    if err != OK:
+        log_error("Failed to save scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    scene_root.queue_free()
+
+    var output = {
+        "success": true,
+        "scene_path": scene_path,
+        "node_path": node_path_str,
+        "material_path": material_path,
+        "slot": applied_slot
+    }
+    print(JSON.stringify(output))
+    log_info("apply_material completed successfully")
+
+
+func set_shader_parameter(params: Dictionary):
+    log_info("Starting set_shader_parameter operation")
+    var scene_path = params.get("scene_path", "")
+    var node_path_str = params.get("node_path", "")
+    var parameter_name = params.get("parameter_name", "")
+    var parameter_value = params.get("parameter_value", null)
+
+    if scene_path.is_empty() or node_path_str.is_empty() or parameter_name.is_empty():
+        log_error("scene_path, node_path, and parameter_name are required")
+        quit(1)
+
+    var full_path = "res://" + scene_path
+    var packed_scene = ResourceLoader.load(full_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_path)
+        quit(1)
+
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene")
+        quit(1)
+
+    var target_node: Node
+    if node_path_str == ".":
+        target_node = scene_root
+    else:
+        target_node = scene_root.get_node_or_null(NodePath(node_path_str))
+
+    if target_node == null:
+        log_error("Node not found: " + node_path_str)
+        scene_root.queue_free()
+        quit(1)
+
+    # Get the material from the node
+    var material = null
+    if target_node.has_method("get_active_material"):
+        material = target_node.get_active_material(0)
+    elif "material_override" in target_node and target_node.material_override != null:
+        material = target_node.material_override
+    elif "material" in target_node and target_node.material != null:
+        material = target_node.material
+
+    if material == null:
+        log_error("No material found on node: " + node_path_str)
+        scene_root.queue_free()
+        quit(1)
+
+    if not material is ShaderMaterial:
+        log_error("Material is not a ShaderMaterial. Got: " + material.get_class())
+        scene_root.queue_free()
+        quit(1)
+
+    # Convert value
+    var converted_value = _convert_property_value(parameter_value, target_node, parameter_name)
+
+    # If value is a string that looks like a resource path, load it
+    if converted_value is String and (converted_value as String).begins_with("res://"):
+        var loaded_res = ResourceLoader.load(converted_value)
+        if loaded_res != null:
+            converted_value = loaded_res
+
+    material.set_shader_parameter(parameter_name, converted_value)
+
+    # Save
+    var new_packed = PackedScene.new()
+    var err = new_packed.pack(scene_root)
+    if err != OK:
+        log_error("Failed to pack scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    err = ResourceSaver.save(new_packed, full_path)
+    if err != OK:
+        log_error("Failed to save scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    scene_root.queue_free()
+
+    var output = {
+        "success": true,
+        "scene_path": scene_path,
+        "node_path": node_path_str,
+        "parameter_name": parameter_name,
+        "parameter_value": str(converted_value)
+    }
+    print(JSON.stringify(output))
+    log_info("set_shader_parameter completed successfully")
+
+
+# =============================================================================
+# Tier 1: AnimationTree Configuration Operations
+# =============================================================================
+
+func configure_animation_tree(params: Dictionary):
+    log_info("Starting configure_animation_tree operation")
+    var scene_path = params.get("scene_path", "")
+    var parent_node_path = params.get("parent_node_path", ".")
+    var anim_player_path = params.get("animation_player_path", "")
+    var root_type = params.get("root_type", "state_machine")
+    var node_name = params.get("node_name", "AnimationTree")
+    var active = params.get("active", true)
+    var states = params.get("states", [])
+    var transitions = params.get("transitions", [])
+    var blend_points = params.get("blend_points", [])
+    var blend_mode_str = params.get("blend_mode", "interpolated")
+
+    if scene_path.is_empty() or anim_player_path.is_empty():
+        log_error("scene_path and animation_player_path are required")
+        quit(1)
+
+    var full_path = "res://" + scene_path
+    var packed_scene = ResourceLoader.load(full_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_path)
+        quit(1)
+
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene")
+        quit(1)
+
+    var parent_node: Node
+    if parent_node_path == ".":
+        parent_node = scene_root
+    else:
+        parent_node = scene_root.get_node_or_null(NodePath(parent_node_path))
+
+    if parent_node == null:
+        log_error("Parent node not found: " + parent_node_path)
+        scene_root.queue_free()
+        quit(1)
+
+    # Create AnimationTree
+    var anim_tree = AnimationTree.new()
+    anim_tree.name = node_name
+    anim_tree.active = active
+
+    # Set animation player path (relative to AnimationTree's position)
+    anim_tree.anim_player = NodePath(anim_player_path)
+
+    # Configure root based on type
+    match root_type:
+        "state_machine":
+            var sm = AnimationNodeStateMachine.new()
+
+            # Add states
+            for state_def in states:
+                var state_name = state_def.get("name", "")
+                var anim_name = state_def.get("animation", "")
+                if state_name.is_empty():
+                    continue
+
+                var anim_node = AnimationNodeAnimation.new()
+                anim_node.animation = StringName(anim_name)
+                sm.add_node(StringName(state_name), anim_node)
+
+                # Set position if provided
+                var pos = state_def.get("position", null)
+                if pos != null and pos is Array and pos.size() >= 2:
+                    sm.set_node_position(StringName(state_name), Vector2(pos[0], pos[1]))
+
+            # Add transitions
+            for trans_def in transitions:
+                var from_state = trans_def.get("from", "")
+                var to_state = trans_def.get("to", "")
+                if from_state.is_empty() or to_state.is_empty():
+                    continue
+
+                var transition = AnimationNodeStateMachineTransition.new()
+
+                if trans_def.get("auto_advance", false):
+                    transition.advance_mode = AnimationNodeStateMachineTransition.ADVANCE_MODE_AUTO
+
+                var advance_cond = trans_def.get("advance_condition", "")
+                if not advance_cond.is_empty():
+                    transition.advance_condition = StringName(advance_cond)
+
+                var switch_mode_str = trans_def.get("switch_mode", "immediate")
+                match switch_mode_str:
+                    "immediate":
+                        transition.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_IMMEDIATE
+                    "sync":
+                        transition.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_SYNC
+                    "at_end":
+                        transition.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_AT_END
+
+                var xfade = trans_def.get("xfade_time", 0.0)
+                transition.xfade_time = xfade
+
+                sm.add_transition(StringName(from_state), StringName(to_state), transition)
+
+            anim_tree.tree_root = sm
+
+        "blend_space_1d":
+            var bs = AnimationNodeBlendSpace1D.new()
+            for bp in blend_points:
+                var anim_name = bp.get("animation", "")
+                var pos = bp.get("position", 0.0)
+                var anim_node = AnimationNodeAnimation.new()
+                anim_node.animation = StringName(anim_name)
+                bs.add_blend_point(anim_node, float(pos))
+
+            match blend_mode_str:
+                "discrete":
+                    bs.blend_mode = AnimationNodeBlendSpace1D.BLEND_MODE_DISCRETE
+                "carry":
+                    bs.blend_mode = AnimationNodeBlendSpace1D.BLEND_MODE_DISCRETE_CARRY
+                _:
+                    bs.blend_mode = AnimationNodeBlendSpace1D.BLEND_MODE_INTERPOLATED
+
+            anim_tree.tree_root = bs
+
+        "blend_space_2d":
+            var bs = AnimationNodeBlendSpace2D.new()
+            for bp in blend_points:
+                var anim_name = bp.get("animation", "")
+                var pos = bp.get("position", [0.0, 0.0])
+                var pos_vec = Vector2(0, 0)
+                if pos is Array and pos.size() >= 2:
+                    pos_vec = Vector2(pos[0], pos[1])
+                var anim_node = AnimationNodeAnimation.new()
+                anim_node.animation = StringName(anim_name)
+                bs.add_blend_point(anim_node, pos_vec)
+
+            match blend_mode_str:
+                "discrete":
+                    bs.blend_mode = AnimationNodeBlendSpace2D.BLEND_MODE_DISCRETE
+                "carry":
+                    bs.blend_mode = AnimationNodeBlendSpace2D.BLEND_MODE_DISCRETE_CARRY
+                _:
+                    bs.blend_mode = AnimationNodeBlendSpace2D.BLEND_MODE_INTERPOLATED
+
+            anim_tree.tree_root = bs
+
+        "blend_tree":
+            var bt = AnimationNodeBlendTree.new()
+            anim_tree.tree_root = bt
+
+    parent_node.add_child(anim_tree)
+    anim_tree.owner = scene_root
+
+    # Save
+    var new_packed = PackedScene.new()
+    var err = new_packed.pack(scene_root)
+    if err != OK:
+        log_error("Failed to pack scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    err = ResourceSaver.save(new_packed, full_path)
+    if err != OK:
+        log_error("Failed to save scene: " + str(err))
+        scene_root.queue_free()
+        quit(1)
+
+    scene_root.queue_free()
+
+    var output = {
+        "success": true,
+        "scene_path": scene_path,
+        "animation_tree": node_name,
+        "root_type": root_type,
+        "states_count": states.size(),
+        "transitions_count": transitions.size(),
+        "blend_points_count": blend_points.size()
+    }
+    print(JSON.stringify(output))
+    log_info("configure_animation_tree completed successfully")
+
+
+func create_animation_library(params: Dictionary):
+    log_info("Starting create_animation_library operation")
+    var library_name = params.get("library_name", "")
+    var output_dir = params.get("output_dir", "animations")
+    var animations_data = params.get("animations", [])
+
+    if library_name.is_empty():
+        log_error("library_name is required")
+        quit(1)
+
+    if animations_data.is_empty():
+        log_error("animations array must not be empty")
+        quit(1)
+
+    # Ensure output directory exists
+    var dir = DirAccess.open("res://")
+    if dir and not dir.dir_exists(output_dir):
+        dir.make_dir_recursive(output_dir)
+
+    # Create AnimationLibrary
+    var library = AnimationLibrary.new()
+
+    for anim_def in animations_data:
+        var anim_name = anim_def.get("name", "")
+        if anim_name.is_empty():
+            continue
+
+        var anim = Animation.new()
+        anim.length = anim_def.get("length", 1.0)
+
+        var loop_mode_str = anim_def.get("loop_mode", "none")
+        match loop_mode_str:
+            "linear":
+                anim.loop_mode = Animation.LOOP_LINEAR
+            "pingpong":
+                anim.loop_mode = Animation.LOOP_PINGPONG
+            _:
+                anim.loop_mode = Animation.LOOP_NONE
+
+        # Add tracks
+        var tracks = anim_def.get("tracks", [])
+        for track_def in tracks:
+            var track_type_str = track_def.get("type", "property")
+            var node_path_str = track_def.get("node_path", "")
+            var property = track_def.get("property", "")
+            var keyframes = track_def.get("keyframes", [])
+
+            var track_type = Animation.TYPE_VALUE
+            var track_path = node_path_str
+
+            match track_type_str:
+                "position":
+                    track_type = Animation.TYPE_POSITION_3D
+                "rotation":
+                    track_type = Animation.TYPE_ROTATION_3D
+                "scale":
+                    track_type = Animation.TYPE_SCALE_3D
+                "property":
+                    track_type = Animation.TYPE_VALUE
+                    if not property.is_empty():
+                        track_path = node_path_str + ":" + property
+                "method":
+                    track_type = Animation.TYPE_METHOD
+                "audio":
+                    track_type = Animation.TYPE_AUDIO
+
+            var track_idx = anim.add_track(track_type)
+            anim.track_set_path(track_idx, NodePath(track_path))
+
+            # Add keyframes
+            for kf in keyframes:
+                var time = kf.get("time", 0.0)
+                var value = kf.get("value", null)
+
+                if track_type == Animation.TYPE_POSITION_3D or track_type == Animation.TYPE_SCALE_3D:
+                    if value is Array and value.size() >= 3:
+                        value = Vector3(value[0], value[1], value[2])
+                elif track_type == Animation.TYPE_ROTATION_3D:
+                    if value is Array and value.size() >= 4:
+                        value = Quaternion(value[0], value[1], value[2], value[3])
+
+                if track_type == Animation.TYPE_METHOD:
+                    var method_name = value
+                    var method_args = kf.get("args", [])
+                    anim.track_insert_key(track_idx, time, {"method": method_name, "args": method_args})
+                else:
+                    anim.track_insert_key(track_idx, time, value)
+
+                # Apply easing if specified
+                var easing = kf.get("easing", 1.0)
+                if easing != 1.0:
+                    var key_idx = anim.track_find_key(track_idx, time, Animation.FIND_MODE_APPROX)
+                    if key_idx >= 0:
+                        anim.track_set_key_transition(track_idx, key_idx, easing)
+
+        library.add_animation(StringName(anim_name), anim)
+        log_info("Added animation: " + anim_name + " (length: " + str(anim.length) + "s, tracks: " + str(tracks.size()) + ")")
+
+    # Save library
+    var save_path = "res://" + output_dir + "/" + library_name + ".tres"
+    var err = ResourceSaver.save(library, save_path)
+    if err != OK:
+        log_error("Failed to save animation library: " + str(err))
+        quit(1)
+
+    var output = {
+        "success": true,
+        "library_path": output_dir + "/" + library_name + ".tres",
+        "animation_count": animations_data.size()
+    }
+    print(JSON.stringify(output))
+    log_info("create_animation_library completed successfully")

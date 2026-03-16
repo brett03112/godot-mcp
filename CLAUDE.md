@@ -31,7 +31,8 @@ The current implementation plan follows a phased approach:
 - **Phase 10:** Tilemap & Level Design (COMPLETE ✅)
 - **Phase 11:** Dialogue & Localization Management (COMPLETE ✅)
 - **Phase 12:** Plugin Management (COMPLETE ✅)
-- Future phases cover specialized workflows as needed
+- **Tier 1:** Architecture + Scene Inspection + Shader Pipeline + AnimationTree + Refactoring (IN PROGRESS)
+- Future tiers cover specialized workflows as needed
 
 ## Build and Development Commands
 
@@ -60,9 +61,20 @@ The build process involves two steps:
 
 ### Core Components
 
-**Main Server (`src/index.ts`)**: A ~11200 line TypeScript file containing the entire MCP server implementation in a single `GodotServer` class.
+**Main Server (`src/index.ts`)**: The legacy monolithic MCP server (~11,400 lines) containing the `GodotServer` class with 52 original tools. New tools use the modular architecture (see below).
 
-**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~4420 lines, ~160KB) that handles all complex Godot operations. This script:
+**Modular Tool Architecture (Tier 1+)**:
+- `src/types.ts` — Shared interfaces (`ToolDefinition`, `ServerContext`, `ToolResponse`, etc.)
+- `src/registry.ts` — `ToolRegistry` class for registration-based tool dispatch
+- `src/utils/tscn-parser.ts` — TypeScript parser for Godot `.tscn` scene files
+- `src/tools/scene.ts` — Scene inspection & manipulation (6 tools)
+- `src/tools/shader.ts` — Shader pipeline completion (3 tools)
+- `src/tools/animation-tree.ts` — AnimationTree configuration (2 tools)
+- `src/tools/refactor.ts` — Refactoring tools (1 tool)
+
+**Hybrid Dispatch**: The server uses registry-first dispatch. New modular tools register via `ToolRegistry`; legacy tools use the existing switch statement. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch.
+
+**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~5,300 lines) that handles all complex Godot operations. This script:
 
 - Accepts operation type and JSON parameters via command-line arguments
 - Executes operations directly within Godot's headless mode
@@ -71,11 +83,14 @@ The build process involves two steps:
 
 ### Key Design Patterns
 
+**Tool Registration (new pattern)**: New tools are defined as `ToolDefinition` objects in domain modules under `src/tools/`. Each module exports a `registerXxxTools(registry, ctx)` function. The `ServerContext` interface decouples tool implementations from the `GodotServer` class.
+
 **Operation Dispatch**: The server uses a "bundled operation" approach rather than generating temporary scripts:
 
 1. Simple CLI operations (launch editor, get version) use Godot's built-in commands directly
 2. Complex operations (scene manipulation, node creation) invoke `godot_operations.gd` with operation type and JSON parameters
 3. The GDScript file uses pattern matching to route to specific operation handlers
+4. Read-only scene operations use the TypeScript TSCN parser (no Godot process needed)
 
 **Parameter Mapping**: The server supports both snake_case and camelCase parameter names:
 
@@ -373,6 +388,30 @@ The server exposes 52 tools via the MCP protocol:
   - Auto-enable option after installation
   - Overwrite protection for existing plugins
 
+**Scene Inspection & Manipulation** (Tier 1):
+
+- `list_scene_tree` - Get the full node hierarchy of a .tscn file (TypeScript TSCN parser, no Godot needed)
+- `read_node_properties` - Read all properties of a specific node in a scene (TypeScript TSCN parser)
+- `modify_node_property` - Change properties on existing nodes without recreating them (GDScript)
+- `remove_node` - Remove a node and optionally reparent its children (GDScript)
+- `duplicate_node` - Clone an existing node with children and properties (GDScript)
+- `reparent_node` - Move a node to a different parent in the scene tree (GDScript)
+
+**Shader Pipeline Completion** (Tier 1):
+
+- `apply_material` - Apply ShaderMaterial or StandardMaterial3D to a node (auto-detects slot)
+- `set_shader_parameter` - Modify shader uniform values with type conversion
+- `create_material_from_texture` - Generate StandardMaterial3D from albedo + optional PBR maps
+
+**AnimationTree Configuration** (Tier 1):
+
+- `configure_animation_tree` - Set up AnimationTree with StateMachine, BlendSpace1D/2D, or BlendTree
+- `create_animation_library` - Batch-create multiple animations from compact descriptions
+
+**Refactoring** (Tier 1):
+
+- `refactor_rename` - Rename functions, variables, signals, classes, or constants across all .gd and .tscn files with dry_run preview
+
 ## Configuration
 
 ### Environment Variables
@@ -409,7 +448,16 @@ When instantiating `GodotServer`, you can pass a `GodotServerConfig`:
 
 ## Adding New Tools
 
-To add a new MCP tool:
+### New modular approach (preferred):
+
+1. Create or edit a tool module in `src/tools/` (e.g., `src/tools/myfeature.ts`)
+2. Define a `ToolDefinition` with name, description, inputSchema, and handler
+3. Export a `registerXxxTools(registry: ToolRegistry, ctx: ServerContext)` function
+4. Import and call the registration function in `registerModularTools()` in `src/index.ts`
+5. If it requires GDScript operations, add the operation handler to `godot_operations.gd`
+6. Update CLAUDE.md and README.md with the new tool documentation
+
+### Legacy approach (for editing existing tools):
 
 1. Add tool definition to `setupToolHandlers()` in the `ListToolsRequestSchema` handler
 2. Add tool name to the switch statement in `CallToolRequestSchema` handler
