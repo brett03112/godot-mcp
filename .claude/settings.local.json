@@ -43,7 +43,19 @@
       "mcp__serena__find_symbol",
       "mcp__serena__search_for_pattern",
       "Bash(node test_import_texture_integration.cjs)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(git:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__claude_ai_Context7__resolve-library-id",
+      "mcp__claude_ai_Context7__query-docs",
+      "Bash(mkdir:*)",
+      "Bash(cd:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []
