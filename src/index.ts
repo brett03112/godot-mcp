@@ -30,6 +30,12 @@ import { registerSceneTools } from './tools/scene.js';
 import { registerShaderTools } from './tools/shader.js';
 import { registerAnimationTreeTools } from './tools/animation-tree.js';
 import { registerRefactorTools } from './tools/refactor.js';
+// Tier 2 imports
+import { TscnCache } from './utils/tscn-cache.js';
+import { registerProjectTools } from './tools/project.js';
+import { registerValidateTools } from './tools/validate.js';
+import { registerParticleTools } from './tools/particles.js';
+import { registerProfilingTools } from './tools/profiling.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -78,6 +84,7 @@ class GodotServer {
   private validatedPaths: Map<string, boolean> = new Map();
   private strictPathValidation: boolean = false;
   private toolRegistry: ToolRegistry = new ToolRegistry();
+  private tscnCache: TscnCache = new TscnCache();
 
   /**
    * Parameter name mappings between snake_case and camelCase
@@ -99,6 +106,34 @@ class GodotServer {
     'directory': 'directory',
     'recursive': 'recursive',
     'scene': 'scene',
+    // Tier 2: Project scaffolding
+    'project_name': 'projectName',
+    'window_width': 'windowWidth',
+    'window_height': 'windowHeight',
+    // Tier 2: Particles
+    'parent_path': 'parentPath',
+    'particle_type': 'particleType',
+    'one_shot': 'oneShot',
+    'emission_shape': 'emissionShape',
+    'emission_sphere_radius': 'emissionSphereRadius',
+    'emission_box_extents': 'emissionBoxExtents',
+    'emission_ring_radius': 'emissionRingRadius',
+    'emission_ring_inner_radius': 'emissionRingInnerRadius',
+    'emission_ring_height': 'emissionRingHeight',
+    'initial_velocity_min': 'initialVelocityMin',
+    'initial_velocity_max': 'initialVelocityMax',
+    'scale_amount_min': 'scaleAmountMin',
+    'scale_amount_max': 'scaleAmountMax',
+    'angular_velocity_min': 'angularVelocityMin',
+    'angular_velocity_max': 'angularVelocityMax',
+    'damping_min': 'dampingMin',
+    'damping_max': 'dampingMax',
+    'scale_factor': 'scaleFactor',
+    'material_path': 'materialPath',
+    // Tier 2: Profiling
+    'sample_interval': 'sampleInterval',
+    'profiler_id': 'profilerId',
+    'target_fps': 'targetFps',
   };
 
   /**
@@ -428,6 +463,8 @@ class GodotServer {
       escapePoString: (value: string) => this.escapePoString(value),
       escapeRegex: (value: string) => this.escapeRegex(value),
       extractPlaceholders: (text: string) => this.extractPlaceholders(text),
+      getOrParseTscn: (filePath: string) => this.tscnCache.getOrParse(filePath),
+      invalidateTscnCache: (filePath: string) => this.tscnCache.invalidate(filePath),
     };
   }
 
@@ -437,10 +474,16 @@ class GodotServer {
    */
   private registerModularTools(): void {
     const ctx = this.getServerContext();
+    // Tier 1
     registerSceneTools(this.toolRegistry, ctx);
     registerShaderTools(this.toolRegistry, ctx);
     registerAnimationTreeTools(this.toolRegistry, ctx);
     registerRefactorTools(this.toolRegistry, ctx);
+    // Tier 2
+    registerProjectTools(this.toolRegistry, ctx);
+    registerValidateTools(this.toolRegistry, ctx);
+    registerParticleTools(this.toolRegistry, ctx);
+    registerProfilingTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

@@ -120,4 +120,8 @@ export interface ServerContext {
   escapeRegex: (value: string) => string;
   /** Extract placeholders from a string */
   extractPlaceholders: (text: string) => string[];
+  /** Get or parse a TSCN file using the scene cache (mtime-based invalidation) */
+  getOrParseTscn: (filePath: string) => import('./utils/tscn-parser.js').TscnFile;
+  /** Invalidate a cached TSCN file (call after write operations) */
+  invalidateTscnCache: (filePath: string) => void;
 }

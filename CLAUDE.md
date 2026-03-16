@@ -31,7 +31,8 @@ The current implementation plan follows a phased approach:
 - **Phase 10:** Tilemap & Level Design (COMPLETE ✅)
 - **Phase 11:** Dialogue & Localization Management (COMPLETE ✅)
 - **Phase 12:** Plugin Management (COMPLETE ✅)
-- **Tier 1:** Architecture + Scene Inspection + Shader Pipeline + AnimationTree + Refactoring (IN PROGRESS)
+- **Tier 1:** Architecture + Scene Inspection + Shader Pipeline + AnimationTree + Refactoring (COMPLETE ✅)
+- **Tier 2:** Particles + Scene Validation + Project Scaffolding + Performance Profiling + Caching (COMPLETE ✅)
 - Future tiers cover specialized workflows as needed
 
 ## Build and Development Commands
@@ -67,10 +68,16 @@ The build process involves two steps:
 - `src/types.ts` — Shared interfaces (`ToolDefinition`, `ServerContext`, `ToolResponse`, etc.)
 - `src/registry.ts` — `ToolRegistry` class for registration-based tool dispatch
 - `src/utils/tscn-parser.ts` — TypeScript parser for Godot `.tscn` scene files
+- `src/utils/tscn-cache.ts` — Mtime-based cache for parsed TSCN files (Tier 2)
+- `src/utils/validation.ts` — Centralized input validation middleware (Tier 2)
 - `src/tools/scene.ts` — Scene inspection & manipulation (6 tools)
 - `src/tools/shader.ts` — Shader pipeline completion (3 tools)
 - `src/tools/animation-tree.ts` — AnimationTree configuration (2 tools)
 - `src/tools/refactor.ts` — Refactoring tools (1 tool)
+- `src/tools/project.ts` — Project scaffolding (1 tool, Tier 2)
+- `src/tools/validate.ts` — Scene validation (1 tool, Tier 2)
+- `src/tools/particles.ts` — Particle system designer (3 tools, Tier 2)
+- `src/tools/profiling.ts` — Performance profiling (3 tools, Tier 2)
 
 **Hybrid Dispatch**: The server uses registry-first dispatch. New modular tools register via `ToolRegistry`; legacy tools use the existing switch statement. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch.
 
@@ -411,6 +418,45 @@ The server exposes 52 tools via the MCP protocol:
 **Refactoring** (Tier 1):
 
 - `refactor_rename` - Rename functions, variables, signals, classes, or constants across all .gd and .tscn files with dry_run preview
+
+**Project Scaffolding** (Tier 2):
+
+- `create_project` - Scaffold a new Godot project from scratch
+  - Templates: blank, 2d_game, 3d_game, ui_app
+  - Configurable renderer: forward_plus, mobile, gl_compatibility
+  - Standard directory structure (scenes, scripts, assets, audio, shaders, resources, addons)
+  - Default main scene with template-appropriate nodes
+
+**Scene Validation** (Tier 2):
+
+- `validate_scene` - Check a scene for common issues before runtime
+  - Checks: missing_resources, broken_scripts, collision_without_body, sprite_without_texture, signal_method_missing, duplicate_node_names, empty_containers, deep_nesting
+  - Uses TypeScript TSCN parser (no Godot process needed)
+  - Returns issues with severity (error/warning/info) and recommendations
+
+**Particle System Designer** (Tier 2):
+
+- `create_particle_system` - Create GPUParticles2D/3D with ParticleProcessMaterial
+  - Emission shapes: point, sphere, sphere_surface, box, ring
+  - Direction, velocity, gravity, scale, and color configuration
+- `apply_particle_preset` - Create particle systems from named presets
+  - Presets: fire, smoke, explosion, magic_sparkle, rain, snow, dust, sparks
+  - Scale factor for preset customization
+- `create_particle_material` - Create standalone ParticleProcessMaterial .tres files
+  - Full parameter control or preset-based creation
+  - Reusable across multiple scenes
+
+**Performance Profiling** (Tier 2):
+
+- `start_profiler` - Run a Godot project with performance profiling
+  - Injects a temporary profiler autoload that samples Performance monitors
+  - Configurable duration and sample interval
+  - Automatic cleanup after profiling
+- `get_profiling_data` - Read profiling results from a completed session
+  - Returns raw samples and statistical summary (avg/min/max FPS, frame times, draw calls, memory)
+- `analyze_bottlenecks` - Threshold-based bottleneck detection
+  - Checks FPS, frame time, draw calls, memory, orphan nodes against configurable target FPS
+  - Overall grade (A-F) and prioritized recommendations
 
 ## Configuration
 

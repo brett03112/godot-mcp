@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **64 tools** across 13 categories for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **78 tools** across 17 categories for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (64 tools)
+## Tool Reference (78 tools)
 
 ### Project Management (7 tools)
 
@@ -73,7 +73,7 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 | `save_scene` | Save scenes or create scene variants |
 | `export_mesh_library` | Convert 3D scenes to MeshLibrary resources for GridMap |
 
-### Scene Inspection & Manipulation (6 tools) — NEW
+### Scene Inspection & Manipulation (6 tools)
 
 | Tool | Description | Engine |
 |------|-------------|--------|
@@ -135,8 +135,8 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 | `create_animation_player` | Add AnimationPlayer nodes with optional initial animations |
 | `add_animation_track` | Add tracks: position, rotation, scale, property, method, audio |
 | `add_keyframe` | Add keyframes with custom easing curves |
-| `configure_animation_tree` | Set up AnimationTree with StateMachine, BlendSpace1D/2D, or BlendTree root — NEW |
-| `create_animation_library` | Batch-create multiple animations from compact descriptions — NEW |
+| `configure_animation_tree` | Set up AnimationTree with StateMachine, BlendSpace1D/2D, or BlendTree root |
+| `create_animation_library` | Batch-create multiple animations from compact descriptions |
 
 ```text
 # Example: Character animation with state machine
@@ -166,9 +166,9 @@ configure_animation_tree(
 | Tool | Description |
 |------|-------------|
 | `create_shader_material` | Create shader materials with custom code or templates (dissolve, outline, damage_flash, hologram) |
-| `apply_material` | Apply ShaderMaterial or StandardMaterial3D to a node — auto-detects correct slot — NEW |
-| `set_shader_parameter` | Modify shader uniform values (Vector2/3/4, Color, float, texture path) — NEW |
-| `create_material_from_texture` | Generate StandardMaterial3D from albedo + optional normal/roughness/metallic/emission maps — NEW |
+| `apply_material` | Apply ShaderMaterial or StandardMaterial3D to a node — auto-detects correct slot |
+| `set_shader_parameter` | Modify shader uniform values (Vector2/3/4, Color, float, texture path) |
+| `create_material_from_texture` | Generate StandardMaterial3D from albedo + optional normal/roughness/metallic/emission maps |
 
 ```text
 # Example: Full shader workflow — create, apply, tune
@@ -248,7 +248,7 @@ create_material_from_texture(
 | `create_plugin` | Generate scaffolds from templates: basic, dock, inspector, import, tool |
 | `install_plugin` | Install from Godot Asset Library or Git repositories |
 
-### Refactoring (1 tool) — NEW
+### Refactoring (1 tool)
 
 | Tool | Description |
 |------|-------------|
@@ -265,6 +265,102 @@ refactor_rename(
 # Then apply:
 refactor_rename(..., dry_run=false)
 ```
+
+### Project Scaffolding (1 tool) — NEW
+
+| Tool | Description |
+|------|-------------|
+| `create_project` | Scaffold a new Godot project with standard folder structure, project.godot, and a template main scene |
+
+```text
+# Example: Create a 2D game project
+create_project(
+  project_path="/home/user/games/my_platformer",
+  project_name="My Platformer",
+  template="2d_game",           # blank, 2d_game, 3d_game, ui_app
+  renderer="forward_plus",      # forward_plus, mobile, gl_compatibility
+  window_width=1920,
+  window_height=1080
+)
+# Creates: project.godot, scenes/main.tscn (with Camera2D),
+#          and directories: scenes/, scripts/, assets/, audio/, shaders/, resources/, addons/
+```
+
+### Scene Validation (1 tool) — NEW
+
+| Tool | Description |
+|------|-------------|
+| `validate_scene` | Check a scene for common issues: missing resources, broken scripts, collision shapes without bodies, sprites without textures, signal connections to non-existent methods, and more |
+
+```text
+# Example: Validate a scene before shipping
+validate_scene(project_path, scene_path="scenes/level_1.tscn")
+# Returns: { valid: false, issues: [
+#   { severity: "error", category: "missing_resources", message: "External resource not found: res://old_sprite.png" },
+#   { severity: "warning", category: "collision_without_body", message: "CollisionShape2D not a child of a physics body" },
+#   { severity: "info", category: "empty_containers", message: "VBoxContainer has no children" }
+# ], summary: { errors: 1, warnings: 1, info: 1 } }
+```
+
+**Checks:** `missing_resources`, `broken_scripts`, `collision_without_body`, `sprite_without_texture`, `signal_method_missing`, `duplicate_node_names`, `empty_containers`, `deep_nesting`
+
+### Particle System Designer (3 tools) — NEW
+
+| Tool | Description |
+|------|-------------|
+| `create_particle_system` | Create GPUParticles2D/3D nodes with ParticleProcessMaterial configuration |
+| `apply_particle_preset` | Create particle systems from named presets: fire, smoke, explosion, magic_sparkle, rain, snow, dust, sparks |
+| `create_particle_material` | Create standalone ParticleProcessMaterial .tres files for reuse |
+
+```text
+# Example: Add fire particles to a torch
+create_particle_system(
+  project_path, scene_path="scenes/level.tscn",
+  parent_path="Torch", node_name="FireEffect",
+  particle_type="2d", amount=32, lifetime=1.5,
+  emission_shape="sphere", emission_sphere_radius=0.5,
+  direction=[0, -1, 0], gravity=[0, -2, 0],
+  initial_velocity_min=2.0, initial_velocity_max=4.0,
+  color=[1.0, 0.5, 0.1, 0.9]
+)
+
+# Or use a preset for quick results
+apply_particle_preset(
+  project_path, scene_path="scenes/level.tscn",
+  parent_path="Torch", preset="fire", scale_factor=0.5
+)
+
+# Create a reusable material
+create_particle_material(
+  project_path, material_path="resources/rain_material.tres",
+  preset="rain"
+)
+```
+
+### Performance Profiling (3 tools) — NEW
+
+| Tool | Description |
+|------|-------------|
+| `start_profiler` | Run a Godot project with a performance profiler for a specified duration |
+| `get_profiling_data` | Read profiling results with statistical summary (FPS, frame times, draw calls, memory) |
+| `analyze_bottlenecks` | Detect performance bottlenecks with severity ratings and an overall A-F grade |
+
+```text
+# Example: Profile a game for 10 seconds
+start_profiler(project_path, duration=10, sample_interval=0.5)
+# Returns: { profiler_id: "profile_1710547200000", status: "completed" }
+
+get_profiling_data(project_path, profiler_id="profile_1710547200000")
+# Returns: { summary: { avg_fps: 58.3, min_fps: 42.1, max_draw_calls: 1250, ... }, samples: [...] }
+
+analyze_bottlenecks(project_path, target_fps=60)
+# Returns: { overall_grade: "C", bottlenecks: [
+#   { severity: "warning", category: "rendering", metric: "max_draw_calls", value: 1250, threshold: 1000,
+#     recommendation: "Consider batching materials or using MultiMesh" }
+# ], recommendations: [...] }
+```
+
+**Metrics collected:** FPS, frame time, process time, physics time, draw calls, render objects, render primitives, static memory, node count, orphan nodes, navigation maps
 
 ## Requirements
 
@@ -325,7 +421,10 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "validate_translations", "create_dialogue_resource",
         "configure_localization", "extract_translatable_strings",
         "list_plugins", "configure_plugin", "create_plugin", "install_plugin",
-        "refactor_rename"
+        "refactor_rename",
+        "create_project", "validate_scene",
+        "create_particle_system", "apply_particle_preset", "create_particle_material",
+        "start_profiler", "get_profiling_data", "analyze_bottlenecks"
       ]
     }
   }
@@ -388,20 +487,31 @@ src/
 ├── types.ts                    # Shared interfaces (ToolDefinition, ServerContext, etc.)
 ├── registry.ts                 # ToolRegistry — registration-based dispatch
 ├── utils/
-│   └── tscn-parser.ts          # TypeScript parser for .tscn scene files
-└── tools/
-    ├── scene.ts                # Scene inspection & manipulation (6 tools)
-    ├── shader.ts               # Shader pipeline completion (3 tools)
-    ├── animation-tree.ts       # AnimationTree configuration (2 tools)
-    └── refactor.ts             # Refactoring tools (1 tool)
+│   ├── tscn-parser.ts          # TypeScript parser for .tscn scene files
+│   ├── tscn-cache.ts           # Mtime-based cache for parsed TSCN files
+│   └── validation.ts           # Centralized input validation middleware
+├── tools/
+│   ├── scene.ts                # Scene inspection & manipulation (6 tools)
+│   ├── shader.ts               # Shader pipeline completion (3 tools)
+│   ├── animation-tree.ts       # AnimationTree configuration (2 tools)
+│   ├── refactor.ts             # Refactoring tools (1 tool)
+│   ├── project.ts              # Project scaffolding (1 tool)
+│   ├── validate.ts             # Scene validation (1 tool)
+│   ├── particles.ts            # Particle system designer (3 tools)
+│   └── profiling.ts            # Performance profiling (3 tools)
+└── scripts/
+    └── godot_operations.gd     # GDScript operation handlers (~5,500 lines)
 ```
 
 The server uses a **hybrid dispatch** pattern:
-1. **New modular tools** (Tier 1+) register via `ToolRegistry` in domain-specific modules under `src/tools/`
-2. **Legacy tools** (Phases 1-12) continue working via the existing switch statement in `src/index.ts`
+1. **New modular tools** (Tier 1-2, 20 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
+2. **Legacy tools** (Phases 1-12, 52 tools) continue working via the existing switch statement in `src/index.ts`
 3. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch
 
-**GDScript operations** (`src/scripts/godot_operations.gd`) handles all operations requiring Godot's runtime — scene manipulation, animation tree setup, material application, etc. Read-only scene operations use the TypeScript TSCN parser for speed (no Godot process spawn needed).
+**Infrastructure:**
+- **TSCN Cache** (`tscn-cache.ts`) avoids re-parsing scene files across multiple tool calls in a session (mtime-based invalidation)
+- **Validation Middleware** (`validation.ts`) provides declarative parameter validation with consistent error responses
+- **GDScript operations** (`godot_operations.gd`) handles all operations requiring Godot's runtime — scene manipulation, particle creation, animation tree setup, etc. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
 
 ## Example Prompts
 
@@ -421,6 +531,12 @@ The server uses a **hybrid dispatch** pattern:
 
 "Rename the 'player_died' signal to 'player_death' across my whole project"
 "Preview what would change if I renamed the take_damage function to receive_damage"
+
+"Create a new 2D platformer project from scratch"
+"Validate my level scene for any issues before I ship"
+"Add fire particles to the torch in my dungeon scene"
+"Apply the rain particle preset to my outdoor level"
+"Profile my game for 15 seconds and tell me where the bottlenecks are"
 
 "Create a functional pause menu with Resume, Settings, and Quit buttons"
 "Connect the 'pressed' signal from StartButton to _on_start_pressed"
