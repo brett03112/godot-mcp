@@ -459,3 +459,243 @@ Tests T2.25-T2.34 run the game non-headlessly and require a display. On Windows 
 - **TscnCache** provides mtime-based invalidation — no stale reads if tools correctly call `invalidate()` after writes
 - **Validation middleware** provides consistent error formatting across all Tier 2+ tools
 - Both are regression-tested implicitly through every Tier 2 tool test
+
+---
+---
+
+# Tier 3 Tool Test Plan
+
+**Project:** `test_mcp_enhancements/`
+**Tools Under Test:** 8 tools + 3 infrastructure components across 5 domains
+**Date Created:** 2026-03-17
+**Date Executed:** —
+
+---
+
+## Prerequisites
+
+1. `npm run build` completes without errors
+2. `test_mcp_enhancements/` project exists with `project.godot`
+3. Godot 4.x installed and accessible via `GODOT_PATH` or auto-detection
+4. Existing test assets from Tier 1/2: `coin.gd`, `complex_script.gd`, `test_player.gd`, `collectible_coin.tscn`, `pause_menu.tscn`, `test/unit/`, `audio/`
+5. **Internet connection** required for `search_asset_library` (Phase 2)
+6. **Display available** for `capture_viewport` (Phase 4) — Windows works natively; close Godot editor before Phase 4
+7. GDScript Note: `test_player.gd` references signal `health_changed` which was renamed to `hp_changed` by Tier 1 refactor tests — use `coin.gd` as primary target for code intelligence tests
+
+## Test Execution Order
+
+Tests are ordered to build upon each other. Dependencies are noted.
+
+```
+Phase 1: Code intelligence — TS-only, no Godot, zero risk (T3.01–T3.20)
+  Sub-phase 1a: generate_docstring (T3.01–T3.06) — reads/writes coin.gd
+  Sub-phase 1b: generate_test_from_specification (T3.07–T3.11) — creates test/unit/test_coin_spec.gd
+  Sub-phase 1c: analyze_test_coverage (T3.12–T3.16) — T3.16 depends on T3.07
+  Sub-phase 1d: create_mock_node (T3.17–T3.20) — creates test/mocks/mock_coin.gd
+Phase 2: Engine introspection (T3.21–T3.32)
+  Sub-phase 2a: get_class_info (T3.21–T3.26) — requires Godot headless
+  Sub-phase 2b: search_asset_library (T3.27–T3.32) — requires internet, no Godot
+Phase 3: Audio bus (T3.33–T3.39) — requires Godot headless, writes .tres files
+Phase 4: Viewport capture (T3.40–T3.45) — requires display + editor closed
+Phase 5: Infrastructure verification (T3.46–T3.50) — observational
+```
+
+---
+
+## A. Extended Code Intelligence (4 tools)
+
+### A0. Setup Notes
+
+Primary test script: **`coin.gd`** — clean 4-function script (class_name Coin, extends Area2D), no existing doc comments, signals, typed parameters, and a mix of virtual (`_ready`, `_process`) and regular (`collect`, `_on_body_entered`) functions. Confirmed existing content is stable.
+
+`complex_script.gd` used for multi-param + return-type docstring tests.
+
+### A1. `generate_docstring`
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.01 | Document entire coin.gd | `project_path`, `script_path: "coin.gd"` | Inserts `##` doc comments above all 4 functions. `_ready` and `_process` get "Called when..." virtual descriptions. `collect` gets "## Collect." title-cased. Response: `functions_documented: 4`, `functions: ["_ready","_process","_on_body_entered","collect"]` | Read `coin.gd` and confirm `##` lines inserted above each `func`, response `functions_documented = 4` | — |
+| T3.02 | Target specific function | `project_path`, `script_path: "coin.gd"`, `target: "collect"` | Only `collect` documented (or re-documented if T3.01 already ran). Response `functions_documented: 1`, `functions: ["collect"]`. Other functions unchanged. | Response `functions_documented = 1`; `coin.gd` has `##` only above `collect` (if run standalone before T3.01) | — |
+| T3.03 | Complex params + return type | `project_path`, `script_path: "complex_script.gd"`, `target: "complex_function"` | Generates `@param arg1 int`, `@param arg2 String`, `@param arg3 Array[int]`, `@param arg4 Dictionary` annotations plus `@return Dictionary`. | Read `complex_script.gd`, confirm `## @param arg1` through `## @param arg4` and `## @return [Dictionary]` above the function | — |
+| T3.04 | Overwrite existing docs | `project_path`, `script_path: "coin.gd"`, `overwrite: true` | Re-runs after T3.01, regenerates all doc comments even though they already exist. Response `functions_documented: 4`. | File modified, no duplicate `##` blocks — existing docs replaced | — |
+| T3.05 | Error: target not found | `project_path`, `script_path: "coin.gd"`, `target: "nonexistent_func"` | Returns error: target function not found in script. `isError: true`. | Error response with descriptive message | — |
+| T3.06 | Error: script not found | `project_path`, `script_path: "ghost_script.gd"` | Returns error: script file not found. `isError: true`. | Error response | — |
+
+### A2. `generate_test_from_specification`
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.07 | **Setup:** Generate Coin test file | `project_path`, `output_path: "test/unit/test_coin_spec.gd"`, `class_name: "Coin"`, `script_path: "coin.gd"`, `specifications: [{description:"should emit collected signal when collect is called"},{description:"should queue_free on collect"},{description:"should have points equal to 10 by default"}]` | Creates `test/unit/test_coin_spec.gd` extending GutTest. 3 test methods generated. First spec includes `assert_signal_emitted`. Third spec has `assert_eq(..., 10, ...)`. `test_count: 3`. | File exists; read confirms `extends GutTest`, 3 `func test_*` methods; response `test_count: 3` | — |
+| T3.08 | With setup_code + teardown_code | `project_path`, `output_path: "test/unit/test_coin_setup.gd"`, `class_name: "Coin"`, `specifications: [{description:"should be valid after init"}]`, `setup_code: "coin = Coin.new()\nadd_child_autofree(coin)"`, `teardown_code: "coin = null"` | Created file has `before_each()` with provided setup_code, `after_each()` with teardown_code. Test method calls appropriate assertion. | Read file confirms `before_each` and `after_each` hooks contain provided code verbatim | — |
+| T3.09 | Assertion pattern: equals | `project_path`, `output_path: "test/unit/test_assertions.gd"`, `class_name: "Coin"`, `specifications: [{description:"points equals 10", expected_behavior:"points is 10"}]` | Generated test includes `assert_eq(_instance.points, 10, ...)` from the "equals 10" pattern. | Read test file, confirm `assert_eq` with value 10 | — |
+| T3.10 | Assertion pattern: signal emitted | `project_path`, `output_path: "test/unit/test_signals_spec.gd"`, `class_name: "Coin"`, `specifications: [{description:"should emit collected signal", expected_behavior:"emits signal collected"}]` | Generated test includes `watch_signals(_instance)` and `assert_signal_emitted(_instance, "collected")`. | Read file confirms both watch_signals and assert_signal_emitted | — |
+| T3.11 | Error: no specifications | `project_path`, `output_path: "test/unit/test_empty.gd"`, `class_name: "Coin"`, `specifications: []` | Returns error: at least one specification required. `isError: true`. | Error response | — |
+
+### A3. `analyze_test_coverage`
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.12 | Full project analysis | `project_path` | Scans all .gd files not in test/. For `coin.gd` with `exclude_virtual: true` (default): functions analyzed = `collect`, `_on_body_entered` (2 non-virtual). With only `test_addition` in test/unit/, neither coin function is covered. Reports `covered_functions` count, `overall_coverage_percent`, `source_scripts_analyzed` > 1. | Check response structure: `success: true`, `scripts` array with `coin.gd` entry, `overall_coverage_percent` is valid number | — |
+| T3.13 | Single script analysis | `project_path`, `script_path: "coin.gd"` | Only coin.gd analyzed. `source_scripts_analyzed: 1`. With default `exclude_virtual: true`, `total_functions` for coin.gd = 2 (`collect`, `_on_body_entered`). `covered_functions` = 0 before T3.16. | `source_scripts_analyzed: 1`, `scripts[0].script` contains `coin.gd`, `scripts[0].total_functions` = 2 | — |
+| T3.14 | Custom test_dir | `project_path`, `script_path: "coin.gd"`, `test_dir: "test/unit"` | Uses `test/unit/` as test directory. Finds `test_example.gd`, `test_failing.gd` (and any files created by T3.07–T3.10). `test_scripts_found` reflects count. | `test_scripts_found` ≥ 2; matches actual files in test/unit/ | — |
+| T3.15 | exclude_virtual=false | `project_path`, `script_path: "coin.gd"`, `exclude_virtual: false` | `_ready` and `_process` included in function list. `total_functions` for coin.gd = 4 (all functions). Coverage percent lower than with virtual excluded. | `scripts[0].total_functions = 4` vs. 2 when exclude_virtual=true | — |
+| T3.16 | Coverage improves after T3.07 | `project_path`, `script_path: "coin.gd"`, `test_dir: "test/unit"` — run after T3.07 has created `test_coin_spec.gd` | `test_collect` in test_coin_spec.gd matches `collect` function by naming convention. `covered_functions` includes `collect`. `coverage_percent` > 0. | `scripts[0].covered_functions` includes `collect`; `coverage_percent` > 0 | — |
+
+### A4. `create_mock_node`
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.17 | Basic mock with mocked methods | `project_path`, `output_path: "test/mocks/mock_coin.gd"`, `base_class: "Area2D"`, `class_name: "MockCoin"`, `methods_to_mock: [{name:"collect"},{name:"_on_body_entered",params:["body"]}]` | Creates `test/mocks/mock_coin.gd`. File starts with `extends Area2D` + `class_name MockCoin`. Has `_calls` array, `_return_values` dict. Both `collect` and `_on_body_entered` overridden. Helper methods: `assert_called`, `assert_called_with`, `call_count`, `get_calls`, `reset_mock`. Response: `mocked_methods: ["collect","_on_body_entered"]`. | File exists; read confirms class header, `_calls`, method overrides, all 5 helper functions | — |
+| T3.18 | Mock with return_value + signals_to_track | `project_path`, `output_path: "test/mocks/mock_coin_full.gd"`, `base_class: "Area2D"`, `class_name: "MockCoinFull"`, `methods_to_mock: [{name:"collect",return_value:"null"},{name:"is_collectable",return_value:"true"}]`, `signals_to_track: ["collected","body_entered"]` | Mock overrides `collect` (returns null), `is_collectable` (returns true). Has `_emitted_signals` array. `_ready()` hook connects both signals to tracking handler. `response.tracked_signals: ["collected","body_entered"]`. | Read file confirms `_emitted_signals`, `_ready()` with connect calls, `is_collectable` returns `true` | — |
+| T3.19 | Mock with deep output path (auto dir creation) | `project_path`, `output_path: "test/mocks/enemies/mock_enemy_base.gd"`, `base_class: "Node2D"`, `class_name: "MockEnemyBase"`, `methods_to_mock: [{name:"take_damage",params:["amount","type"]}]` | Directory `test/mocks/enemies/` created automatically. File created. `take_damage(amount, type)` override records both args in `_calls`. | Directory exists; file exists; read confirms `func take_damage(amount, type)` with `_calls.append(...)` | — |
+| T3.20 | Mock minimal (no methods, no signals) | `project_path`, `output_path: "test/mocks/mock_bare.gd"`, `base_class: "Node"`, `class_name: "MockBare"` | Creates minimal mock with just call tracking infrastructure. No method overrides, no signal tracking. Response: `mocked_methods: []`, `tracked_signals: []`. `features` list present. | File exists, has `_calls` and `_return_values` but no `func` overrides | — |
+
+---
+
+## B. Class & Engine Introspection (2 tools)
+
+### B1. `get_class_info`
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.21 | Full info for CharacterBody2D | `project_path`, `class_name: "CharacterBody2D"`, `section: "all"`, `include_inherited: false` | Returns all 4 sections. `constants` includes `MOTION_MODE_GROUNDED: 0` and `MOTION_MODE_FLOATING: 1`. `methods` includes `move_and_slide`. `properties` includes `velocity`. `inheritance_chain` starts with `["CharacterBody2D", "PhysicsBody2D", ...]`. | Check constants array for MOTION_MODE_GROUNDED=0; methods array for move_and_slide; inheritance_chain length ≥ 3 | — |
+| T3.22 | Filter to methods only | `project_path`, `class_name: "CharacterBody2D"`, `section: "methods"` | Response has `methods` array and `method_count`. No `properties`, `signals`, or `constants` keys (or they are absent/empty). `move_and_slide` present with `return_type: "bool"` and empty args. | Response keys: `methods` present, `method_count` > 0; `properties` key absent or null | — |
+| T3.23 | Signals for Area2D | `project_path`, `class_name: "Area2D"`, `section: "signals"` | `signals` array includes `body_entered` (with arg `body: Node2D`) and `area_entered` (with arg `area: Area2D`). | `signals` array has ≥ 2 entries; `body_entered` with body arg present | — |
+| T3.24 | include_inherited=true for Node2D | `project_path`, `class_name: "Node2D"`, `section: "methods"`, `include_inherited: true` | Methods includes both Node2D-specific (`to_local`, `to_global`) AND inherited Node methods (`add_child`, `get_node`, `queue_free`). `method_count` significantly higher than without inheritance. | `method_count` with inherited > without; `add_child` or `queue_free` in methods list | — |
+| T3.25 | Error: invalid class name | `project_path`, `class_name: "NotARealGodotClass"` | Returns error: class not found in ClassDB. `isError: true`. Message indicates class doesn't exist with suggestion to check spelling/case. | Error response with helpful message | — |
+| T3.26 | Constants for AnimationPlayer | `project_path`, `class_name: "AnimationPlayer"`, `section: "constants"` | Returns `constants` array. Includes `ANIMATION_PROCESS_PHYSICS: 0`, `ANIMATION_PROCESS_IDLE: 1`, `ANIMATION_PROCESS_MANUAL: 2`. | `constants` array non-empty; ANIMATION_PROCESS_PHYSICS present with value 0 | — |
+
+### B2. `search_asset_library`
+
+> **Prerequisite:** Active internet connection required for all tests in this section.
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.27 | Basic search (no project_path required) | `query: "state machine"` | Returns `results` array with ≥ 1 entries. Each result has: `asset_id`, `title`, `author`, `category`, `godot_version`, `cost`, `description`. Response has `total_results`, `page: 0`, `page_count`. | Check all required fields present on first result; `total_results` > 0 | — |
+| T3.28 | max_results cap | `query: "inventory"`, `max_results: 3` | Response `results` array has exactly 3 entries (if total_results ≥ 3). | `results.length === 3` | — |
+| T3.29 | sort by updated | `query: "shader"`, `sort: "updated"` | Returns results sorted by last update date. `modify_date` field present on each result. | Response is valid (no error); results have `modify_date` field | — |
+| T3.30 | godot_version filter | `query: "plugin"`, `godot_version: "4.0"` | Results filtered to Godot 4.0 compatible assets. `godot_version` field on results reflects filter. | Response valid; `results[0].godot_version` matches "4.0" or similar 4.x | — |
+| T3.31 | Pagination: page 1 | `query: "character controller"`, `page: 1` | Returns page 1 results. `page: 1` in response. Results differ from page 0 (if total > 10). | `response.page === 1` | — |
+| T3.32 | Error: empty query | `query: ""` | Returns validation error: query must not be empty. `isError: true`. | Error response | — |
+
+---
+
+## C. Audio Bus Configuration (1 tool)
+
+### C0. Setup Notes
+
+`audio/` directory already exists in `test_mcp_enhancements/`. All output paths in this section write to `audio/*.tres`. **Godot editor must be closed** during these tests.
+
+### C1. `configure_audio_bus`
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.33 | Simple 2-bus layout (Master + Music) | `project_path`, `output_path: "res://audio/simple_bus_layout.tres"`, `buses: [{name:"Master"},{name:"Music",send_to:"Master",volume_db:-3.0}]` | Creates `audio/simple_bus_layout.tres`. Response: `bus_count: 2`, buses array has Master and Music. Music has `volume_db: -3.0`, `send: "Master"`. | File exists; response `bus_count: 2`; Music entry has correct volume and send | — |
+| T3.34 | Full game layout (5 buses with routing) | `project_path`, `output_path: "res://audio/game_bus_layout.tres"`, `buses: [{name:"Master"},{name:"Music",send_to:"Master",volume_db:-6.0},{name:"SFX",send_to:"Master"},{name:"Voice",send_to:"Master",volume_db:-2.0},{name:"Ambient",send_to:"Master",mute:false}]` | Creates 5-bus layout. Response `bus_count: 5`. All non-Master buses route to Master. | Response `bus_count: 5`; all bus names present in response buses array | — |
+| T3.35 | Master bus with Reverb + Limiter effects | `project_path`, `output_path: "res://audio/master_effects_layout.tres"`, `buses: [{name:"Master",effects:[{type:"reverb",room_size:0.8,wet:0.3},{type:"limiter",ceiling_db:-0.5}]}]` | Creates layout with Master bus having 2 effects. Response `buses[0].effect_count: 2`. File contains `AudioEffectReverb` and `AudioEffectLimiter` resource entries. | Response `buses[0].effect_count = 2`; open .tres in editor to confirm effects visible in Inspector | — |
+| T3.36 | Music bus with Compressor | `project_path`, `output_path: "res://audio/compressor_layout.tres"`, `buses: [{name:"Master"},{name:"Music",send_to:"Master",volume_db:-3.0,effects:[{type:"compressor",threshold:-20.0,ratio:4.0}]}]` | Music bus has Compressor effect. Response `buses[1].effect_count: 1`. | Response confirms compressor on Music bus; `effect_count: 1` | — |
+| T3.37 | EQ10 effect type | `project_path`, `output_path: "res://audio/eq_layout.tres"`, `buses: [{name:"Master"},{name:"Music",effects:[{type:"eq10"}]}]` | Creates layout with 10-band EQ on Music bus. File contains `AudioEffectEQ10` resource. | Response `buses[1].effect_count: 1`; open .tres in editor to confirm EQ10 visible | — |
+| T3.38 | Error: invalid effect type | `project_path`, `output_path: "res://audio/bad_layout.tres"`, `buses: [{name:"Master",effects:[{type:"turbo_bass"}]}]` | Returns validation error before Godot is invoked. `isError: true`. Message lists valid effect types. | Error response with `isError: true`, lists valid types | — |
+| T3.39 | Error: empty buses array | `project_path`, `output_path: "res://audio/empty_layout.tres"`, `buses: []` | Returns error: at least one bus required. `isError: true`. | Error response | — |
+
+---
+
+## D. Viewport & Screenshot Capture (1 tool)
+
+### D0. Prerequisites
+
+- Godot editor **must be closed** before running these tests
+- A display is required (Windows native: satisfied)
+- `test_mcp_enhancements/` has no `run/main_scene` set — always pass `scene_path` explicitly
+- `screenshots/` directory will be auto-created by the tool if it doesn't exist
+
+### D1. `capture_viewport`
+
+| ID | Description | Parameters | Expected Outcome | Verify | Result |
+|----|-------------|-----------|-------------------|--------|--------|
+| T3.40 | Capture collectible_coin.tscn | `project_path`, `output_path: "screenshots/capture_coin.png"`, `scene_path: "res://collectible_coin.tscn"`, `delay_frames: 10` | Godot runs briefly (GUI mode), captures viewport after 10 frames, saves PNG. Response: `success: true`, `output_path: "screenshots/capture_coin.png"`, `resolution` field (e.g., `"1152x648"`). `full_path` absolute path. | File `screenshots/capture_coin.png` exists and is non-zero bytes; open PNG visually to confirm scene rendered | — |
+| T3.41 | Capture pause_menu.tscn | `project_path`, `output_path: "screenshots/capture_pause.png"`, `scene_path: "res://pause_menu.tscn"`, `delay_frames: 15` | Different scene captured. PNG differs from T3.40 (UI layout visible). | File exists; visual check shows pause menu UI | — |
+| T3.42 | Custom resolution override | `project_path`, `output_path: "screenshots/capture_512x512.png"`, `scene_path: "res://collectible_coin.tscn"`, `width: 512`, `height: 512`, `delay_frames: 10` | Viewport resized to 512×512 before capture. Response `resolution: "512x512"`. | Response `resolution = "512x512"`; image dimensions confirmed (512×512 pixels) | — |
+| T3.43 | Increased delay_frames for reliability | `project_path`, `output_path: "screenshots/capture_delayed.png"`, `scene_path: "res://tier2_particle_test.tscn"`, `delay_frames: 30` | Particle scene (created in Tier 2) captured after 30 frames, giving particles time to initialize. PNG created successfully. | File exists and non-zero; response success=true | — |
+| T3.44 | Error: non-existent scene | `project_path`, `output_path: "screenshots/capture_bad.png"`, `scene_path: "res://does_not_exist.tscn"` | Godot exits without writing PNG (scene not found). Tool detects missing output file and returns error. `isError: true`. Output PNG does NOT exist. | Error response; `screenshots/capture_bad.png` does not exist | — |
+| T3.45 | Cleanup verification (run after T3.40–T3.44) | Inspect project.godot and project root after any successful capture. No parameters — manual inspection. | No `_McpViewportCapture` entry in `project.godot [autoload] section`. File `_mcp_viewport_capture.gd` does not exist in project root. | Open project.godot: no `_McpViewportCapture` line. `ls` project root: no `_mcp_viewport_capture.gd` file | — |
+
+---
+
+## E. Infrastructure Verification (3 components)
+
+### E1. Structured Error Taxonomy (`src/utils/errors.ts`)
+
+Error responses from Tier 3 tools should include `category` and `code` fields as defined in the taxonomy.
+
+| ID | Description | Observation Method | Expected Behavior | Result |
+|----|-------------|-------------------|-------------------|--------|
+| T3.46 | Validation error has correct fields | Call `generate_docstring` without `script_path` parameter | Response `isError: true`. Body includes `category: "validation"` and `code: "VALIDATION_MISSING_PARAM"`. Message names the missing parameter. | — |
+| T3.47 | Runtime error has correct fields | Call `get_class_info` with `class_name: "NotARealGodotClass"` | Response `isError: true`. Body includes structured error fields. Category is `"runtime"` or `"godot_process"`. `solutions` array present with actionable suggestions. | — |
+
+### E2. Operation Logger (`src/utils/logger.ts`)
+
+| ID | Description | Observation Method | Expected Behavior | Result |
+|----|-------------|-------------------|-------------------|--------|
+| T3.48 | Log file created after tool execution | After running any Tier 3 tool successfully (e.g., T3.01), inspect `test_mcp_enhancements/.mcp_logs/` directory (or `<project>/.mcp_logs/`). Log directory is relative to server cwd, not project. Check `~/.mcp_logs/` or server working directory. | `.mcp_logs/session_*.log` file exists. Read first entry: has `timestamp`, `toolName`, `parameters`, `duration_ms`, `status: "success"`. | — |
+| T3.49 | Error logged on failure | After running a failing tool (T3.05 or T3.46), inspect the session log file. | Log entry for the failed call has `status: "error"`, `errorCategory`, `errorMessage` fields. | — |
+
+### E3. Per-Tool Timeout Enforcement
+
+| ID | Description | Observation Method | Expected Behavior | Result |
+|----|-------------|-------------------|-------------------|--------|
+| T3.50 | Tool timeouts declared in registry | Code inspection: `src/tools/code-intelligence.ts` and `src/tools/viewport.ts` ToolDefinition objects have `timeout` field. Registry enforces via `Promise.race`. | `generate_docstring` timeout = 10000ms; `capture_viewport` timeout = 60000ms; `get_class_info` timeout = 30000ms. Confirmed by code inspection. | — |
+
+---
+
+## Summary
+
+| Domain | Tool | Tests | Passed | Notes |
+|--------|------|-------|--------|-------|
+| A. Code Intelligence | `generate_docstring` | 6 | — | Reads/writes coin.gd |
+| A. Code Intelligence | `generate_test_from_specification` | 5 | — | Creates test/unit/*.gd files |
+| A. Code Intelligence | `analyze_test_coverage` | 5 | — | T3.16 depends on T3.07 |
+| A. Code Intelligence | `create_mock_node` | 4 | — | Creates test/mocks/*.gd files |
+| B. Introspection | `get_class_info` | 6 | — | Requires Godot headless |
+| B. Introspection | `search_asset_library` | 6 | — | Requires internet |
+| C. Audio | `configure_audio_bus` | 7 | — | Requires Godot headless |
+| D. Viewport | `capture_viewport` | 6 | — | Requires display + editor closed |
+| E. Infrastructure | `errors.ts` | 2 | — | Observational |
+| E. Infrastructure | `logger.ts` | 2 | — | Observational |
+| E. Infrastructure | Timeout | 1 | — | Code inspection |
+| **Total** | **8 tools + 3 infra** | **50** | — | |
+
+## Known Prerequisites & Constraints
+
+### Code Intelligence (Phase 1)
+- All 4 tools are TypeScript-only — no Godot process, no display needed
+- `coin.gd` modified by T3.01 (docstring insertion); T3.04 (overwrite) restores predictable state
+- Test output files created: `test/unit/test_coin_spec.gd`, `test/unit/test_coin_setup.gd`, `test/unit/test_assertions.gd`, `test/unit/test_signals_spec.gd`, `test/mocks/mock_coin.gd`, `test/mocks/mock_coin_full.gd`, `test/mocks/enemies/mock_enemy_base.gd`, `test/mocks/mock_bare.gd`
+
+### Introspection (Phase 2)
+- `get_class_info` requires Godot headless — ~30s timeout per call
+- `search_asset_library` is internet-only — no project_path required; results may vary over time as asset library changes
+- Class names in Godot ClassDB are **case-sensitive** (CharacterBody2D not characterbody2d)
+
+### Audio Bus (Phase 3)
+- Requires Godot in headless mode
+- Generated `.tres` files can be inspected in the Godot editor (Project → AudioServer or via ResourcePreview)
+- Test output files: `audio/simple_bus_layout.tres`, `audio/game_bus_layout.tres`, `audio/master_effects_layout.tres`, `audio/compressor_layout.tres`, `audio/eq_layout.tres`
+
+### Viewport Capture (Phase 4)
+- Spawns Godot in **GUI mode** (not headless) — requires active display (Windows: always available)
+- `test_mcp_enhancements/` has no `run/main_scene` set — always pass `scene_path` or Godot will exit immediately with no output
+- Autoload cleanup (`_McpViewportCapture`) verified in T3.45 — critical to confirm no leftover state
+- 60-second process timeout — captures should complete in < 5 seconds on a normal machine
+- Screenshots: open PNGs with any image viewer for visual confirmation
+
+## Visual Verification Checklist (Godot Editor)
+
+- [ ] **T3.01** — coin.gd has `##` doc comments above all 4 functions
+- [ ] **T3.03** — complex_script.gd has `@param`/`@return` annotations for complex_function
+- [ ] **T3.35** — audio/master_effects_layout.tres opens in Inspector as AudioBusLayout with 2 effects on Master bus
+- [ ] **T3.37** — audio/eq_layout.tres opens as valid AudioBusLayout with EQ10 effect
+- [ ] **T3.40** — screenshots/capture_coin.png renders coin scene (grey viewport or coin sprite area)
+- [ ] **T3.41** — screenshots/capture_pause.png renders pause menu UI layout
+- [ ] **T3.42** — screenshots/capture_512x512.png is exactly 512×512 pixels
+- [ ] **T3.45** — project.godot has no `_McpViewportCapture` in [autoload] section after tests complete
