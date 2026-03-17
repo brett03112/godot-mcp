@@ -54,7 +54,7 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 ### Project Management (7 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `launch_editor` | Open the Godot editor for a specific project |
 | `run_project` | Execute a project in debug mode with optional scene selection |
 | `stop_project` | Terminate a running project |
@@ -66,7 +66,7 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 ### Scene Creation (5 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_scene` | Create new .tscn files with a specified root node type |
 | `add_node` | Add child nodes to scenes with properties |
 | `load_sprite` | Assign textures to Sprite2D nodes |
@@ -76,7 +76,7 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 ### Scene Inspection & Manipulation (6 tools)
 
 | Tool | Description | Engine |
-|------|-------------|--------|
+| ------ | ------------- | -------- |
 | `list_scene_tree` | Get the full node hierarchy of a .tscn file with types, paths, and attached resources | TypeScript |
 | `read_node_properties` | Read all properties of a specific node including resolved resource references | TypeScript |
 | `modify_node_property` | Change properties on existing nodes (position, visibility, modulate, etc.) | GDScript |
@@ -95,14 +95,14 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 ### UID Management (2 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `get_uid` | Get UID for a file (Godot 4.4+) |
 | `update_project_uids` | Resave resources to update UID references |
 
 ### Signal & Event System (5 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `list_signals` | List all signals on a node type or instance with parameter info |
 | `list_connections` | List all signal connections in a scene with filtering |
 | `connect_signal` | Connect signals to methods — persists to .tscn |
@@ -112,7 +112,7 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 ### GDScript Code Intelligence (7 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `analyze_script` | Parse GDScript files to extract structure (class, functions, signals, variables) |
 | `create_script` | Generate scripts from templates: basic, state_machine, singleton, component, character_controller |
 | `modify_function` | Update function implementations with optional signature changes |
@@ -124,6 +124,7 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 ### Debugging & Error Analysis (enhanced)
 
 `get_debug_output` and `validate_script` include intelligent error parsing:
+
 - 5 error pattern types: SCRIPT ERROR, ERROR, Parse error, WARNING, Debugger Break
 - Structured extraction: type, message, file, line, function
 - Context-aware solutions for null references, index errors, parse errors, type mismatches, missing resources, signal issues
@@ -131,8 +132,7 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 ### Animation & Timeline (5 tools)
 
 | Tool | Description |
-|------|-------------|
-| `create_animation_player` | Add AnimationPlayer nodes with optional initial animations |
+| ------ | ------------- || `create_animation_player` | Add AnimationPlayer nodes with optional initial animations |
 | `add_animation_track` | Add tracks: position, rotation, scale, property, method, audio |
 | `add_keyframe` | Add keyframes with custom easing curves |
 | `configure_animation_tree` | Set up AnimationTree with StateMachine, BlendSpace1D/2D, or BlendTree root |
@@ -164,7 +164,7 @@ configure_animation_tree(
 ### Shader & Material Pipeline (4 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_shader_material` | Create shader materials with custom code or templates (dissolve, outline, damage_flash, hologram) |
 | `apply_material` | Apply ShaderMaterial or StandardMaterial3D to a node — auto-detects correct slot |
 | `set_shader_parameter` | Modify shader uniform values (Vector2/3/4, Color, float, texture path) |
@@ -188,14 +188,14 @@ create_material_from_texture(
 ### Testing & QA (2 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_test_suite` | Create GUT test files with test cases, assertions, and setup/teardown hooks |
 | `run_tests` | Execute GUT tests headlessly and return structured pass/fail results |
 
 ### Asset Import & Configuration (4 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `import_texture` | Configure filter mode (Nearest for pixel art), compression, mipmaps, repeat |
 | `import_audio` | Configure loop settings, BPM sync, loop offset for WAV/OGG/MP3 |
 | `import_3d_model` | Configure collision generation, materials, animations, scale for GLTF/GLB/FBX/OBJ |
@@ -204,7 +204,7 @@ create_material_from_texture(
 ### Project Settings & Configuration (4 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `modify_project_setting` | Change any project.godot setting (window size, physics, rendering) |
 | `configure_input_action` | Create input maps with keyboard, mouse, joypad events |
 | `setup_render_layers` | Name physics and render layers (1-32) |
@@ -213,7 +213,7 @@ create_material_from_texture(
 ### Build & Export Pipeline (3 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_export_preset` | Generate presets for Windows, Linux, macOS, Web, Android, iOS |
 | `export_project` | Build debug/release exports or pack-only |
 | `validate_export` | Check for export issues: missing templates, debug prints, large assets |
@@ -221,7 +221,7 @@ create_material_from_texture(
 ### Tilemap & Level Design (4 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_tilemap` | Create TileMap nodes with layers and TileSet configuration |
 | `paint_tiles` | Paint single tiles, rectangles, or lines programmatically |
 | `configure_tileset` | Set up texture atlas, collision shapes, navigation polygons, terrain |
@@ -230,7 +230,7 @@ create_material_from_texture(
 ### Dialogue & Localization (7 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_translation_file` | Create CSV or PO translation files with initial keys |
 | `add_translation` | Add/update translation entries with placeholder support |
 | `remove_translation` | Remove keys by name or regex pattern (dry run supported) |
@@ -242,7 +242,7 @@ create_material_from_texture(
 ### Plugin Management (4 tools)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `list_plugins` | List installed plugins with enabled/disabled status and metadata |
 | `configure_plugin` | Enable, disable, or add settings to plugins |
 | `create_plugin` | Generate scaffolds from templates: basic, dock, inspector, import, tool |
@@ -251,7 +251,7 @@ create_material_from_texture(
 ### Refactoring (1 tool)
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `refactor_rename` | Rename functions, variables, signals, classes, or constants across all .gd and .tscn files. Dry-run mode by default shows all planned changes before applying. |
 
 ```text
@@ -269,7 +269,7 @@ refactor_rename(..., dry_run=false)
 ### Project Scaffolding (1 tool) — NEW
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_project` | Scaffold a new Godot project with standard folder structure, project.godot, and a template main scene |
 
 ```text
@@ -289,7 +289,7 @@ create_project(
 ### Scene Validation (1 tool) — NEW
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `validate_scene` | Check a scene for common issues: missing resources, broken scripts, collision shapes without bodies, sprites without textures, signal connections to non-existent methods, and more |
 
 ```text
@@ -307,7 +307,7 @@ validate_scene(project_path, scene_path="scenes/level_1.tscn")
 ### Particle System Designer (3 tools) — NEW
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `create_particle_system` | Create GPUParticles2D/3D nodes with ParticleProcessMaterial configuration |
 | `apply_particle_preset` | Create particle systems from named presets: fire, smoke, explosion, magic_sparkle, rain, snow, dust, sparks |
 | `create_particle_material` | Create standalone ParticleProcessMaterial .tres files for reuse |
@@ -340,7 +340,7 @@ create_particle_material(
 ### Performance Profiling (3 tools) — NEW
 
 | Tool | Description |
-|------|-------------|
+| ------ | ------------- |
 | `start_profiler` | Run a Godot project with a performance profiler for a specified duration |
 | `get_profiling_data` | Read profiling results with statistical summary (FPS, frame times, draw calls, memory) |
 | `analyze_bottlenecks` | Detect performance bottlenecks with severity ratings and an overall A-F grade |
@@ -481,7 +481,7 @@ Add to `.mcp.json` in your project root:
 
 ## Architecture
 
-```
+```text
 src/
 ├── index.ts                    # Main server + legacy 52 tool handlers
 ├── types.ts                    # Shared interfaces (ToolDefinition, ServerContext, etc.)
@@ -504,11 +504,13 @@ src/
 ```
 
 The server uses a **hybrid dispatch** pattern:
+
 1. **New modular tools** (Tier 1-2, 20 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
 2. **Legacy tools** (Phases 1-12, 52 tools) continue working via the existing switch statement in `src/index.ts`
 3. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch
 
 **Infrastructure:**
+
 - **TSCN Cache** (`tscn-cache.ts`) avoids re-parsing scene files across multiple tool calls in a session (mtime-based invalidation)
 - **Validation Middleware** (`validation.ts`) provides declarative parameter validation with consistent error responses
 - **GDScript operations** (`godot_operations.gd`) handles all operations requiring Godot's runtime — scene manipulation, particle creation, animation tree setup, etc. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
