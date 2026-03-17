@@ -41,6 +41,10 @@ import { registerCodeIntelligenceTools } from './tools/code-intelligence.js';
 import { registerIntrospectionTools } from './tools/introspection.js';
 import { registerAudioTools } from './tools/audio.js';
 import { registerViewportTools } from './tools/viewport.js';
+// Tier 4 imports
+import { registerPlaytestTools } from './tools/playtest.js';
+import { registerFunMetricsTools } from './tools/fun-metrics.js';
+import { registerAssetGenerationTools } from './tools/asset-generation.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -494,6 +498,10 @@ class GodotServer {
     registerIntrospectionTools(this.toolRegistry, ctx);
     registerAudioTools(this.toolRegistry, ctx);
     registerViewportTools(this.toolRegistry, ctx);
+    // Tier 4
+    registerPlaytestTools(this.toolRegistry, ctx);
+    registerFunMetricsTools(this.toolRegistry, ctx);
+    registerAssetGenerationTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

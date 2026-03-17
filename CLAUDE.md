@@ -34,6 +34,7 @@ The current implementation plan follows a phased approach:
 - **Tier 1:** Architecture + Scene Inspection + Shader Pipeline + AnimationTree + Refactoring (COMPLETE ✅)
 - **Tier 2:** Particles + Scene Validation + Project Scaffolding + Performance Profiling + Caching (COMPLETE ✅)
 - **Tier 3:** Code Intelligence + Engine Introspection + Audio Bus + Viewport Capture + Error/Logging Infrastructure (COMPLETE ✅)
+- **Tier 4:** Automated Playtesting + Fun Metrics + Asset Generation Bridge (COMPLETE ✅)
 - Future tiers cover specialized workflows as needed
 
 ## Build and Development Commands
@@ -85,6 +86,16 @@ The build process involves two steps:
 - `src/tools/viewport.ts` — Viewport screenshot capture (1 tool, Tier 3)
 - `src/utils/errors.ts` — Structured error taxonomy with categories and codes (Tier 3)
 - `src/utils/logger.ts` — Operation logging with session tracking (Tier 3)
+- `src/tools/playtest.ts` — Automated playtesting harness (6 tools, Tier 4)
+- `src/tools/fun-metrics.ts` — Fun metrics framework (5 tools, Tier 4)
+- `src/tools/asset-generation.ts` — Asset generation bridge (5 tools, Tier 4)
+- `src/utils/playtest-session.ts` — Session data types, I/O, and user:// path resolution (Tier 4)
+- `src/utils/playtest-recorder-gen.ts` — GDScript recorder autoload generator (Tier 4)
+- `src/utils/playtest-bot-gen.ts` — GDScript bot autoload generator (Tier 4)
+- `src/utils/heatmap-generator.ts` — Heatmap computation and HTML visualization (Tier 4)
+- `src/utils/genre-benchmarks.ts` — Genre benchmark data for comparison (Tier 4)
+- `src/utils/metrics-calculator.ts` — Game feel metrics computation (Tier 4)
+- `src/utils/generation-backends.ts` — Pluggable image/audio generation backends (Tier 4)
 
 **Hybrid Dispatch**: The server uses registry-first dispatch. New modular tools register via `ToolRegistry`; legacy tools use the existing switch statement. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch. The registry includes per-tool timeout enforcement and automatic operation logging (Tier 3).
 
@@ -519,12 +530,80 @@ The server exposes 52 tools via the MCP protocol:
 - Operation logger (`src/utils/logger.ts`): Automatic logging of all registry-dispatched tools with timestamps, duration, sanitized parameters
 - Per-tool timeout: Optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
 
+**Automated Playtesting Harness** (Tier 4):
+
+- `run_automated_playtest` - Run a Godot project with an automated input bot and playtest recorder
+  - Bot types: random (random input actions), waypoint (random navigation), idle (no input), stress (all inputs simultaneously)
+  - Player auto-detection: explicit path, node named "Player", first CharacterBody2D/3D
+  - Records position, velocity, state, events, performance samples, and optionally inputs
+  - Event detection via convention signals (died, health_changed, damage_taken) and user-specified hooks
+  - Health property watching (detects damage and death from health decreases)
+  - Configurable duration (max 600s), sample interval, session naming
+- `start_playtest_recording` - Start manual playtest recording (human plays)
+  - Injects recorder autoload, runs project non-blocking
+  - Returns session_id for stop_playtest_recording
+- `stop_playtest_recording` - Stop recording, collect session data, clean up autoloads
+- `analyze_playtest_session` - Analyze recorded session for patterns
+  - Analysis types: death_locations (clustering), backtracking, difficulty_spikes, time_distribution, event_frequency, movement_patterns
+  - Returns structured analysis with recommendations
+- `generate_heatmap` - Generate heatmap from playtest sessions
+  - Types: position, death, damage, pickup, time_spent
+  - Returns JSON grid data (AI-readable) + saves HTML visualization (human-viewable)
+  - Configurable cell size and hotspot detection
+- `compare_sessions` - Compare metrics across multiple sessions
+  - Metrics: duration, deaths, damage, distance, events, FPS, areas_visited, inputs
+  - Aggregates (min/max/avg/stddev), trend detection, optional group_by
+
+**Fun Metrics Framework** (Tier 4):
+
+- `calculate_game_feel_metrics` - Score game feel on 0-100 scale
+  - Metrics: responsiveness (input-to-movement latency), pacing (event intensity variance), difficulty (death/damage rates), engagement (exploration diversity)
+  - Returns per-metric scores with explanations and recommendations
+- `analyze_difficulty_curve` - Time-windowed difficulty analysis
+  - Configurable window size and death/damage weights
+  - Detects spikes (>2x previous window), valleys (3+ zero windows)
+  - Classifies curve shape: gradually_increasing, sawtooth, flat, variable
+- `compare_to_genre_benchmarks` - Compare against genre standards
+  - Genres: platformer, roguelike, fps, rpg, puzzle, metroidvania, action, survival
+  - Compares deaths/min, session duration, damage/min, FPS, idle ratio
+  - Returns genre fit score and per-metric assessment
+- `detect_frustration_points` - Identify frustration signals
+  - Detects: repeated deaths in same area, long idle periods, rapid input spam
+  - Configurable sensitivity (low/medium/high)
+  - Each point includes location, evidence, severity, and suggestion
+- `analyze_juice_coverage` - Scan scripts for visual/audio feedback on actions
+  - Scans .gd files for action functions (attack, jump, dash, etc.)
+  - Checks for audio, particles, animation, tween, screen effects
+  - Reports coverage percentage and identifies unjuiced actions
+
+**Asset Generation Bridge** (Tier 4):
+
+- `generate_sprite` - Generate 2D sprite from text description
+  - Backends: DALL-E 3 (requires OPENAI_API_KEY) or placeholder (colored PNG)
+  - Styles: pixel_art, hand_drawn, realistic, cartoon, flat
+  - Saves PNG to project assets directory
+- `generate_texture` - Generate tileable texture from description
+  - Same backends as generate_sprite, adds seamless/tileable instructions
+- `generate_sfx` - Generate sound effect from text description
+  - Backends: ElevenLabs (requires ELEVENLABS_API_KEY) or placeholder (sine tone WAV)
+  - Configurable duration (max 10s)
+- `generate_music` - Generate background music from description
+  - Placeholder backend generates sine tone WAV with configurable duration/BPM
+  - Supports mood keywords, loop flag, BPM setting
+- `configure_asset_generation` - View backend configuration and API key status
+  - Shows active backends and environment variable status
+  - Optional connectivity testing for configured APIs
+
 ## Configuration
 
 ### Environment Variables
 
 - `GODOT_PATH`: Override Godot executable path (avoids auto-detection)
 - `DEBUG`: Set to "true" to enable detailed server-side logging
+- `OPENAI_API_KEY`: API key for DALL-E 3 image generation (Tier 4)
+- `ELEVENLABS_API_KEY`: API key for ElevenLabs audio generation (Tier 4)
+- `ASSET_GEN_IMAGE_BACKEND`: Image generation backend — `dalle3` or `placeholder` (default: `placeholder`)
+- `ASSET_GEN_AUDIO_BACKEND`: Audio generation backend — `elevenlabs` or `placeholder` (default: `placeholder`)
 
 ### Server Configuration Options
 

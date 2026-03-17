@@ -228,7 +228,7 @@ These would be separate MCP servers that integrate with Godot MCP:
 | **Tier 1** | Critical gaps + architecture split | 9 tools + major refactor | High |
 | **Tier 2** | Major new capabilities | 8 tools + caching layer | Medium-High |
 | **Tier 3** | Workflow completeness | 8 tools + error improvements | Medium |
-| **Tier 4** | Future vision | 20+ tools (separate servers) | Very High |
+| **Tier 4** | Future vision | 16 tools (integrated bridge) | Very High — COMPLETE ✅ |
 
 ### Suggested Execution Order Within Tiers
 
