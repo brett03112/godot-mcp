@@ -81,7 +81,18 @@
       "mcp__godot-mcp__create_particle_material",
       "mcp__godot-mcp__start_profiler",
       "mcp__godot-mcp__get_profiling_data",
-      "mcp__godot-mcp__analyze_bottlenecks"
+      "mcp__godot-mcp__analyze_bottlenecks",
+      "mcp__godot-mcp__generate_docstring",
+      "mcp__godot-mcp__generate_test_from_specification",
+      "mcp__godot-mcp__analyze_test_coverage",
+      "mcp__godot-mcp__create_mock_node",
+      "Bash(\"C:/Users/brett/Desktop/Godot/Godot.exe\" --headless --path \"C:/Users/brett/Desktop/godot-mcp/test_mcp_enhancements\" --script \"C:/Users/brett/Desktop/godot-mcp/build/scripts/godot_operations.gd\" get_class_info '{\"\"\"\"class_name\"\"\"\":\"\"\"\"CharacterBody2D\"\"\"\",\"\"\"\"include_inherited\"\"\"\":false,\"\"\"\"section\"\"\"\":\"\"\"\"all\"\"\"\"}')",
+      "mcp__godot-mcp__search_asset_library",
+      "Bash(curl -s \"https://godotengine.org/asset-library/api/asset?filter=state+machine&sort=rating\")",
+      "Bash(curl -s \"https://godotengine.org/asset-library/api/asset?filter=inventory&sort=rating\")",
+      "Bash(curl -s \"https://godotengine.org/asset-library/api/asset?filter=shader\")",
+      "mcp__godot-mcp__configure_audio_bus",
+      "mcp__godot-mcp__capture_viewport"
     ],
     "deny": [],
     "ask": []

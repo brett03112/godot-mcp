@@ -113,16 +113,17 @@ function configureAudioBus(ctx: ServerContext): ToolDefinition {
           buses,
         }, projectDir);
 
-        const stdout = result.stdout.trim();
-        const jsonStart = stdout.indexOf('{');
-        if (jsonStart === -1) {
+        // Split by lines and find the line starting with '{' (skips [DEBUG]/[INFO] prefixed lines)
+        const lines = result.stdout.replace(/\r\n/g, '\n').trim().split('\n');
+        const jsonLine = lines.find(l => l.trimStart().startsWith('{'));
+        if (!jsonLine) {
           return ctx.createErrorResponse(
             'Failed to configure audio buses',
             [`Godot output: ${result.stderr || result.stdout}`]
           );
         }
 
-        const data = JSON.parse(stdout.substring(jsonStart));
+        const data = JSON.parse(jsonLine.trim());
         return {
           content: [{
             type: 'text',

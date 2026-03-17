@@ -176,6 +176,22 @@ class GodotServer {
     'sample_interval': 'sampleInterval',
     'profiler_id': 'profilerId',
     'target_fps': 'targetFps',
+    // Tier 3: Code intelligence
+    'script_path': 'scriptPath',
+    'class_name': 'className',
+    'setup_code': 'setupCode',
+    'teardown_code': 'teardownCode',
+    'test_dir': 'testDir',
+    'exclude_virtual': 'excludeVirtual',
+    'base_class': 'baseClass',
+    'methods_to_mock': 'methodsToMock',
+    'signals_to_track': 'signalsToTrack',
+    // Tier 3: Introspection
+    'include_inherited': 'includeInherited',
+    'godot_version': 'godotVersion',
+    'max_results': 'maxResults',
+    // Tier 3: Viewport
+    'delay_frames': 'delayFrames',
   };
 
   /**

@@ -10,6 +10,13 @@ enum State {
 	JUMPING
 }
 
+## Complex Function.
+##
+## @param arg1 [int] —
+## @param arg2 [String] —
+## @param arg3 [Array] —
+## @param arg4 [Dictionary] —
+## @return [Dictionary]
 func complex_function(arg1: int, arg2: String, arg3: Array[int], arg4: Dictionary) -> Dictionary:
 	return {}
 

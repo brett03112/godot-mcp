@@ -62,16 +62,17 @@ function getClassInfo(ctx: ServerContext): ToolDefinition {
         }, projectDir);
 
         // Parse the JSON output from GDScript
-        const stdout = result.stdout.trim();
-        const jsonStart = stdout.indexOf('{');
-        if (jsonStart === -1) {
+        // Split by lines and find the line starting with '{' (skips [DEBUG]/[INFO] prefixed lines)
+        const lines = result.stdout.replace(/\r\n/g, '\n').trim().split('\n');
+        const jsonLine = lines.find(l => l.trimStart().startsWith('{'));
+        if (!jsonLine) {
           return ctx.createErrorResponse(
             `Failed to get class info for '${className}'`,
             ['Check the class name is correct (case-sensitive)', `stderr: ${result.stderr}`]
           );
         }
 
-        const data = JSON.parse(stdout.substring(jsonStart));
+        const data = JSON.parse(jsonLine.trim());
 
         return {
           content: [{
