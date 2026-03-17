@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://ci4hdk2x6hwn1"]
+
+[ext_resource type="Material" path="res://materials/hologram.tres" id="1_eovv2"]
+
+[node name="root" type="Node2D" unique_id=990682211]
+
+[node name="TestSprite" type="Sprite2D" parent="." unique_id=999313791]
+visible = false
+material = ExtResource("1_eovv2")
+
+[node name="TestLabel" type="Label" parent="." unique_id=454480603]
+text = "Modified Text"
+
+[node name="NewParent" type="Node2D" parent="." unique_id=1450750115]
+
+[node name="NestedSprite" type="Sprite2D" parent="NewParent" unique_id=478125573]

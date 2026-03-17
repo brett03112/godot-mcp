@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://ci1rls3qhk4y5"]
+[gd_scene format=3 uid="uid://cfn7em2wgek72"]
 
 [sub_resource type="Animation" id="Animation_s5jmu"]
 tracks/0/type = "value"
@@ -37,7 +37,37 @@ _data = {
 &"fade_in": SubResource("Animation_s5jmu")
 }
 
-[node name="root" type="Control"]
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_s5jmu"]
+animation = &"fade_in"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_8ad7x"]
+animation = &"fade_in"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_unpkb"]
+xfade_time = 0.2
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_1bpg1"]
+states/Active/node = SubResource("AnimationNodeAnimation_s5jmu")
+states/Active/position = Vector2(0, 0)
+states/Idle/node = SubResource("AnimationNodeAnimation_8ad7x")
+states/Idle/position = Vector2(0, 0)
+states/Start/position = Vector2(201, 100)
+transitions = ["Idle", "Active", SubResource("AnimationNodeStateMachineTransition_unpkb")]
+graph_offset = Vector2(101.18842, 0)
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_unpkb"]
+animation = &"fade_in"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_1bpg1"]
+animation = &"fade_in"
+
+[sub_resource type="AnimationNodeBlendSpace1D" id="AnimationNodeBlendSpace1D_aclgb"]
+blend_point_0/node = SubResource("AnimationNodeAnimation_unpkb")
+blend_point_0/pos = 0.0
+blend_point_1/node = SubResource("AnimationNodeAnimation_1bpg1")
+blend_point_1/pos = 1.0
+
+[node name="root" type="Control" unique_id=439601850]
 layout_mode = 3
 anchors_preset = 0
 offset_left = 213.0
@@ -45,10 +75,17 @@ offset_top = 123.0
 offset_right = 213.0
 offset_bottom = 123.0
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-libraries = {
-&"": SubResource("AnimationLibrary_8ad7x")
-}
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1040071818]
+libraries/ = SubResource("AnimationLibrary_8ad7x")
 
-[node name="TestButton" type="Button" parent="."]
+[node name="TestButton" type="Button" parent="." unique_id=1783305801]
 layout_mode = 0
+
+[node name="AnimationTree" type="AnimationTree" parent="." unique_id=1901349502]
+tree_root = SubResource("AnimationNodeStateMachine_1bpg1")
+anim_player = NodePath("AnimationPlayer")
+
+[node name="BlendTree1D" type="AnimationTree" parent="." unique_id=1752110124]
+tree_root = SubResource("AnimationNodeBlendSpace1D_aclgb")
+anim_player = NodePath("AnimationPlayer")
+parameters/blend_position = 0.0

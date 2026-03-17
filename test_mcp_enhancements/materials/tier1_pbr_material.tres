@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://1a2dw8xrc7mk"]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_iq84dpl9"]
+
+[resource]
+albedo_texture = ExtResource("1_iq84dpl9")
+metallic = 0.8
+roughness = 0.3

@@ -4703,8 +4703,10 @@ func reparent_node(params: Dictionary):
         scene_root.queue_free()
         quit(1)
 
-    # Reparent
+    # Reparent — must unset owner before reparenting to avoid inconsistency
     var old_parent = target_node.get_parent()
+    target_node.owner = null
+    _clear_owner_recursive(target_node)
     old_parent.remove_child(target_node)
     new_parent.add_child(target_node)
     target_node.owner = scene_root
@@ -4742,6 +4744,13 @@ func _set_owner_recursive(node: Node, owner: Node):
     for child in node.get_children():
         child.owner = owner
         _set_owner_recursive(child, owner)
+
+
+# Helper: recursively clear owner for reparenting
+func _clear_owner_recursive(node: Node):
+    for child in node.get_children():
+        child.owner = null
+        _clear_owner_recursive(child)
 
 
 # Helper: convert a value to the appropriate Godot type based on the target property
@@ -4945,7 +4954,18 @@ func set_shader_parameter(params: Dictionary):
 
     material.set_shader_parameter(parameter_name, converted_value)
 
-    # Save
+    # If the material is an external resource, save it back to its source file
+    # so the change persists. Otherwise, it only exists in memory.
+    var material_path = material.resource_path
+    if not material_path.is_empty():
+        var mat_err = ResourceSaver.save(material, material_path)
+        if mat_err != OK:
+            log_error("Failed to save material file: " + str(mat_err))
+            scene_root.queue_free()
+            quit(1)
+        log_info("Saved material to: " + material_path)
+
+    # Save the scene too (in case the material is a sub-resource embedded in the scene)
     var new_packed = PackedScene.new()
     var err = new_packed.pack(scene_root)
     if err != OK:

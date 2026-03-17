@@ -1,8 +1,8 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+[gd_resource type="ShaderMaterial" format=3]
 
 [ext_resource type="Shader" path="res://shaders/hologram.gdshader" id="1_ococj"]
 
 [resource]
 shader = ExtResource("1_ococj")
-shader_parameter/scan_speed = 3.5
-shader_parameter/tint_color = Color(0, 1, 0.5, 1)
+shader_parameter/scan_speed = 5.0
+shader_parameter/tint_color = Color(1, 0, 0, 1)

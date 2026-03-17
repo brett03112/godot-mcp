@@ -2,7 +2,7 @@ extends Node2D
 class_name TestCustomSignals
 
 ## Custom signal with no parameters
-signal health_changed
+signal hp_changed
 
 ## Custom signal with one parameter
 signal player_died(player_name: String)

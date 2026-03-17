@@ -122,6 +122,7 @@ The build process involves two steps:
 - `parameterMappings` converts snake_case to camelCase
 - `reverseParameterMappings` converts camelCase to snake_case
 - This dual support accommodates different MCP client conventions
+- **CRITICAL:** Every snake_case parameter introduced by any tool MUST be explicitly added to the `parameterMappings` table in `src/index.ts`. If omitted, `normalizeParameters()` leaves the key as snake_case but all handlers check for camelCase — causing silent "required parameter" failures. See Tier 1 testing: 30 mappings were missing and had to be added.
 
 **Process Management**: Maintains a single active Godot process (`activeProcess: GodotProcess | null`) for running projects, capturing stdout/stderr output and errors.
 
@@ -640,8 +641,9 @@ When instantiating `GodotServer`, you can pass a `GodotServerConfig`:
 2. Define a `ToolDefinition` with name, description, inputSchema, and handler
 3. Export a `registerXxxTools(registry: ToolRegistry, ctx: ServerContext)` function
 4. Import and call the registration function in `registerModularTools()` in `src/index.ts`
-5. If it requires GDScript operations, add the operation handler to `godot_operations.gd`
-6. Update CLAUDE.md and README.md with the new tool documentation
+5. **Add every new snake_case parameter name to `parameterMappings` in `src/index.ts`** — omitting this causes silent "required parameter" errors since `normalizeParameters()` only converts mapped keys
+6. If it requires GDScript operations, add the operation handler to `godot_operations.gd`
+7. Update CLAUDE.md and README.md with the new tool documentation
 
 ### Legacy approach (for editing existing tools):
 
@@ -658,6 +660,32 @@ When instantiating `GodotServer`, you can pass a `GodotServerConfig`:
 - Enable DEBUG mode for verbose logging
 - Check both server logs (TypeScript side) and Godot logs (GDScript side)
 - The GDScript operations file includes its own debug logging controlled by `--debug-godot` flag
+- Run Godot operations directly from bash to isolate TypeScript vs GDScript issues:
+  ```bash
+  "C:\Users\brett\Desktop\Godot\Godot.exe" --headless --path "<project>" \
+    --script "build/scripts/godot_operations.gd" <operation> "<json_params>" --debug-godot
+  ```
+- **Editor + headless conflict:** Do not have the Godot editor open with a project while running MCP tools that write `.tres` or `.tscn` files. The editor's in-memory state overwrites external changes on scene reload. Applies especially to `set_shader_parameter` and `apply_material`.
+
+## Known Issues & Architectural Notes
+
+### Windows Shell Escaping (BUG-3 — open)
+- **File:** `src/index.ts` → `executeOperation()`
+- **Issue:** On Windows, `exec()` wraps JSON params as `\"..\"` with inner quotes escaped. For deeply nested JSON (arrays of objects as in `configure_animation_tree` `states`/`transitions`/`blend_points`), `cmd.exe` corrupts the string before Godot receives it. The GDScript logic is correct; the payload just never arrives intact.
+- **Workaround:** Invoke Godot directly via bash when nested array-of-object params are needed.
+- **Recommended fix:** Replace `exec(cmd)` with `execFile(godotPath, argsArray)` to bypass shell parsing entirely.
+
+### Reparenting Nodes (Godot 4.x ownership, FIXED)
+- **File:** `src/scripts/godot_operations.gd` → `reparent_node()`
+- **Fix applied:** Must call `node.owner = null` + `_clear_owner_recursive()` before `remove_child()`, then reset owner after `add_child()`. Without this, Godot 4.x throws "Adding X as child to Y will make owner Z inconsistent."
+
+### ShaderMaterial Parameter Persistence (FIXED)
+- **File:** `src/scripts/godot_operations.gd` → `set_shader_parameter()`
+- **Fix applied:** After `material.set_shader_parameter()`, check `material.resource_path`. If non-empty (ExtResource), call `ResourceSaver.save(material, material_path)` to persist changes to the `.tres` file. Without this, parameter changes exist only in memory and are lost.
+
+### Signal Rename Scope Limitation (documented caveat)
+- **Tool:** `refactor_rename` with `symbol_type: "signal"`
+- **Behavior:** Renames signal declarations (`signal foo`) but does NOT rename convention-based handler methods (`_on_foo`) or `.emit()` call sites. These must be renamed separately (use `symbol_type: "function"` for the handler, `symbol_type: "variable"` or a manual pass for emit calls).
 
 ## Common Patterns
 

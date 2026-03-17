@@ -1,10 +1,10 @@
 class_name TestPlayer
 extends CharacterBody2D
 
-signal health_changed(new_health: int)
+signal hp_changed(new_health: int)
 signal died
 
-const MAX_HEALTH = 100
+const MAXIMUM_HEALTH = 100
 const SPEED = 200.0
 
 @export var jump_force: float = -400.0
