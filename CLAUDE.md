@@ -67,6 +67,7 @@ The build process involves two steps:
 **Main Server (`src/index.ts`)**: The legacy monolithic MCP server (~11,400 lines) containing the `GodotServer` class with 52 original tools. New tools use the modular architecture (see below).
 
 **Modular Tool Architecture (Tier 1+)**:
+
 - `src/types.ts` — Shared interfaces (`ToolDefinition`, `ServerContext`, `ToolResponse`, etc.)
 - `src/registry.ts` — `ToolRegistry` class for registration-based tool dispatch
 - `src/utils/tscn-parser.ts` — TypeScript parser for Godot `.tscn` scene files
@@ -135,7 +136,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 52 tools via the MCP protocol:
+The server exposes 92 tools via the MCP protocol:
 
 **Project Management**:
 
@@ -491,7 +492,7 @@ The server exposes 52 tools via the MCP protocol:
 - `analyze_test_coverage` - Match source functions to test methods by naming convention
   - Scans .gd files for func declarations, test/ for test_* methods
   - Reports per-script and overall coverage percentage
-  - Excludes virtual functions (_ready, _process, etc.) by default
+  - Excludes virtual functions (_ready,_process, etc.) by default
 - `create_mock_node` - Generate mock GDScript classes for unit testing
   - Extends base class with overridden methods and configurable return values
   - Call tracking with assert_called/assert_called_with/call_count helpers
@@ -635,7 +636,7 @@ When instantiating `GodotServer`, you can pass a `GodotServerConfig`:
 
 ## Adding New Tools
 
-### New modular approach (preferred):
+### New modular approach (preferred)
 
 1. Create or edit a tool module in `src/tools/` (e.g., `src/tools/myfeature.ts`)
 2. Define a `ToolDefinition` with name, description, inputSchema, and handler
@@ -645,7 +646,7 @@ When instantiating `GodotServer`, you can pass a `GodotServerConfig`:
 6. If it requires GDScript operations, add the operation handler to `godot_operations.gd`
 7. Update CLAUDE.md and README.md with the new tool documentation
 
-### Legacy approach (for editing existing tools):
+### Legacy approach (for editing existing tools)
 
 1. Add tool definition to `setupToolHandlers()` in the `ListToolsRequestSchema` handler
 2. Add tool name to the switch statement in `CallToolRequestSchema` handler
@@ -661,29 +662,40 @@ When instantiating `GodotServer`, you can pass a `GodotServerConfig`:
 - Check both server logs (TypeScript side) and Godot logs (GDScript side)
 - The GDScript operations file includes its own debug logging controlled by `--debug-godot` flag
 - Run Godot operations directly from bash to isolate TypeScript vs GDScript issues:
+
   ```bash
   "C:\Users\brett\Desktop\Godot\Godot.exe" --headless --path "<project>" \
     --script "build/scripts/godot_operations.gd" <operation> "<json_params>" --debug-godot
   ```
+
 - **Editor + headless conflict:** Do not have the Godot editor open with a project while running MCP tools that write `.tres` or `.tscn` files. The editor's in-memory state overwrites external changes on scene reload. Applies especially to `set_shader_parameter` and `apply_material`.
 
 ## Known Issues & Architectural Notes
 
 ### Windows Shell Escaping (BUG-3 — open)
+
 - **File:** `src/index.ts` → `executeOperation()`
 - **Issue:** On Windows, `exec()` wraps JSON params as `\"..\"` with inner quotes escaped. For deeply nested JSON (arrays of objects as in `configure_animation_tree` `states`/`transitions`/`blend_points`), `cmd.exe` corrupts the string before Godot receives it. The GDScript logic is correct; the payload just never arrives intact.
 - **Workaround:** Invoke Godot directly via bash when nested array-of-object params are needed.
 - **Recommended fix:** Replace `exec(cmd)` with `execFile(godotPath, argsArray)` to bypass shell parsing entirely.
 
 ### Reparenting Nodes (Godot 4.x ownership, FIXED)
+
 - **File:** `src/scripts/godot_operations.gd` → `reparent_node()`
 - **Fix applied:** Must call `node.owner = null` + `_clear_owner_recursive()` before `remove_child()`, then reset owner after `add_child()`. Without this, Godot 4.x throws "Adding X as child to Y will make owner Z inconsistent."
 
 ### ShaderMaterial Parameter Persistence (FIXED)
+
 - **File:** `src/scripts/godot_operations.gd` → `set_shader_parameter()`
 - **Fix applied:** After `material.set_shader_parameter()`, check `material.resource_path`. If non-empty (ExtResource), call `ResourceSaver.save(material, material_path)` to persist changes to the `.tres` file. Without this, parameter changes exist only in memory and are lost.
 
+### ParticleProcessMaterial Scale Properties (Godot 4.x API, FIXED)
+
+- **File:** `src/scripts/godot_operations.gd` — `create_particle_system()` and `apply_particle_preset()`
+- **Fix applied:** `ParticleProcessMaterial` does not have `scale_amount_min`/`scale_amount_max` as direct properties (those exist on `CPUParticles2D/3D`). Changed to `material.set_param_min(ParticleProcessMaterial.PARAM_SCALE, value)` / `set_param_max(...)`. The `.tres` file writer (`create_particle_material` in TypeScript) is unaffected since `scale_amount_min = ...` is valid in the resource text format.
+
 ### Signal Rename Scope Limitation (documented caveat)
+
 - **Tool:** `refactor_rename` with `symbol_type: "signal"`
 - **Behavior:** Renames signal declarations (`signal foo`) but does NOT rename convention-based handler methods (`_on_foo`) or `.emit()` call sites. These must be renamed separately (use `symbol_type: "function"` for the handler, `symbol_type: "variable"` or a manual pass for emit calls).
 

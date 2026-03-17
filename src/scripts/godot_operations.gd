@@ -5377,11 +5377,11 @@ func create_particle_system(params: Dictionary):
     if params.has("initial_velocity_max"):
         material.initial_velocity_max = float(params["initial_velocity_max"])
 
-    # Scale
+    # Scale (use set_param_min/max API — no direct property in ParticleProcessMaterial)
     if params.has("scale_amount_min"):
-        material.scale_amount_min = float(params["scale_amount_min"])
+        material.set_param_min(ParticleProcessMaterial.PARAM_SCALE, float(params["scale_amount_min"]))
     if params.has("scale_amount_max"):
-        material.scale_amount_max = float(params["scale_amount_max"])
+        material.set_param_max(ParticleProcessMaterial.PARAM_SCALE, float(params["scale_amount_max"]))
 
     # Color
     if params.has("color"):
@@ -5621,8 +5621,8 @@ func apply_particle_preset(params: Dictionary):
     material.gravity = preset_data["gravity"]
     material.initial_velocity_min = preset_data["initial_velocity_min"] * scale_factor
     material.initial_velocity_max = preset_data["initial_velocity_max"] * scale_factor
-    material.scale_amount_min = preset_data["scale_amount_min"] * scale_factor
-    material.scale_amount_max = preset_data["scale_amount_max"] * scale_factor
+    material.set_param_min(ParticleProcessMaterial.PARAM_SCALE, preset_data["scale_amount_min"] * scale_factor)
+    material.set_param_max(ParticleProcessMaterial.PARAM_SCALE, preset_data["scale_amount_max"] * scale_factor)
     material.color = preset_data["color"]
 
     particles.set("process_material", material)

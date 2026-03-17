@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="Game2DTest" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(576, 324)
