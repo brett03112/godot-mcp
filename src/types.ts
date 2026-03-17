@@ -56,6 +56,8 @@ export interface ToolDefinition {
   description: string;
   inputSchema: ToolInputSchema;
   handler: (args: any) => Promise<ToolResponse>;
+  /** Optional timeout in milliseconds (default: 30000). Set higher for long-running tools. */
+  timeout?: number;
 }
 
 /**

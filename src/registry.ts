@@ -4,13 +4,24 @@
  * Provides a registration-based pattern for MCP tools, replacing the
  * monolithic switch statement. New tools register themselves via
  * registerTool() and the registry handles dispatch.
+ *
+ * Includes operation logging and per-tool timeout enforcement (Tier 3).
  */
 
 import { ToolDefinition, ToolResponse } from './types.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
+import { OperationLogger } from './utils/logger.js';
+import { createTimeoutError, structuredErrorToResponse, ErrorCategory } from './utils/errors.js';
+
+const DEFAULT_TIMEOUT_MS = 30000;
 
 export class ToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
+  private logger: OperationLogger;
+
+  constructor(logDir?: string) {
+    this.logger = new OperationLogger(logDir);
+  }
 
   /**
    * Register a tool with the registry
@@ -63,7 +74,8 @@ export class ToolRegistry {
   }
 
   /**
-   * Dispatch a tool call to its registered handler
+   * Dispatch a tool call to its registered handler.
+   * Wraps execution with logging and optional timeout enforcement.
    * @throws McpError if the tool is not found
    */
   async dispatch(name: string, args: any): Promise<ToolResponse> {
@@ -74,7 +86,41 @@ export class ToolRegistry {
         `Unknown tool: ${name}`
       );
     }
-    return tool.handler(args);
+
+    const opId = this.logger.logStart(name, args || {});
+    const timeoutMs = tool.timeout ?? DEFAULT_TIMEOUT_MS;
+
+    try {
+      const result = await Promise.race([
+        tool.handler(args),
+        new Promise<ToolResponse>((_, reject) =>
+          setTimeout(() => reject(createTimeoutError(name, timeoutMs)), timeoutMs)
+        ),
+      ]);
+
+      const isError = result.isError === true;
+      this.logger.logEnd(opId, isError ? 'error' : 'success',
+        isError ? { message: 'Tool returned error response' } : undefined);
+      return result;
+    } catch (err: any) {
+      // Handle timeout (StructuredError) vs unexpected errors
+      if (err && err.category && err.code) {
+        this.logger.logEnd(opId, 'error', {
+          category: err.category as ErrorCategory,
+          message: err.message,
+        });
+        return structuredErrorToResponse(err);
+      }
+      this.logger.logEnd(opId, 'error', { message: err?.message || 'Unknown error' });
+      throw err;
+    }
+  }
+
+  /**
+   * Get the operation logger for session log access
+   */
+  getLogger(): OperationLogger {
+    return this.logger;
   }
 
   /**

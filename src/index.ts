@@ -36,6 +36,11 @@ import { registerProjectTools } from './tools/project.js';
 import { registerValidateTools } from './tools/validate.js';
 import { registerParticleTools } from './tools/particles.js';
 import { registerProfilingTools } from './tools/profiling.js';
+// Tier 3 imports
+import { registerCodeIntelligenceTools } from './tools/code-intelligence.js';
+import { registerIntrospectionTools } from './tools/introspection.js';
+import { registerAudioTools } from './tools/audio.js';
+import { registerViewportTools } from './tools/viewport.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -484,6 +489,11 @@ class GodotServer {
     registerValidateTools(this.toolRegistry, ctx);
     registerParticleTools(this.toolRegistry, ctx);
     registerProfilingTools(this.toolRegistry, ctx);
+    // Tier 3
+    registerCodeIntelligenceTools(this.toolRegistry, ctx);
+    registerIntrospectionTools(this.toolRegistry, ctx);
+    registerAudioTools(this.toolRegistry, ctx);
+    registerViewportTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

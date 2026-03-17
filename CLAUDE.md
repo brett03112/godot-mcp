@@ -33,6 +33,7 @@ The current implementation plan follows a phased approach:
 - **Phase 12:** Plugin Management (COMPLETE ✅)
 - **Tier 1:** Architecture + Scene Inspection + Shader Pipeline + AnimationTree + Refactoring (COMPLETE ✅)
 - **Tier 2:** Particles + Scene Validation + Project Scaffolding + Performance Profiling + Caching (COMPLETE ✅)
+- **Tier 3:** Code Intelligence + Engine Introspection + Audio Bus + Viewport Capture + Error/Logging Infrastructure (COMPLETE ✅)
 - Future tiers cover specialized workflows as needed
 
 ## Build and Development Commands
@@ -78,10 +79,16 @@ The build process involves two steps:
 - `src/tools/validate.ts` — Scene validation (1 tool, Tier 2)
 - `src/tools/particles.ts` — Particle system designer (3 tools, Tier 2)
 - `src/tools/profiling.ts` — Performance profiling (3 tools, Tier 2)
+- `src/tools/code-intelligence.ts` — Extended code intelligence (4 tools, Tier 3)
+- `src/tools/introspection.ts` — Class & engine introspection (2 tools, Tier 3)
+- `src/tools/audio.ts` — Audio bus configuration (1 tool, Tier 3)
+- `src/tools/viewport.ts` — Viewport screenshot capture (1 tool, Tier 3)
+- `src/utils/errors.ts` — Structured error taxonomy with categories and codes (Tier 3)
+- `src/utils/logger.ts` — Operation logging with session tracking (Tier 3)
 
-**Hybrid Dispatch**: The server uses registry-first dispatch. New modular tools register via `ToolRegistry`; legacy tools use the existing switch statement. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch.
+**Hybrid Dispatch**: The server uses registry-first dispatch. New modular tools register via `ToolRegistry`; legacy tools use the existing switch statement. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch. The registry includes per-tool timeout enforcement and automatic operation logging (Tier 3).
 
-**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~5,300 lines) that handles all complex Godot operations. This script:
+**Bundled Operations Script (`src/scripts/godot_operations.gd`)**: A comprehensive GDScript file (~5,900 lines) that handles all complex Godot operations. This script:
 
 - Accepts operation type and JSON parameters via command-line arguments
 - Executes operations directly within Godot's headless mode
@@ -457,6 +464,60 @@ The server exposes 52 tools via the MCP protocol:
 - `analyze_bottlenecks` - Threshold-based bottleneck detection
   - Checks FPS, frame time, draw calls, memory, orphan nodes against configurable target FPS
   - Overall grade (A-F) and prioritized recommendations
+
+**Extended Code Intelligence** (Tier 3):
+
+- `generate_docstring` - Generate ## doc comments for GDScript functions and classes
+  - Parses functions to extract params, return types, and virtual method patterns
+  - Inserts @param and @return annotations
+  - Optional target for specific function or entire file
+  - Overwrite mode for replacing existing docs
+- `generate_test_from_specification` - Generate GUT tests from natural language behavior specs
+  - Transforms descriptions into test methods with appropriate assertions
+  - Auto-generates assert_eq, assert_true, assert_signal_emitted from spec keywords
+  - Includes before_each/after_each with class preloading
+- `analyze_test_coverage` - Match source functions to test methods by naming convention
+  - Scans .gd files for func declarations, test/ for test_* methods
+  - Reports per-script and overall coverage percentage
+  - Excludes virtual functions (_ready, _process, etc.) by default
+- `create_mock_node` - Generate mock GDScript classes for unit testing
+  - Extends base class with overridden methods and configurable return values
+  - Call tracking with assert_called/assert_called_with/call_count helpers
+  - Optional signal emission tracking
+
+**Class & Engine Introspection** (Tier 3):
+
+- `get_class_info` - Query Godot ClassDB for class properties, methods, signals, constants
+  - Uses ClassDB API in headless mode
+  - Optional include_inherited flag
+  - Section filter (properties, methods, signals, constants, all)
+  - Returns inheritance chain
+- `search_asset_library` - Search the official Godot Asset Library REST API
+  - Filter by query, category, Godot version
+  - Sort by rating, cost, name, updated
+  - Returns asset metadata: title, author, description, category
+
+**Audio Bus Configuration** (Tier 3):
+
+- `configure_audio_bus` - Create AudioBusLayout with buses, routing, and effects
+  - Bus properties: volume_db, mute, solo, bypass_effects, send_to routing
+  - 13 effect types: Reverb, Compressor, Limiter, EQ (6/10/21-band), Delay, Chorus, Phaser, Distortion, LowPass, HighPass, BandPass, Amplify, Panner
+  - Each effect type supports its full parameter set
+  - Saves as .tres AudioBusLayout resource
+
+**Viewport & Screenshot Capture** (Tier 3):
+
+- `capture_viewport` - Take a screenshot of a Godot scene viewport
+  - Injects temporary autoload, runs scene non-headless, captures PNG
+  - Configurable delay frames for scene loading
+  - Optional resolution override
+  - Requires display (won't work on headless servers without Xvfb)
+
+**Infrastructure Improvements** (Tier 3):
+
+- Structured error taxonomy (`src/utils/errors.ts`): ErrorCategory enum, StructuredError interface, error code constants
+- Operation logger (`src/utils/logger.ts`): Automatic logging of all registry-dispatched tools with timestamps, duration, sanitized parameters
+- Per-tool timeout: Optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
 
 ## Configuration
 

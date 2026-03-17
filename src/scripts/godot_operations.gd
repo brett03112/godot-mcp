@@ -135,6 +135,12 @@ func _init():
             create_particle_system(params)
         "apply_particle_preset":
             apply_particle_preset(params)
+        # Tier 3: Engine Introspection
+        "get_class_info":
+            get_class_info_op(params)
+        # Tier 3: Audio Bus Configuration
+        "configure_audio_bus":
+            configure_audio_bus(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -5627,3 +5633,339 @@ func apply_particle_preset(params: Dictionary):
     }
     print(JSON.stringify(result))
     log_info("apply_particle_preset completed successfully")
+
+
+# ─── Tier 3: Engine Introspection ────────────────────────────────────────────
+
+func get_class_info_op(params: Dictionary) -> void:
+    var class_name_param: String = params.get("class_name", "")
+    var include_inherited: bool = params.get("include_inherited", false)
+    var section: String = params.get("section", "all")
+
+    if class_name_param.is_empty():
+        log_error("class_name is required")
+        return
+
+    if not ClassDB.class_exists(class_name_param):
+        log_error("Class not found: " + class_name_param)
+        return
+
+    var no_inheritance = not include_inherited
+    var result := {
+        "success": true,
+        "class_name": class_name_param,
+        "parent_class": ClassDB.get_parent_class(class_name_param),
+        "include_inherited": include_inherited,
+    }
+
+    # Build inheritance chain
+    var chain := []
+    var current := class_name_param
+    while current != "":
+        chain.append(current)
+        current = ClassDB.get_parent_class(current)
+    result["inheritance_chain"] = chain
+
+    # Properties
+    if section == "all" or section == "properties":
+        var props := []
+        var prop_list = ClassDB.class_get_property_list(class_name_param, no_inheritance)
+        for prop in prop_list:
+            if prop["name"] == "" or prop["name"].begins_with("_"):
+                continue
+            props.append({
+                "name": prop["name"],
+                "type": type_string(prop["type"]),
+                "usage": prop.get("usage", 0),
+            })
+        result["properties"] = props
+        result["property_count"] = props.size()
+
+    # Methods
+    if section == "all" or section == "methods":
+        var methods := []
+        var method_list = ClassDB.class_get_method_list(class_name_param, no_inheritance)
+        for method in method_list:
+            var method_name: String = method["name"]
+            if method_name.begins_with("_"):
+                continue
+            var args := []
+            for arg in method.get("args", []):
+                args.append({
+                    "name": arg.get("name", ""),
+                    "type": type_string(arg.get("type", 0)),
+                })
+            var ret = method.get("return", {})
+            methods.append({
+                "name": method_name,
+                "args": args,
+                "return_type": type_string(ret.get("type", 0)),
+            })
+        result["methods"] = methods
+        result["method_count"] = methods.size()
+
+    # Signals
+    if section == "all" or section == "signals":
+        var signals := []
+        var signal_list = ClassDB.class_get_signal_list(class_name_param, no_inheritance)
+        for sig in signal_list:
+            var args := []
+            for arg in sig.get("args", []):
+                args.append({
+                    "name": arg.get("name", ""),
+                    "type": type_string(arg.get("type", 0)),
+                })
+            signals.append({
+                "name": sig["name"],
+                "args": args,
+            })
+        result["signals"] = signals
+        result["signal_count"] = signals.size()
+
+    # Constants / Enums
+    if section == "all" or section == "constants":
+        var constants := []
+        var const_list = ClassDB.class_get_integer_constant_list(class_name_param, no_inheritance)
+        for const_name in const_list:
+            constants.append({
+                "name": const_name,
+                "value": ClassDB.class_get_integer_constant(class_name_param, const_name),
+            })
+        result["constants"] = constants
+        result["constant_count"] = constants.size()
+
+    print(JSON.stringify(result))
+    log_info("get_class_info_op completed for " + class_name_param)
+
+
+# ─── Tier 3: Audio Bus Configuration ────────────────────────────────────────
+
+func configure_audio_bus(params: Dictionary) -> void:
+    var output_path: String = params.get("output_path", "")
+    var buses: Array = params.get("buses", [])
+
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+
+    if buses.is_empty():
+        log_error("At least one bus definition is required")
+        return
+
+    # Reset AudioServer to default (only Master bus)
+    while AudioServer.bus_count > 1:
+        AudioServer.remove_bus(AudioServer.bus_count - 1)
+
+    # Configure Master bus (index 0) from first bus entry if named "Master"
+    var bus_index_start := 0
+    if buses.size() > 0 and buses[0].get("name", "") == "Master":
+        var master_def: Dictionary = buses[0]
+        if master_def.has("volume_db"):
+            AudioServer.set_bus_volume_db(0, master_def["volume_db"])
+        if master_def.has("mute"):
+            AudioServer.set_bus_mute(0, master_def["mute"])
+        if master_def.has("solo"):
+            AudioServer.set_bus_solo(0, master_def["solo"])
+        _add_bus_effects(0, master_def.get("effects", []))
+        bus_index_start = 1
+
+    # Add remaining buses
+    for i in range(bus_index_start, buses.size()):
+        var bus_def: Dictionary = buses[i]
+        var bus_name: String = bus_def.get("name", "Bus" + str(i))
+        var bus_idx = AudioServer.bus_count
+        AudioServer.add_bus(bus_idx)
+        AudioServer.set_bus_name(bus_idx, bus_name)
+
+        if bus_def.has("volume_db"):
+            AudioServer.set_bus_volume_db(bus_idx, bus_def["volume_db"])
+        if bus_def.has("mute"):
+            AudioServer.set_bus_mute(bus_idx, bus_def["mute"])
+        if bus_def.has("solo"):
+            AudioServer.set_bus_solo(bus_idx, bus_def["solo"])
+        if bus_def.has("bypass_effects"):
+            AudioServer.set_bus_bypass_effects(bus_idx, bus_def["bypass_effects"])
+
+        # Route to send bus
+        var send_to: String = bus_def.get("send_to", "Master")
+        AudioServer.set_bus_send(bus_idx, send_to)
+
+        # Add effects
+        _add_bus_effects(bus_idx, bus_def.get("effects", []))
+
+    # Generate and save the bus layout
+    var layout: AudioBusLayout = AudioServer.generate_bus_layout()
+    var save_result = ResourceSaver.save(layout, output_path)
+    if save_result != OK:
+        log_error("Failed to save AudioBusLayout: " + str(save_result))
+        return
+
+    var bus_summary := []
+    for i in range(AudioServer.bus_count):
+        var info := {
+            "name": AudioServer.get_bus_name(i),
+            "volume_db": AudioServer.get_bus_volume_db(i),
+            "mute": AudioServer.is_bus_mute(i),
+            "solo": AudioServer.is_bus_solo(i),
+            "send": AudioServer.get_bus_send(i),
+            "effect_count": AudioServer.get_bus_effect_count(i),
+        }
+        bus_summary.append(info)
+
+    var result := {
+        "success": true,
+        "output_path": output_path,
+        "bus_count": AudioServer.bus_count,
+        "buses": bus_summary,
+    }
+    print(JSON.stringify(result))
+    log_info("configure_audio_bus completed: " + str(AudioServer.bus_count) + " buses")
+
+
+func _add_bus_effects(bus_idx: int, effects: Array) -> void:
+    for effect_def in effects:
+        var effect_type: String = effect_def.get("type", "")
+        var effect: AudioEffect = null
+
+        match effect_type.to_lower():
+            "reverb":
+                var fx = AudioEffectReverb.new()
+                if effect_def.has("room_size"):
+                    fx.room_size = effect_def["room_size"]
+                if effect_def.has("damping"):
+                    fx.damping = effect_def["damping"]
+                if effect_def.has("spread"):
+                    fx.spread = effect_def["spread"]
+                if effect_def.has("dry"):
+                    fx.dry = effect_def["dry"]
+                if effect_def.has("wet"):
+                    fx.wet = effect_def["wet"]
+                effect = fx
+            "compressor":
+                var fx = AudioEffectCompressor.new()
+                if effect_def.has("threshold"):
+                    fx.threshold = effect_def["threshold"]
+                if effect_def.has("ratio"):
+                    fx.ratio = effect_def["ratio"]
+                if effect_def.has("gain"):
+                    fx.gain = effect_def["gain"]
+                if effect_def.has("attack_us"):
+                    fx.attack_us = effect_def["attack_us"]
+                if effect_def.has("release_ms"):
+                    fx.release_ms = effect_def["release_ms"]
+                effect = fx
+            "limiter":
+                var fx = AudioEffectLimiter.new()
+                if effect_def.has("threshold_db"):
+                    fx.threshold_db = effect_def["threshold_db"]
+                if effect_def.has("ceiling_db"):
+                    fx.ceiling_db = effect_def["ceiling_db"]
+                if effect_def.has("soft_clip_db"):
+                    fx.soft_clip_db = effect_def["soft_clip_db"]
+                if effect_def.has("soft_clip_ratio"):
+                    fx.soft_clip_ratio = effect_def["soft_clip_ratio"]
+                effect = fx
+            "eq", "eq6", "eq10", "eq21":
+                # Default to EQ6 for "eq"
+                var band_count = 6
+                if effect_type == "eq10":
+                    band_count = 10
+                elif effect_type == "eq21":
+                    band_count = 21
+                if band_count == 6:
+                    effect = AudioEffectEQ6.new()
+                elif band_count == 10:
+                    effect = AudioEffectEQ10.new()
+                else:
+                    effect = AudioEffectEQ21.new()
+            "delay":
+                var fx = AudioEffectDelay.new()
+                if effect_def.has("dry"):
+                    fx.dry = effect_def["dry"]
+                if effect_def.has("tap1_active"):
+                    fx.tap1_active = effect_def["tap1_active"]
+                if effect_def.has("tap1_delay_ms"):
+                    fx.tap1_delay_ms = effect_def["tap1_delay_ms"]
+                if effect_def.has("tap1_level_db"):
+                    fx.tap1_level_db = effect_def["tap1_level_db"]
+                if effect_def.has("feedback_active"):
+                    fx.feedback_active = effect_def["feedback_active"]
+                if effect_def.has("feedback_delay_ms"):
+                    fx.feedback_delay_ms = effect_def["feedback_delay_ms"]
+                if effect_def.has("feedback_level_db"):
+                    fx.feedback_level_db = effect_def["feedback_level_db"]
+                effect = fx
+            "chorus":
+                var fx = AudioEffectChorus.new()
+                if effect_def.has("dry"):
+                    fx.dry = effect_def["dry"]
+                if effect_def.has("wet"):
+                    fx.wet = effect_def["wet"]
+                effect = fx
+            "phaser":
+                var fx = AudioEffectPhaser.new()
+                if effect_def.has("range_min_hz"):
+                    fx.range_min_hz = effect_def["range_min_hz"]
+                if effect_def.has("range_max_hz"):
+                    fx.range_max_hz = effect_def["range_max_hz"]
+                if effect_def.has("rate_hz"):
+                    fx.rate_hz = effect_def["rate_hz"]
+                if effect_def.has("feedback"):
+                    fx.feedback = effect_def["feedback"]
+                if effect_def.has("depth"):
+                    fx.depth = effect_def["depth"]
+                effect = fx
+            "distortion":
+                var fx = AudioEffectDistortion.new()
+                if effect_def.has("drive"):
+                    fx.drive = effect_def["drive"]
+                if effect_def.has("pre_gain"):
+                    fx.pre_gain = effect_def["pre_gain"]
+                if effect_def.has("post_gain"):
+                    fx.post_gain = effect_def["post_gain"]
+                if effect_def.has("keep_hf_hz"):
+                    fx.keep_hf_hz = effect_def["keep_hf_hz"]
+                effect = fx
+            "lowpassfilter", "low_pass":
+                var fx = AudioEffectLowPassFilter.new()
+                if effect_def.has("cutoff_hz"):
+                    fx.cutoff_hz = effect_def["cutoff_hz"]
+                if effect_def.has("resonance"):
+                    fx.resonance = effect_def["resonance"]
+                if effect_def.has("db"):
+                    fx.db = effect_def["db"]
+                effect = fx
+            "highpassfilter", "high_pass":
+                var fx = AudioEffectHighPassFilter.new()
+                if effect_def.has("cutoff_hz"):
+                    fx.cutoff_hz = effect_def["cutoff_hz"]
+                if effect_def.has("resonance"):
+                    fx.resonance = effect_def["resonance"]
+                if effect_def.has("db"):
+                    fx.db = effect_def["db"]
+                effect = fx
+            "bandpassfilter", "band_pass":
+                var fx = AudioEffectBandPassFilter.new()
+                if effect_def.has("cutoff_hz"):
+                    fx.cutoff_hz = effect_def["cutoff_hz"]
+                if effect_def.has("resonance"):
+                    fx.resonance = effect_def["resonance"]
+                if effect_def.has("db"):
+                    fx.db = effect_def["db"]
+                effect = fx
+            "amplify":
+                var fx = AudioEffectAmplify.new()
+                if effect_def.has("volume_db"):
+                    fx.volume_db = effect_def["volume_db"]
+                effect = fx
+            "panner":
+                var fx = AudioEffectPanner.new()
+                if effect_def.has("pan"):
+                    fx.pan = effect_def["pan"]
+                effect = fx
+            _:
+                log_error("Unknown audio effect type: " + effect_type)
+                continue
+
+        if effect:
+            AudioServer.add_bus_effect(bus_idx, effect)
