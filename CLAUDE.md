@@ -136,7 +136,7 @@ The build process involves two steps:
 
 ### Available MCP Tools
 
-The server exposes 92 tools via the MCP protocol:
+The server exposes 102 tools via the MCP protocol:
 
 **Project Management**:
 

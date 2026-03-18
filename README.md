@@ -8,7 +8,7 @@
                         (((((((((((((((((((((((((((((((((
                         (((((((((((((((((((((((((((((((((
          (((((      (((((((((((((((((((((((((((((((((((((((((      (((((
-       (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+       ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
      ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
     ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
       (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
@@ -41,15 +41,15 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **78 tools** across 17 categories for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **102 tools** across 27 categories for complete AI-driven game development.
 
 ## Introduction
 
-Godot MCP enables AI assistants to launch the Godot editor, run projects, capture debug output, inspect and manipulate scenes, manage scripts, configure shaders, run tests, export builds, and much more — all through a standardized MCP interface.
+Godot MCP enables AI assistants to launch the Godot editor, run projects, capture debug output, inspect and manipulate scenes, manage scripts, configure shaders, run tests, export builds, run automated playtests, analyze game feel metrics, generate assets, and much more — all through a standardized MCP interface.
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (78 tools)
+## Tool Reference (102 tools)
 
 ### Project Management (7 tools)
 
@@ -121,6 +121,62 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 | `attach_script` | Attach GDScript files to scene nodes with ExtResource management |
 | `validate_script` | Validate GDScript syntax using Godot's `--check-only` flag |
 
+### Extended Code Intelligence (4 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `generate_docstring` | Generate `##` doc comments for GDScript functions and classes with @param/@return annotations |
+| `generate_test_from_specification` | Generate GUT test methods from natural language behavior descriptions |
+| `analyze_test_coverage` | Match source functions to test methods by naming convention, report per-script coverage % |
+| `create_mock_node` | Generate mock GDScript classes with call tracking and configurable return values |
+
+```text
+# Example: Generate documentation for a script
+generate_docstring(project_path, script_path="scripts/player.gd")
+# Inserts ## doc comments above each function with @param and @return
+
+# Example: Generate tests from plain English specs
+generate_test_from_specification(
+  project_path, output_path="test/test_health.gd",
+  class_under_test="res://scripts/health_component.gd",
+  specifications=[
+    "take_damage reduces health by the damage amount",
+    "health cannot go below zero",
+    "emits health_changed signal when damage is taken"
+  ]
+)
+
+# Example: Check test coverage
+analyze_test_coverage(project_path)
+# Returns: { overall_coverage: 0.73, scripts: [
+#   { script: "scripts/player.gd", covered: 8, total: 11, coverage: 0.727 }
+# ]}
+
+# Example: Create a mock for testing
+create_mock_node(
+  project_path, output_path="test/mock_enemy.gd",
+  base_class="CharacterBody2D",
+  methods_to_mock=["take_damage", "get_health"],
+  signals_to_track=["died"]
+)
+```
+
+### Class & Engine Introspection (2 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `get_class_info` | Query Godot ClassDB for properties, methods, signals, and constants of any engine class |
+| `search_asset_library` | Search the official Godot Asset Library by query, category, or Godot version |
+
+```text
+# Example: Explore an engine class
+get_class_info(project_path, class_name="CharacterBody2D", section="methods")
+# Returns: methods list, inheritance chain, property details
+
+# Example: Find plugins on the Asset Library
+search_asset_library(project_path, query="dialogue", godot_version="4.3", sort="rating")
+```
+
 ### Debugging & Error Analysis (enhanced)
 
 `get_debug_output` and `validate_script` include intelligent error parsing:
@@ -132,7 +188,8 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 ### Animation & Timeline (5 tools)
 
 | Tool | Description |
-| ------ | ------------- || `create_animation_player` | Add AnimationPlayer nodes with optional initial animations |
+| ------ | ------------- |
+| `create_animation_player` | Add AnimationPlayer nodes with optional initial animations |
 | `add_animation_track` | Add tracks: position, rotation, scale, property, method, audio |
 | `add_keyframe` | Add keyframes with custom easing curves |
 | `configure_animation_tree` | Set up AnimationTree with StateMachine, BlendSpace1D/2D, or BlendTree root |
@@ -210,6 +267,24 @@ create_material_from_texture(
 | `setup_render_layers` | Name physics and render layers (1-32) |
 | `configure_autoload` | Add/remove/toggle autoload singletons |
 
+### Audio Bus Configuration (1 tool)
+
+| Tool | Description |
+| ------ | ------------- |
+| `configure_audio_bus` | Create AudioBusLayout with buses, routing, and effects (Reverb, Compressor, EQ, Delay, Chorus, etc.) |
+
+```text
+# Example: Set up audio buses for a game
+configure_audio_bus(
+  project_path, layout_path="resources/default_bus_layout.tres",
+  buses=[
+    {name: "Music", volume_db: -6, effects: [{type: "Reverb", room_size: 0.6}]},
+    {name: "SFX", volume_db: 0, effects: [{type: "Compressor", threshold: -20}]},
+    {name: "Voice", volume_db: 3, send_to: "Master", effects: [{type: "EQ6"}]}
+  ]
+)
+```
+
 ### Build & Export Pipeline (3 tools)
 
 | Tool | Description |
@@ -266,7 +341,7 @@ refactor_rename(
 refactor_rename(..., dry_run=false)
 ```
 
-### Project Scaffolding (1 tool) — NEW
+### Project Scaffolding (1 tool)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -286,7 +361,7 @@ create_project(
 #          and directories: scenes/, scripts/, assets/, audio/, shaders/, resources/, addons/
 ```
 
-### Scene Validation (1 tool) — NEW
+### Scene Validation (1 tool)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -304,7 +379,7 @@ validate_scene(project_path, scene_path="scenes/level_1.tscn")
 
 **Checks:** `missing_resources`, `broken_scripts`, `collision_without_body`, `sprite_without_texture`, `signal_method_missing`, `duplicate_node_names`, `empty_containers`, `deep_nesting`
 
-### Particle System Designer (3 tools) — NEW
+### Particle System Designer (3 tools)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -337,7 +412,7 @@ create_particle_material(
 )
 ```
 
-### Performance Profiling (3 tools) — NEW
+### Performance Profiling (3 tools)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -361,6 +436,136 @@ analyze_bottlenecks(project_path, target_fps=60)
 ```
 
 **Metrics collected:** FPS, frame time, process time, physics time, draw calls, render objects, render primitives, static memory, node count, orphan nodes, navigation maps
+
+### Viewport & Screenshot Capture (1 tool)
+
+| Tool | Description |
+| ------ | ------------- |
+| `capture_viewport` | Take a screenshot of a running Godot scene viewport as PNG |
+
+```text
+# Example: Capture a screenshot of a scene
+capture_viewport(project_path, scene_path="scenes/main_menu.tscn", output_path="screenshots/menu.png")
+# Runs the scene, waits for it to render, captures PNG, returns the file path
+# Optional: delay_frames=30 (wait longer for complex scenes), resolution="1920x1080"
+```
+
+### Automated Playtesting (6 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `run_automated_playtest` | Run a project with an AI bot (random, waypoint, idle, stress) and record session data |
+| `start_playtest_recording` | Start manual playtest recording — human plays while data is captured |
+| `stop_playtest_recording` | Stop recording, collect session data, and clean up |
+| `analyze_playtest_session` | Analyze a recorded session for death clusters, backtracking, difficulty spikes, and more |
+| `generate_heatmap` | Generate position/death/damage/time heatmaps as JSON + HTML visualization |
+| `compare_sessions` | Compare metrics across multiple sessions with trend detection |
+
+```text
+# Example: Automated bot playtest
+run_automated_playtest(
+  project_path, duration_seconds=60,
+  bot_type="random",               # random, waypoint, idle, stress
+  player_node_path="Player",       # auto-detects if omitted
+  record_inputs=true,
+  event_hooks=["died", "health_changed", "collected"]
+)
+# Returns: session_id, duration, events, performance data
+
+# Example: Manual playtest recording
+start_playtest_recording(project_path, session_name="level3_attempt1")
+# Returns: session_id — human plays the game...
+stop_playtest_recording(project_path, session_id="...")
+# Returns: complete session data
+
+# Example: Analyze a session
+analyze_playtest_session(
+  project_path, session_id="...",
+  analysis_types=["death_locations", "difficulty_spikes", "backtracking"]
+)
+# Returns: clustered death locations, difficulty spike timestamps, backtracking zones
+
+# Example: Generate a heatmap
+generate_heatmap(
+  project_path, session_id="...",
+  heatmap_type="death", cell_size=32, save_html=true
+)
+# Returns: JSON grid data + saves interactive HTML visualization
+
+# Example: Compare multiple runs
+compare_sessions(project_path, session_ids=["s1", "s2", "s3"], metrics=["deaths", "duration", "damage"])
+# Returns: per-metric aggregates (min/max/avg/stddev), trend analysis
+```
+
+### Fun Metrics Framework (5 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `calculate_game_feel_metrics` | Score game feel on 0-100 scale across responsiveness, pacing, difficulty, and engagement |
+| `analyze_difficulty_curve` | Time-windowed difficulty analysis with spike/valley detection and curve classification |
+| `compare_to_genre_benchmarks` | Compare session metrics against genre standards (platformer, roguelike, fps, rpg, etc.) |
+| `detect_frustration_points` | Identify repeated deaths, long idle periods, and input spam as frustration signals |
+| `analyze_juice_coverage` | Scan scripts for visual/audio feedback on player actions (attack, jump, dash, etc.) |
+
+```text
+# Example: Score game feel
+calculate_game_feel_metrics(project_path, session_id="...")
+# Returns: { overall: 72, responsiveness: 85, pacing: 68, difficulty: 60, engagement: 75 }
+# Each metric includes explanation and recommendations
+
+# Example: Analyze difficulty curve
+analyze_difficulty_curve(project_path, session_id="...", window_seconds=30)
+# Returns: { shape: "sawtooth", windows: [...], spikes: [{ time: 45, severity: 2.3 }], valleys: [...] }
+
+# Example: Compare to genre benchmarks
+compare_to_genre_benchmarks(project_path, session_id="...", genre="platformer")
+# Returns: { genre_fit_score: 0.82, metrics: { deaths_per_min: { value: 1.5, benchmark: 1.2, assessment: "slightly_high" } } }
+
+# Example: Detect frustration
+detect_frustration_points(project_path, session_id="...", sensitivity="medium")
+# Returns: [{ type: "repeated_deaths", location: [320, 480], count: 4, suggestion: "Add checkpoint before this area" }]
+
+# Example: Check juice coverage
+analyze_juice_coverage(project_path)
+# Returns: { coverage: 0.6, juiced_actions: ["attack", "jump"], unjuiced: ["dash", "collect"],
+#   recommendations: ["Add particle effect or screen shake to dash action"] }
+```
+
+### Asset Generation Bridge (5 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `generate_sprite` | Generate a 2D sprite from a text description (DALL-E 3 or placeholder) |
+| `generate_texture` | Generate a tileable texture from a text description |
+| `generate_sfx` | Generate a sound effect from a text description (ElevenLabs or placeholder) |
+| `generate_music` | Generate background music from a text description |
+| `configure_asset_generation` | View/test backend configuration and API key status |
+
+```text
+# Example: Generate a sprite
+generate_sprite(
+  project_path, description="a pixel art treasure chest, closed, 32x32",
+  output_path="assets/sprites/chest.png", style="pixel_art"
+)
+# With OPENAI_API_KEY set and ASSET_GEN_IMAGE_BACKEND=dalle3, generates via DALL-E 3
+# Otherwise creates a colored placeholder PNG
+
+# Example: Generate a tileable texture
+generate_texture(
+  project_path, description="mossy stone brick wall",
+  output_path="assets/textures/stone_wall.png", style="realistic"
+)
+
+# Example: Generate a sound effect
+generate_sfx(project_path, description="sword slash whoosh", output_path="audio/sfx/slash.wav", duration=0.5)
+
+# Example: Generate background music
+generate_music(project_path, description="calm forest ambient", output_path="audio/music/forest.wav", duration=30, bpm=80, loop=true)
+
+# Example: Check backend configuration
+configure_asset_generation(project_path, test_connectivity=true)
+# Returns: { image_backend: "placeholder", audio_backend: "placeholder", api_keys: { openai: false, elevenlabs: false } }
+```
 
 ## Requirements
 
@@ -424,7 +629,19 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",
-        "start_profiler", "get_profiling_data", "analyze_bottlenecks"
+        "start_profiler", "get_profiling_data", "analyze_bottlenecks",
+        "generate_docstring", "generate_test_from_specification",
+        "analyze_test_coverage", "create_mock_node",
+        "get_class_info", "search_asset_library",
+        "configure_audio_bus", "capture_viewport",
+        "run_automated_playtest", "start_playtest_recording",
+        "stop_playtest_recording", "analyze_playtest_session",
+        "generate_heatmap", "compare_sessions",
+        "calculate_game_feel_metrics", "analyze_difficulty_curve",
+        "compare_to_genre_benchmarks", "detect_frustration_points",
+        "analyze_juice_coverage",
+        "generate_sprite", "generate_texture", "generate_sfx",
+        "generate_music", "configure_asset_generation"
       ]
     }
   }
@@ -478,34 +695,54 @@ Add to `.mcp.json` in your project root:
 
 - `GODOT_PATH`: Path to the Godot executable (overrides automatic detection)
 - `DEBUG`: Set to `"true"` to enable detailed server-side logging
+- `OPENAI_API_KEY`: API key for DALL-E 3 image generation (asset generation)
+- `ELEVENLABS_API_KEY`: API key for ElevenLabs audio generation (asset generation)
+- `ASSET_GEN_IMAGE_BACKEND`: Image generation backend — `dalle3` or `placeholder` (default: `placeholder`)
+- `ASSET_GEN_AUDIO_BACKEND`: Audio generation backend — `elevenlabs` or `placeholder` (default: `placeholder`)
 
 ## Architecture
 
 ```text
 src/
-├── index.ts                    # Main server + legacy 52 tool handlers
-├── types.ts                    # Shared interfaces (ToolDefinition, ServerContext, etc.)
-├── registry.ts                 # ToolRegistry — registration-based dispatch
+├── index.ts                        # Main server + legacy 52 tool handlers
+├── types.ts                        # Shared interfaces (ToolDefinition, ServerContext, etc.)
+├── registry.ts                     # ToolRegistry — registration-based dispatch with timeout + logging
 ├── utils/
-│   ├── tscn-parser.ts          # TypeScript parser for .tscn scene files
-│   ├── tscn-cache.ts           # Mtime-based cache for parsed TSCN files
-│   └── validation.ts           # Centralized input validation middleware
+│   ├── tscn-parser.ts              # TypeScript parser for .tscn scene files
+│   ├── tscn-cache.ts               # Mtime-based cache for parsed TSCN files
+│   ├── validation.ts               # Centralized input validation middleware
+│   ├── errors.ts                   # Structured error taxonomy with categories and codes
+│   ├── logger.ts                   # Operation logging with session tracking
+│   ├── playtest-session.ts         # Session data types, I/O, and user:// path resolution
+│   ├── playtest-recorder-gen.ts    # GDScript recorder autoload generator
+│   ├── playtest-bot-gen.ts         # GDScript bot autoload generator
+│   ├── heatmap-generator.ts        # Heatmap computation and HTML visualization
+│   ├── genre-benchmarks.ts         # Genre benchmark data for comparison
+│   ├── metrics-calculator.ts       # Game feel metrics computation
+│   └── generation-backends.ts      # Pluggable image/audio generation backends
 ├── tools/
-│   ├── scene.ts                # Scene inspection & manipulation (6 tools)
-│   ├── shader.ts               # Shader pipeline completion (3 tools)
-│   ├── animation-tree.ts       # AnimationTree configuration (2 tools)
-│   ├── refactor.ts             # Refactoring tools (1 tool)
-│   ├── project.ts              # Project scaffolding (1 tool)
-│   ├── validate.ts             # Scene validation (1 tool)
-│   ├── particles.ts            # Particle system designer (3 tools)
-│   └── profiling.ts            # Performance profiling (3 tools)
+│   ├── scene.ts                    # Scene inspection & manipulation (6 tools)
+│   ├── shader.ts                   # Shader pipeline completion (3 tools)
+│   ├── animation-tree.ts           # AnimationTree configuration (2 tools)
+│   ├── refactor.ts                 # Refactoring tools (1 tool)
+│   ├── project.ts                  # Project scaffolding (1 tool)
+│   ├── validate.ts                 # Scene validation (1 tool)
+│   ├── particles.ts                # Particle system designer (3 tools)
+│   ├── profiling.ts                # Performance profiling (3 tools)
+│   ├── code-intelligence.ts        # Extended code intelligence (4 tools)
+│   ├── introspection.ts            # Class & engine introspection (2 tools)
+│   ├── audio.ts                    # Audio bus configuration (1 tool)
+│   ├── viewport.ts                 # Viewport screenshot capture (1 tool)
+│   ├── playtest.ts                 # Automated playtesting harness (6 tools)
+│   ├── fun-metrics.ts              # Fun metrics framework (5 tools)
+│   └── asset-generation.ts         # Asset generation bridge (5 tools)
 └── scripts/
-    └── godot_operations.gd     # GDScript operation handlers (~5,500 lines)
+    └── godot_operations.gd         # GDScript operation handlers (~5,900 lines)
 ```
 
 The server uses a **hybrid dispatch** pattern:
 
-1. **New modular tools** (Tier 1-2, 20 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
+1. **New modular tools** (Tier 1-4, 50 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
 2. **Legacy tools** (Phases 1-12, 52 tools) continue working via the existing switch statement in `src/index.ts`
 3. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch
 
@@ -513,6 +750,9 @@ The server uses a **hybrid dispatch** pattern:
 
 - **TSCN Cache** (`tscn-cache.ts`) avoids re-parsing scene files across multiple tool calls in a session (mtime-based invalidation)
 - **Validation Middleware** (`validation.ts`) provides declarative parameter validation with consistent error responses
+- **Error Taxonomy** (`errors.ts`) provides structured error categories and codes for consistent error reporting
+- **Operation Logger** (`logger.ts`) automatically logs all registry-dispatched tool calls with timestamps, duration, and sanitized parameters
+- **Per-tool Timeout** — optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
 - **GDScript operations** (`godot_operations.gd`) handles all operations requiring Godot's runtime — scene manipulation, particle creation, animation tree setup, etc. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
 
 ## Example Prompts
@@ -548,6 +788,29 @@ The server uses a **hybrid dispatch** pattern:
 "Export my game for Windows and validate it has no issues"
 "Create a test suite for my player health system"
 "Create a translation file for English, Spanish, and French"
+
+"Generate doc comments for all functions in my player script"
+"Create mock nodes for unit testing my inventory system"
+"What methods does CharacterBody2D have?"
+"Search the asset library for dialogue plugins"
+
+"Set up audio buses for Music, SFX, and Voice with effects"
+"Take a screenshot of my main menu scene"
+
+"Run an automated playtest with a random bot for 60 seconds"
+"Analyze the playtest session for death clusters and difficulty spikes"
+"Generate a heatmap of where my player died most often"
+"Compare my last 3 playtest sessions for improvement trends"
+
+"Score the game feel of my platformer after playtesting"
+"Analyze the difficulty curve — are there any unfair spikes?"
+"How does my game compare to other platformers?"
+"Find frustration points in my level design"
+"Check which player actions are missing juice effects"
+
+"Generate a pixel art treasure chest sprite"
+"Create a tileable stone wall texture"
+"Generate a sword slash sound effect"
 ```
 
 ## Troubleshooting
@@ -557,6 +820,8 @@ The server uses a **hybrid dispatch** pattern:
 - **Invalid Project Path**: Ensure the path points to a directory containing a `project.godot` file
 - **Build Issues**: Run `npm install` then `npm run build`
 - **For Cursor**: Ensure MCP is enabled in Settings > MCP. MCP tools require the Agent chat profile (Pro/Business). Use "Yolo Mode" for auto-approval.
+- **Asset Generation**: By default, `generate_sprite`/`generate_texture`/`generate_sfx`/`generate_music` use placeholder backends (colored PNGs, sine tone WAVs). Set `OPENAI_API_KEY` + `ASSET_GEN_IMAGE_BACKEND=dalle3` for real image generation, or `ELEVENLABS_API_KEY` + `ASSET_GEN_AUDIO_BACKEND=elevenlabs` for real audio generation.
+- **Playtest Capture**: `capture_viewport` and playtesting tools require a display (won't work on headless servers without Xvfb).
 
 ## License
 
