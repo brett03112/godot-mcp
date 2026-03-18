@@ -7,6 +7,7 @@
 
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
+import { deflateSync } from 'zlib';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -311,9 +312,8 @@ function createMinimalPng(width: number, height: number, label: string): Buffer 
     }
   }
 
-  // Deflate the raw data (use Node.js zlib)
-  const zlib = require('zlib');
-  const deflated = zlib.deflateSync(Buffer.from(rawData));
+  // Deflate the raw data
+  const deflated = deflateSync(Buffer.from(rawData));
 
   // Build PNG
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);

@@ -53,6 +53,7 @@ var _sample_interval := ${sampleInterval.toFixed(3)}
 var _max_duration := ${config.duration.toFixed(1)}
 var _record_inputs := ${config.recordInputs}
 var _player_node_path := "${config.playerNodePath || ''}"
+var _stop_file := "res://.mcp_playtest/_stop_${config.sessionId}"
 
 var _player: Node = null
 var _is_3d := false
@@ -68,6 +69,7 @@ var _last_hp: float = -1.0
 var _total_damage := 0.0
 var _visited_cells := {}
 var _cell_size := 64.0
+var _results_written := false
 
 # Event hooks: signal_name -> event_category
 var _event_hooks := {
@@ -77,6 +79,8 @@ ${eventHooksGd}
 func _ready() -> void:
 \t_start_time = Time.get_datetime_string_from_system(true)
 \tprint("[MCP Recorder] Session started: ", _session_id)
+\t# Write results when tree is about to quit (handles kill/close)
+\tget_tree().tree_exiting.connect(_write_results)
 \t# Defer player detection to allow scene to initialize
 \tcall_deferred("_find_player")
 
@@ -189,6 +193,13 @@ func _process(delta: float) -> void:
 \t_elapsed += delta
 \t_sample_timer += delta
 
+\t# Check for stop file (used by stop_playtest_recording on Windows)
+\tif FileAccess.file_exists(_stop_file):
+\t\tDirAccess.remove_absolute(_stop_file)
+\t\t_write_results()
+\t\tget_tree().quit()
+\t\treturn
+
 \t# Check duration limit
 \tif _max_duration > 0.0 and _elapsed >= _max_duration:
 \t\t_write_results()
@@ -223,7 +234,7 @@ func _process(delta: float) -> void:
 
 func _collect_sample() -> void:
 \tvar sample := {
-\t\t"t": round(_elapsed, 3),
+\t\t"t": _rnd(_elapsed, 3),
 \t\t"fps": Performance.get_monitor(Performance.TIME_FPS),
 \t}
 
@@ -234,11 +245,11 @@ func _collect_sample() -> void:
 
 \t\t# Track distance
 \t\tif _last_pos != null:
-\t\t\tvar dx := pos_arr[0] - _last_pos[0]
-\t\t\tvar dy := pos_arr[1] - _last_pos[1]
-\t\t\tvar dist := sqrt(dx * dx + dy * dy)
+\t\t\tvar dx: float = float(pos_arr[0]) - float(_last_pos[0])
+\t\t\tvar dy: float = float(pos_arr[1]) - float(_last_pos[1])
+\t\t\tvar dist: float = sqrt(dx * dx + dy * dy)
 \t\t\tif _is_3d and pos_arr.size() > 2 and _last_pos.size() > 2:
-\t\t\t\tvar dz := pos_arr[2] - _last_pos[2]
+\t\t\t\tvar dz: float = float(pos_arr[2]) - float(_last_pos[2])
 \t\t\t\tdist = sqrt(dx * dx + dy * dy + dz * dz)
 \t\t\t_total_distance += dist
 \t\t_last_pos = pos_arr
@@ -268,23 +279,23 @@ func _get_player_pos_array() -> Array:
 \t\treturn [0, 0]
 \tif _is_3d:
 \t\tvar pos = (_player as Node3D).global_position
-\t\treturn [round(pos.x, 2), round(pos.y, 2), round(pos.z, 2)]
+\t\treturn [_rnd(pos.x, 2), _rnd(pos.y, 2), _rnd(pos.z, 2)]
 \telse:
 \t\tvar pos = (_player as Node2D).global_position
-\t\treturn [round(pos.x, 2), round(pos.y, 2)]
+\t\treturn [_rnd(pos.x, 2), _rnd(pos.y, 2)]
 
 func _get_player_vel_array() -> Array:
 \tif not _player or not is_instance_valid(_player):
 \t\treturn [0, 0]
 \tif _player is CharacterBody3D:
 \t\tvar vel = (_player as CharacterBody3D).velocity
-\t\treturn [round(vel.x, 2), round(vel.y, 2), round(vel.z, 2)]
+\t\treturn [_rnd(vel.x, 2), _rnd(vel.y, 2), _rnd(vel.z, 2)]
 \telif _player is CharacterBody2D:
 \t\tvar vel = (_player as CharacterBody2D).velocity
-\t\treturn [round(vel.x, 2), round(vel.y, 2)]
+\t\treturn [_rnd(vel.x, 2), _rnd(vel.y, 2)]
 \treturn [0, 0] if not _is_3d else [0, 0, 0]
 
-func round(value: float, decimals: int) -> float:
+func _rnd(value: float, decimals: int) -> float:
 \tvar factor := pow(10.0, decimals)
 \treturn roundf(value * factor) / factor
 
@@ -294,7 +305,7 @@ func _input(event: InputEvent) -> void:
 \t\treturn
 \tif event is InputEventAction:
 \t\t_inputs.append({
-\t\t\t"t": round(_elapsed, 3),
+\t\t\t"t": _rnd(_elapsed, 3),
 \t\t\t"action": event.action,
 \t\t\t"pressed": event.pressed,
 \t\t})
@@ -308,17 +319,20 @@ func _input(event: InputEvent) -> void:
 \t\t\t\t\tcontinue
 \t\t\t\tif InputMap.action_has_event(action, event):
 \t\t\t\t\t_inputs.append({
-\t\t\t\t\t\t"t": round(_elapsed, 3),
+\t\t\t\t\t\t"t": _rnd(_elapsed, 3),
 \t\t\t\t\t\t"action": action,
 \t\t\t\t\t\t"pressed": key_event.pressed,
 \t\t\t\t\t})
 ` : ''}
 
 func _notification(what: int) -> void:
-\tif what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_WM_GO_BACK_REQUESTED:
+\tif what == NOTIFICATION_WM_CLOSE_REQUEST:
 \t\t_write_results()
 
 func _write_results() -> void:
+\tif _results_written:
+\t\treturn
+\t_results_written = true
 \tvar end_time := Time.get_datetime_string_from_system(true)
 
 \t# Build summary
@@ -356,7 +370,7 @@ func _write_results() -> void:
 \t\t"session_name": _session_name,
 \t\t"start_time": _start_time,
 \t\t"end_time": end_time,
-\t\t"duration_seconds": round(_elapsed, 2),
+\t\t"duration_seconds": _rnd(_elapsed, 2),
 \t\t"scene": _scene_path,
 \t\t"bot_type": null,
 \t\t"player_node_path": _player_node_path if _player_node_path != "" else ("auto-detected" if _player else "none"),
@@ -373,15 +387,15 @@ func _write_results() -> void:
 \t\t"inputs": _inputs,
 \t\t"summary": {
 \t\t\t"total_deaths": death_count,
-\t\t\t"total_damage_taken": round(_total_damage, 1),
-\t\t\t"distance_traveled": round(_total_distance, 1),
+\t\t\t"total_damage_taken": _rnd(_total_damage, 1),
+\t\t\t"distance_traveled": _rnd(_total_distance, 1),
 \t\t\t"areas_visited": _visited_cells.size(),
-\t\t\t"avg_fps": round(avg_fps, 1),
-\t\t\t"min_fps": round(min_fps, 1),
-\t\t\t"max_fps": round(max_fps, 1),
+\t\t\t"avg_fps": _rnd(avg_fps, 1),
+\t\t\t"min_fps": _rnd(min_fps, 1),
+\t\t\t"max_fps": _rnd(max_fps, 1),
 \t\t\t"events_by_type": events_by_type,
 \t\t\t"total_inputs": _inputs.size(),
-\t\t\t"duration_seconds": round(_elapsed, 2),
+\t\t\t"duration_seconds": _rnd(_elapsed, 2),
 \t\t},
 \t}
 

@@ -192,6 +192,29 @@ class GodotServer {
     'max_results': 'maxResults',
     // Tier 3: Viewport
     'delay_frames': 'delayFrames',
+    // Tier 4: Playtesting
+    'duration_seconds': 'durationSeconds',
+    'bot_type': 'botType',
+    'player_node_path': 'playerNodePath',
+    'sample_interval_ms': 'sampleIntervalMs',
+    'record_inputs': 'recordInputs',
+    'event_hooks': 'eventHooks',
+    'session_name': 'sessionName',
+    'session_id': 'sessionId',
+    'session_ids': 'sessionIds',
+    'analysis_types': 'analysisTypes',
+    'heatmap_type': 'heatmapType',
+    'cell_size': 'cellSize',
+    'save_html': 'saveHtml',
+    'group_by': 'groupBy',
+    // Tier 4: Fun metrics
+    'window_seconds': 'windowSeconds',
+    'death_weight': 'deathWeight',
+    'damage_weight': 'damageWeight',
+    'scan_dirs': 'scanDirs',
+    // Tier 4: Asset generation
+    'transparent_background': 'transparentBackground',
+    'test_connectivity': 'testConnectivity',
   };
 
   /**

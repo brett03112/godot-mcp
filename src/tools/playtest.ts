@@ -393,6 +393,21 @@ function stopPlaytestRecording(ctx: ServerContext): ToolDefinition {
       // Find and stop the recording
       const recording = activeRecordings.get(sessionId);
       if (recording) {
+        // Write a stop file so the recorder can gracefully write results before quitting
+        const stopFile = join(projectDir, PLAYTEST_OUTPUT_DIR, `_stop_${sessionId}`);
+        writeFileSync(stopFile, 'stop', 'utf-8');
+
+        // Wait for the recorder to detect the stop file, write results, and quit
+        const outputFile = join(projectDir, PLAYTEST_OUTPUT_DIR, `${sessionId}.json`);
+        const maxWait = 5000;
+        const pollInterval = 250;
+        let waited = 0;
+        while (waited < maxWait && !existsSync(outputFile)) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          waited += pollInterval;
+        }
+
+        // If the process is still running after graceful stop, force kill
         try {
           recording.process.kill();
         } catch {
@@ -400,8 +415,8 @@ function stopPlaytestRecording(ctx: ServerContext): ToolDefinition {
         }
         activeRecordings.delete(sessionId);
 
-        // Give the process a moment to write its output
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Clean up stop file if it still exists
+        try { if (existsSync(stopFile)) unlinkSync(stopFile); } catch {}
       }
 
       // Cleanup
