@@ -2,8 +2,7 @@
   "mcpServers": {
     "godot-mcp": {
       "command": "node",
-      "args": ["build/index.js"],
-      "cwd": "C:\\Users\\brett\\Desktop\\godot-mcp"
+      "args": ["C:\\Users\\brett\\Desktop\\godot-mcp\\build\\index.js"]
     }
   }
 }

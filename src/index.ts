@@ -47,6 +47,10 @@ import { registerFunMetricsTools } from './tools/fun-metrics.js';
 import { registerAssetGenerationTools } from './tools/asset-generation.js';
 // Tier 13 imports
 import { registerNetworkingTools } from './tools/networking.js';
+// Tier 14 imports
+import { registerPhysicsTools } from './tools/physics.js';
+// Tier 16 imports
+import { registerNavigationTools } from './tools/navigation.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -597,6 +601,10 @@ class GodotServer {
     registerAssetGenerationTools(this.toolRegistry, ctx);
     // Tier 13
     registerNetworkingTools(this.toolRegistry, ctx);
+    // Tier 14
+    registerPhysicsTools(this.toolRegistry, ctx);
+    // Tier 16
+    registerNavigationTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
@@ -2297,61 +2305,6 @@ class GodotServer {
             required: ['projectPath', 'tilesetPath'],
           },
         },
-        {
-          name: 'generate_navmesh',
-          description: 'Create or update a NavigationRegion3D with a baked navigation mesh for AI pathfinding.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectPath: {
-                type: 'string',
-                description: 'Path to the Godot project directory',
-              },
-              scenePath: {
-                type: 'string',
-                description: 'Path to the scene file',
-              },
-              regionName: {
-                type: 'string',
-                description: 'Name for the NavigationRegion3D node (default: "NavigationRegion3D")',
-              },
-              parentPath: {
-                type: 'string',
-                description: 'NodePath to parent node (default: "." for root)',
-              },
-              cellSize: {
-                type: 'number',
-                description: 'Voxel cell size for navigation mesh (default: 0.25)',
-              },
-              cellHeight: {
-                type: 'number',
-                description: 'Voxel cell height (default: 0.25)',
-              },
-              agentRadius: {
-                type: 'number',
-                description: 'Agent radius for pathfinding (default: 0.5)',
-              },
-              agentHeight: {
-                type: 'number',
-                description: 'Agent height (default: 2.0)',
-              },
-              agentMaxSlope: {
-                type: 'number',
-                description: 'Maximum walkable slope in degrees (default: 45)',
-              },
-              agentMaxClimb: {
-                type: 'number',
-                description: 'Maximum step height agent can climb (default: 0.25)',
-              },
-              sourceGeometryMode: {
-                type: 'string',
-                enum: ['static_colliders', 'meshes', 'physics_bodies'],
-                description: 'Source geometry mode for baking (default: "static_colliders")',
-              },
-            },
-            required: ['projectPath', 'scenePath'],
-          },
-        },
         // Phase 11: Dialogue & Localization Management
         {
           name: 'create_translation_file',
@@ -2867,8 +2820,6 @@ class GodotServer {
           return await this.handlePaintTiles(request.params.arguments);
         case 'configure_tileset':
           return await this.handleConfigureTileset(request.params.arguments);
-        case 'generate_navmesh':
-          return await this.handleGenerateNavmesh(request.params.arguments);
         // Phase 11: Dialogue & Localization Management
         case 'create_translation_file':
           return await this.handleCreateTranslationFile(request.params.arguments);
@@ -9386,94 +9337,6 @@ storyboard/custom_bg_color=Color(0, 0, 0, 1)
           'Verify the project path is correct',
           'Ensure the texture file exists if specified',
           'Check file permissions',
-        ]
-      );
-    }
-  }
-
-  /**
-   * Handle the generate_navmesh tool
-   * Creates a NavigationRegion3D with navigation mesh configuration
-   * @param args Tool arguments
-   */
-  private async handleGenerateNavmesh(args: any) {
-    args = this.normalizeParameters(args);
-
-    if (!args.projectPath) {
-      return this.createErrorResponse(
-        'Project path is required',
-        ['Provide a valid path to a Godot project directory']
-      );
-    }
-
-    if (!args.scenePath) {
-      return this.createErrorResponse(
-        'Scene path is required',
-        ['Provide the path to the scene file']
-      );
-    }
-
-    try {
-      const projectFile = join(args.projectPath, 'project.godot');
-      if (!existsSync(projectFile)) {
-        return this.createErrorResponse(
-          `Not a valid Godot project: ${args.projectPath}`,
-          ['Ensure the directory contains a project.godot file']
-        );
-      }
-
-      const scenePath = join(args.projectPath, args.scenePath);
-      if (!existsSync(scenePath)) {
-        return this.createErrorResponse(
-          `Scene file not found: ${args.scenePath}`,
-          ['Ensure the scene file exists', 'Create the scene first using create_scene']
-        );
-      }
-
-      // Prepare parameters for GDScript operation
-      const params = {
-        scene_path: args.scenePath,
-        region_name: args.regionName || 'NavigationRegion3D',
-        parent_path: args.parentPath || '.',
-        cell_size: args.cellSize ?? 0.25,
-        cell_height: args.cellHeight ?? 0.25,
-        agent_radius: args.agentRadius ?? 0.5,
-        agent_height: args.agentHeight ?? 2.0,
-        agent_max_slope: args.agentMaxSlope ?? 45.0,
-        agent_max_climb: args.agentMaxClimb ?? 0.25,
-        source_geometry_mode: args.sourceGeometryMode || 'static_colliders',
-      };
-
-      // Execute GDScript operation
-      const { stdout, stderr } = await this.executeOperation(
-        'generate_navmesh',
-        params,
-        args.projectPath
-      );
-
-      if (stderr && stderr.includes('ERROR')) {
-        return this.createErrorResponse(
-          `Failed to generate navigation mesh: ${stderr}`,
-          ['Check the scene file exists', 'Verify the parent path is correct']
-        );
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: stdout,
-          },
-        ],
-      };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return this.createErrorResponse(
-        `Failed to generate navigation mesh: ${errorMessage}`,
-        [
-          'Verify the project path is correct',
-          'Ensure the scene contains 3D geometry for navigation',
-          'Check that Godot supports headless navigation mesh baking',
         ]
       );
     }

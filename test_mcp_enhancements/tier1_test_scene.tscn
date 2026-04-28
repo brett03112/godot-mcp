@@ -1,6 +1,8 @@
-[gd_scene format=3 uid="uid://ci4hdk2x6hwn1"]
+[gd_scene format=3]
 
 [ext_resource type="Material" path="res://materials/hologram.tres" id="1_eovv2"]
+
+[sub_resource type="TileSet" id="TileSet_eovv2"]
 
 [node name="root" type="Node2D" unique_id=990682211]
 
@@ -14,3 +16,10 @@ text = "Modified Text"
 [node name="NewParent" type="Node2D" parent="." unique_id=1450750115]
 
 [node name="NestedSprite" type="Sprite2D" parent="NewParent" unique_id=478125573]
+
+[node name="TileMapTest" type="TileMap" parent="." unique_id=1074310113]
+tile_set = SubResource("TileSet_eovv2")
+format = 2
+layer_0/name = "Ground"
+layer_0/tile_data = PackedInt32Array(0, 0, 0, 65537, 65536, 0, 2, 0, 1)
+layer_1/name = "Objects"

@@ -6179,7 +6179,7 @@ func manage_multiplayer_spawner(params: Dictionary) -> void:
         spawner.name = spawner_name
         if not spawn_path.is_empty(): spawner.spawn_path = spawn_path
         if spawn_limit > 0: spawner.spawn_limit = spawn_limit
-        if not spawn_function.is_empty(): spawner.spawn_function = spawn_function
+        if not spawn_function.is_empty(): spawner.set("spawn_function", spawn_function)
         if replication_interval > 0: spawner.replication_interval = replication_interval
         parent.add_child(spawner)
         spawner.owner = scene
