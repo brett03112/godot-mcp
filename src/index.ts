@@ -45,6 +45,8 @@ import { registerViewportTools } from './tools/viewport.js';
 import { registerPlaytestTools } from './tools/playtest.js';
 import { registerFunMetricsTools } from './tools/fun-metrics.js';
 import { registerAssetGenerationTools } from './tools/asset-generation.js';
+// Tier 13 imports
+import { registerNetworkingTools } from './tools/networking.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -215,6 +217,25 @@ class GodotServer {
     // Tier 4: Asset generation
     'transparent_background': 'transparentBackground',
     'test_connectivity': 'testConnectivity',
+    // Tier 13: Networking
+    'peer_type': 'peerType',
+    'mode': 'mode',
+    'max_clients': 'maxClients',
+    'server_url': 'serverUrl',
+    'network_node_path': 'networkNodePath',
+    'method_name': 'methodName',
+    'call_mode': 'callMode',
+    'transfer_mode': 'transferMode',
+    'sync': 'sync',
+    'action': 'action',
+    'spawn_path': 'spawnPath',
+    'spawn_limit': 'spawnLimit',
+    'spawn_function': 'spawnFunction',
+    'sync_properties': 'syncProperties',
+    'sync_interval': 'syncInterval',
+    'visibility_sync': 'visibilitySync',
+    'visibility_update_only': 'visibilityUpdateOnly',
+    'replication_interval': 'replicationInterval',
   };
 
   /**
@@ -574,6 +595,8 @@ class GodotServer {
     registerPlaytestTools(this.toolRegistry, ctx);
     registerFunMetricsTools(this.toolRegistry, ctx);
     registerAssetGenerationTools(this.toolRegistry, ctx);
+    // Tier 13
+    registerNetworkingTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

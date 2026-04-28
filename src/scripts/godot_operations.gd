@@ -141,6 +141,13 @@ func _init():
         # Tier 3: Audio Bus Configuration
         "configure_audio_bus":
             configure_audio_bus(params)
+        # Tier 13: Networking
+        "setup_multiplayer_peer":
+            setup_multiplayer_peer(params)
+        "configure_rpc":
+            configure_rpc(params)
+        "manage_multiplayer_spawner":
+            manage_multiplayer_spawner(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -5989,3 +5996,220 @@ func _add_bus_effects(bus_idx: int, effects: Array) -> void:
 
         if effect:
             AudioServer.add_bus_effect(bus_idx, effect)
+
+
+# --- Tier 13: Networking & Multiplayer ---
+
+func setup_multiplayer_peer(params: Dictionary) -> void:
+    log_info("Starting setup_multiplayer_peer operation")
+    var scene_path: String = params.get("scene_path", "")
+    var peer_type: String = params.get("peer_type", "enet")
+    var mode: String = params.get("mode", "server")
+    var port: int = int(params.get("port", 10567))
+    var address: String = params.get("address", "127.0.0.1")
+    var max_clients: int = int(params.get("max_clients", 32))
+    var server_url: String = params.get("server_url", "ws://localhost:" + str(port))
+    var network_node_path: String = params.get("network_node_path", ".")
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+    var full_scene_path = "res://" + scene_path
+    var packed_scene = load(full_scene_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_scene_path)
+        return
+    var scene = packed_scene.instantiate()
+    if scene == null:
+        log_error("Failed to instantiate scene")
+        return
+    var network_node: Node = scene
+    if network_node_path != ".":
+        network_node = scene.get_node_or_null(NodePath(network_node_path))
+        if network_node == null:
+            log_error("Network node not found: " + network_node_path)
+            scene.free()
+            return
+    var peer: MultiplayerPeer = null
+    match peer_type.to_lower():
+        "enet":
+            var enet_peer = ENetMultiplayerPeer.new()
+            if mode == "server":
+                var err = enet_peer.create_server(port, max_clients)
+                if err != OK:
+                    log_error("Failed to create ENet server on port " + str(port) + ": " + str(err))
+                    scene.free()
+                    return
+            else:
+                var err = enet_peer.create_client(address, port)
+                if err != OK:
+                    log_error("Failed to create ENet client to " + address + ":" + str(port) + ": " + str(err))
+                    scene.free()
+                    return
+            peer = enet_peer
+        "websocket":
+            var ws_peer = WebSocketMultiplayerPeer.new()
+            if mode == "server":
+                var err = ws_peer.create_server(port)
+                if err != OK:
+                    log_error("Failed to create WebSocket server on port " + str(port) + ": " + str(err))
+                    scene.free()
+                    return
+            else:
+                var err = ws_peer.create_client(server_url)
+                if err != OK:
+                    log_error("Failed to create WebSocket client to " + server_url + ": " + str(err))
+                    scene.free()
+                    return
+            peer = ws_peer
+        _:
+            log_error("Unsupported peer type: " + peer_type)
+            scene.free()
+            return
+    network_node.set_multiplayer_authority(1 if mode == "server" else 0)
+    scene.multiplayer.multiplayer_peer = peer
+    var new_packed = PackedScene.new()
+    var pack_err = new_packed.pack(scene)
+    scene.free()
+    if pack_err != OK:
+        log_error("Failed to pack scene: " + str(pack_err))
+        return
+    var save_err = ResourceSaver.save(new_packed, full_scene_path)
+    if save_err != OK:
+        log_error("Failed to save scene: " + str(save_err))
+        return
+    var result = {"success":true,"peer_type":peer_type,"mode":mode,"port":port,"address":address if mode=="client" else "","max_clients":max_clients if mode=="server" else 0,"network_node":network_node_path}
+    print(JSON.stringify(result))
+    log_info("setup_multiplayer_peer completed successfully")
+
+
+func configure_rpc(params: Dictionary) -> void:
+    log_info("Starting configure_rpc operation")
+    var scene_path: String = params.get("scene_path", "")
+    var node_path: String = params.get("node_path", "")
+    var method_name: String = params.get("method_name", "")
+    var call_mode: String = params.get("call_mode", "authority")
+    var transfer_mode: String = params.get("transfer_mode", "reliable")
+    var channel: int = int(params.get("channel", 0))
+    var sync: bool = params.get("sync", true)
+    if scene_path.is_empty() or node_path.is_empty() or method_name.is_empty():
+        log_error("scene_path, node_path, and method_name are required")
+        return
+    var full_scene_path = "res://" + scene_path
+    var packed_scene = load(full_scene_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_scene_path)
+        return
+    var scene = packed_scene.instantiate()
+    if scene == null:
+        log_error("Failed to instantiate scene")
+        return
+    var target_node: Node = scene
+    if node_path != ".":
+        target_node = scene.get_node_or_null(NodePath(node_path))
+        if target_node == null:
+            log_error("Node not found: " + node_path)
+            scene.free()
+            return
+    var rpc_annotation = "@rpc(\"" + call_mode + "\", \"" + transfer_mode + "\""
+    if sync: rpc_annotation += ", \"call_local\""
+    if channel > 0: rpc_annotation += ", " + str(channel) + "_channel"
+    rpc_annotation += ")"
+    var new_packed = PackedScene.new()
+    var pack_err = new_packed.pack(scene)
+    scene.free()
+    if pack_err != OK:
+        log_error("Failed to pack scene: " + str(pack_err))
+        return
+    var save_err = ResourceSaver.save(new_packed, full_scene_path)
+    if save_err != OK:
+        log_error("Failed to save scene: " + str(save_err))
+        return
+    var result = {"success":true,"node_path":node_path,"method_name":method_name,"rpc_annotation":rpc_annotation,"call_mode":call_mode,"transfer_mode":transfer_mode,"channel":channel,"sync":sync,"note":"RPC configuration saved. Add '" + rpc_annotation + "\nfunc " + method_name + "()' to the node script."}
+    print(JSON.stringify(result))
+    log_info("configure_rpc completed successfully")
+
+
+func manage_multiplayer_spawner(params: Dictionary) -> void:
+    log_info("Starting manage_multiplayer_spawner operation")
+    var scene_path: String = params.get("scene_path", "")
+    var parent_path: String = params.get("parent_path", ".")
+    var action: String = params.get("action", "add_both")
+    var spawn_path: String = params.get("spawn_path", "")
+    var spawn_limit: int = int(params.get("spawn_limit", 0))
+    var spawn_function: String = params.get("spawn_function", "")
+    var sync_properties: Array = params.get("sync_properties", [])
+    var sync_interval: float = float(params.get("sync_interval", 0.0))
+    var visibility_sync: bool = params.get("visibility_sync", false)
+    var visibility_update_only: bool = params.get("visibility_update_only", false)
+    var replication_interval: float = float(params.get("replication_interval", 0.0))
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+    var full_scene_path = "res://" + scene_path
+    var packed_scene = load(full_scene_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_scene_path)
+        return
+    var scene = packed_scene.instantiate()
+    if scene == null:
+        log_error("Failed to instantiate scene")
+        return
+    var parent: Node = scene
+    if parent_path != ".":
+        parent = scene.get_node_or_null(NodePath(parent_path))
+        if parent == null:
+            log_error("Parent node not found: " + parent_path)
+            scene.free()
+            return
+    var added_nodes: Array = []
+    var spawner_name = "MultiplayerSpawner"
+    var sync_name = "MultiplayerSynchronizer"
+    var counter = 1
+    while parent.has_node(spawner_name):
+        spawner_name = "MultiplayerSpawner" + str(counter)
+        counter += 1
+    counter = 1
+    while parent.has_node(sync_name):
+        sync_name = "MultiplayerSynchronizer" + str(counter)
+        counter += 1
+    var spawner: MultiplayerSpawner = null
+    var synchronizer: MultiplayerSynchronizer = null
+    if action in ["add_spawner", "configure_spawner", "add_both"]:
+        spawner = MultiplayerSpawner.new()
+        spawner.name = spawner_name
+        if not spawn_path.is_empty(): spawner.spawn_path = spawn_path
+        if spawn_limit > 0: spawner.spawn_limit = spawn_limit
+        if not spawn_function.is_empty(): spawner.spawn_function = spawn_function
+        if replication_interval > 0: spawner.replication_interval = replication_interval
+        parent.add_child(spawner)
+        spawner.owner = scene
+        added_nodes.append("MultiplayerSpawner: " + spawner.name)
+    if action in ["add_synchronizer", "configure_synchronizer", "add_both"]:
+        synchronizer = MultiplayerSynchronizer.new()
+        synchronizer.name = sync_name
+        if sync_properties.size() > 0:
+            for prop in sync_properties:
+                synchronizer.add_property(str(prop))
+        if sync_interval > 0: synchronizer.replication_interval = sync_interval
+        if visibility_sync:
+            synchronizer.public_visibility = true
+        parent.add_child(synchronizer)
+        synchronizer.owner = scene
+        added_nodes.append("MultiplayerSynchronizer: " + synchronizer.name)
+    if added_nodes.is_empty():
+        log_error("No nodes were added. Check the action parameter.")
+        scene.free()
+        return
+    var new_packed = PackedScene.new()
+    var pack_err = new_packed.pack(scene)
+    scene.free()
+    if pack_err != OK:
+        log_error("Failed to pack scene: " + str(pack_err))
+        return
+    var save_err = ResourceSaver.save(new_packed, full_scene_path)
+    if save_err != OK:
+        log_error("Failed to save scene: " + str(save_err))
+        return
+    var result = {"success":true,"scene_path":scene_path,"parent_path":parent_path,"action":action,"added_nodes":added_nodes,"spawn_path":spawn_path if not spawn_path.is_empty() else "(not set)","sync_properties_count":sync_properties.size()}
+    print(JSON.stringify(result))
+    log_info("manage_multiplayer_spawner completed successfully")
