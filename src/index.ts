@@ -11418,7 +11418,7 @@ func _exit_tree() -> void:
         }
       }
 
-      console.log(`[SERVER] Using Godot at: ${this.godotPath}`);
+      // Keep stdout clean for MCP JSON-RPC frames; send diagnostics to stderr.`r`n      console.error(`[SERVER] Using Godot at: ${this.godotPath}`);
 
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
@@ -11438,3 +11438,4 @@ server.run().catch((error: unknown) => {
   console.error('Failed to run server:', errorMessage);
   process.exit(1);
 });
+
