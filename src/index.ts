@@ -19,8 +19,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ErrorCode,
+  ListResourceTemplatesRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
   McpError,
+  ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
 // New modular architecture imports
@@ -100,6 +103,7 @@ class GodotServer {
   private strictPathValidation: boolean = false;
   private toolRegistry: ToolRegistry = new ToolRegistry();
   private tscnCache: TscnCache = new TscnCache();
+  private listToolsForResources: (() => Promise<{ tools: any[] }>) | null = null;
 
   /**
    * Parameter name mappings between snake_case and camelCase
@@ -294,6 +298,7 @@ class GodotServer {
       },
       {
         capabilities: {
+          resources: {},
           tools: {},
         },
       }
@@ -301,6 +306,7 @@ class GodotServer {
 
     // Set up tool handlers
     this.setupToolHandlers();
+    this.setupResourceHandlers();
 
     // Error handling
     this.server.onerror = (error) => console.error('[MCP Error]', error);
@@ -884,7 +890,7 @@ class GodotServer {
     this.registerModularTools();
 
     // Define available tools (legacy + modular)
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    this.listToolsForResources = async () => ({
       tools: [
         // --- Modular tools from registry ---
         ...this.toolRegistry.getToolDefinitions(),
@@ -2715,7 +2721,9 @@ class GodotServer {
           },
         },
       ],
-    }));
+    });
+
+    this.server.setRequestHandler(ListToolsRequestSchema, this.listToolsForResources);
 
     // Handle tool calls — registry-first dispatch with legacy fallback
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -2851,6 +2859,159 @@ class GodotServer {
           );
       }
     });
+  }
+
+  /**
+   * Set up read-only MCP resources for clients that inspect resources/list.
+   * These resources intentionally describe the tool surface; tool execution
+   * remains available only through tools/call.
+   */
+  private setupResourceHandlers() {
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+      resources: await this.getMcpResources(),
+    }));
+
+    this.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
+      resourceTemplates: [
+        {
+          uriTemplate: 'godot-mcp://tools/{name}',
+          name: 'Godot MCP tool definition',
+          description: 'Read the description and input schema for an individual Godot MCP tool.',
+          mimeType: 'application/json',
+        },
+      ],
+    }));
+
+    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const resource = await this.readMcpResource(request.params.uri);
+      return {
+        contents: [
+          {
+            uri: request.params.uri,
+            mimeType: 'application/json',
+            text: JSON.stringify(resource, null, 2),
+          },
+        ],
+      };
+    });
+  }
+
+  private async getAvailableToolDefinitions(): Promise<any[]> {
+    if (!this.listToolsForResources) {
+      return this.toolRegistry.getToolDefinitions();
+    }
+
+    const result = await this.listToolsForResources();
+    return result.tools;
+  }
+
+  private async getMcpResources(): Promise<any[]> {
+    const tools = await this.getAvailableToolDefinitions();
+    const toolResources = tools.map((tool) => ({
+      uri: this.getToolResourceUri(tool.name),
+      name: `Tool: ${tool.name}`,
+      description: tool.description,
+      mimeType: 'application/json',
+    }));
+
+    return [
+      {
+        uri: 'godot-mcp://server/info',
+        name: 'Godot MCP server info',
+        description: 'Server capabilities, configured Godot path, and resource compatibility notes.',
+        mimeType: 'application/json',
+      },
+      {
+        uri: 'godot-mcp://tools/catalog',
+        name: 'Godot MCP tool catalog',
+        description: 'Complete list of Godot MCP tools with descriptions and input schemas.',
+        mimeType: 'application/json',
+      },
+      {
+        uri: 'godot-mcp://runtime/debug-output',
+        name: 'Godot runtime debug output',
+        description: 'Current captured output for the active Godot process, if one is running.',
+        mimeType: 'application/json',
+      },
+      ...toolResources,
+    ];
+  }
+
+  private getToolResourceUri(toolName: string): string {
+    return `godot-mcp://tools/${encodeURIComponent(toolName)}`;
+  }
+
+  private async readMcpResource(uri: string): Promise<any> {
+    let parsed: URL;
+    try {
+      parsed = new URL(uri);
+    } catch {
+      throw new McpError(ErrorCode.InvalidParams, `Invalid resource URI: ${uri}`);
+    }
+
+    if (parsed.protocol !== 'godot-mcp:') {
+      throw new McpError(ErrorCode.InvalidParams, `Unsupported resource URI scheme: ${parsed.protocol}`);
+    }
+
+    const resourcePath = parsed.pathname.replace(/^\//, '');
+
+    if (parsed.hostname === 'server' && resourcePath === 'info') {
+      const tools = await this.getAvailableToolDefinitions();
+      return {
+        name: 'godot-mcp',
+        version: '0.1.0',
+        capabilities: {
+          resources: true,
+          tools: true,
+        },
+        godotPath: this.godotPath,
+        configuredGodotPath: process.env.GODOT_PATH || null,
+        operationsScriptPath: this.operationsScriptPath,
+        strictPathValidation: this.strictPathValidation,
+        toolCount: tools.length,
+        resources: [
+          'godot-mcp://server/info',
+          'godot-mcp://tools/catalog',
+          'godot-mcp://runtime/debug-output',
+          'godot-mcp://tools/{name}',
+        ],
+        note: 'These resources expose read-only metadata for resource-oriented MCP clients. Use MCP tools/call to execute Godot operations.',
+      };
+    }
+
+    if (parsed.hostname === 'tools' && resourcePath === 'catalog') {
+      const tools = await this.getAvailableToolDefinitions();
+      return {
+        count: tools.length,
+        tools,
+      };
+    }
+
+    if (parsed.hostname === 'tools' && resourcePath) {
+      const toolName = decodeURIComponent(resourcePath);
+      const tools = await this.getAvailableToolDefinitions();
+      const tool = tools.find((candidate) => candidate.name === toolName);
+
+      if (!tool) {
+        throw new McpError(ErrorCode.InvalidParams, `Tool resource not found: ${toolName}`);
+      }
+
+      return {
+        ...tool,
+        callMethod: 'tools/call',
+        resourceUri: this.getToolResourceUri(tool.name),
+      };
+    }
+
+    if (parsed.hostname === 'runtime' && resourcePath === 'debug-output') {
+      return {
+        isRunning: this.activeProcess !== null,
+        output: this.activeProcess?.output || [],
+        errors: this.activeProcess?.errors || [],
+      };
+    }
+
+    throw new McpError(ErrorCode.InvalidParams, `Resource not found: ${uri}`);
   }
 
   /**
