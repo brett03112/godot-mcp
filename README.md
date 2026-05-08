@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **102 tools** across 27 categories for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **115 tools** across 30 categories plus **118 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (102 tools)
+## Tool Reference (115 tools)
 
 ### Project Management (7 tools)
 
@@ -300,7 +300,6 @@ configure_audio_bus(
 | `create_tilemap` | Create TileMap nodes with layers and TileSet configuration |
 | `paint_tiles` | Paint single tiles, rectangles, or lines programmatically |
 | `configure_tileset` | Set up texture atlas, collision shapes, navigation polygons, terrain |
-| `generate_navmesh` | Create NavigationRegion3D with agent parameters |
 
 ### Dialogue & Localization (7 tools)
 
@@ -567,6 +566,173 @@ configure_asset_generation(project_path, test_connectivity=true)
 # Returns: { image_backend: "placeholder", audio_backend: "placeholder", api_keys: { openai: false, elevenlabs: false } }
 ```
 
+### Networking & Multiplayer (3 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `setup_multiplayer_peer` | Create and configure an ENet or WebSocket multiplayer peer by adding a runtime helper node that configures the MultiplayerAPI when the scene enters the tree |
+| `configure_rpc` | Register RPC method metadata on a node and return Godot 4-compatible `@rpc` annotation guidance for call mode, sync mode, transfer mode, and channel |
+| `manage_multiplayer_spawner` | Add or configure MultiplayerSpawner and MultiplayerSynchronizer nodes for networked object spawning and state synchronization |
+
+### Physics (5 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `configure_physics_material` | Create a PhysicsMaterial `.tres` resource with friction, bounce, roughness, and absorbency settings |
+| `set_collision_config` | Set collision layer, collision mask, and priority on a CollisionObject2D or CollisionObject3D node in a scene |
+| `create_physics_body` | Add RigidBody, StaticBody, CharacterBody, AnimatableBody, or Area nodes to a scene with optional collision shapes |
+| `manage_collision_shape` | Add, remove, or replace CollisionShape2D/3D children, including rectangle, circle, capsule, box, sphere, cylinder, segment, and world-boundary shapes |
+| `setup_joint` | Create PinJoint2D, GrooveJoint2D, DampedSpringJoint2D, HingeJoint3D, SliderJoint3D, ConeTwistJoint3D, Generic6DOFJoint3D, or SpringArm3D constraints |
+
+### Navigation & AI (6 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `generate_navmesh` | Create or update a NavigationRegion3D with NavigationMesh settings for 3D AI pathfinding |
+| `add_navigation_agent` | Add NavigationAgent2D or NavigationAgent3D nodes to characters/entities with pathfinding and avoidance settings |
+| `add_navigation_link` | Add NavigationLink2D or NavigationLink3D nodes to connect navigation regions for jumps, teleporters, ladders, ledges, and other off-mesh paths |
+| `configure_navigation_obstacle` | Add, update, remove, or toggle NavigationObstacle2D/3D nodes for dynamic avoidance obstacles |
+| `create_astar_grid` | Save a reusable AStarGrid2D configuration resource for tile/grid pathfinding; AStarGrid2D itself is RefCounted in Godot 4.6 |
+| `setup_navigation_server` | Validate and return NavigationServer2D/3D runtime configuration for map, avoidance, cell, edge, and agent settings |
+
+## MCP Resource Reference (118 resources)
+
+The server exposes read-only MCP resources for clients that inspect `resources/list`, plus one resource template for individual tool metadata. The live catalog currently contains 118 resources: 3 core resources and 115 per-tool definition resources.
+
+### Core Resources (3 resources)
+
+| Resource URI | Description |
+| ------ | ------------- |
+| `godot-mcp://server/info` | Server capabilities, configured Godot path, operation script path, tool count, and resource compatibility notes |
+| `godot-mcp://tools/catalog` | Complete list of Godot MCP tools with descriptions and input schemas |
+| `godot-mcp://runtime/debug-output` | Captured output and errors for the active Godot process, if one is running |
+
+### Resource Template (1 template)
+
+| Template URI | Description |
+| ------ | ------------- |
+| `godot-mcp://tools/{name}` | Read the description and input schema for an individual Godot MCP tool |
+
+### Per-Tool Definition Resources (115 resources)
+
+Each per-tool resource returns the tool description, input schema, `callMethod: "tools/call"`, and its concrete `resourceUri`.
+
+- `godot-mcp://tools/list_scene_tree` - Get the full node hierarchy of a .tscn scene file with node types, paths, and attached resources. Enables understanding existing scenes before modifying them.
+- `godot-mcp://tools/read_node_properties` - Read all properties of a specific node in a scene file. Returns transform, visibility, script, material, and all other set properties.
+- `godot-mcp://tools/modify_node_property` - Change a property on an existing node in a scene without recreating it. Supports transform, visibility, modulate, material, and any other node property.
+- `godot-mcp://tools/remove_node` - Remove a node and optionally its children from a scene. If `keep_children` is true, children are reparented to the removed node's parent.
+- `godot-mcp://tools/duplicate_node` - Clone an existing node with its children and properties within a scene. The duplicate is added as a sibling of the original.
+- `godot-mcp://tools/reparent_node` - Move a node to a different parent in the scene tree. The node keeps all its properties and children.
+- `godot-mcp://tools/apply_material` - Apply a ShaderMaterial or StandardMaterial3D to a node in a scene. Auto-detects the correct material property based on node type.
+- `godot-mcp://tools/set_shader_parameter` - Modify a shader uniform value on a node's material. Supports Vector2/3/4, Color, float, int, bool, and texture path values.
+- `godot-mcp://tools/create_material_from_texture` - Auto-generate a StandardMaterial3D `.tres` file from texture maps, including albedo and optional normal, roughness, metallic, and emission maps.
+- `godot-mcp://tools/configure_animation_tree` - Set up an AnimationTree node with a StateMachine, BlendSpace1D, BlendSpace2D, or BlendTree root linked to an AnimationPlayer.
+- `godot-mcp://tools/create_animation_library` - Batch-create multiple animations in an AnimationLibrary resource from compact descriptions.
+- `godot-mcp://tools/refactor_rename` - Rename a function, variable, signal, class, or constant across GDScript and scene files, with dry-run preview by default.
+- `godot-mcp://tools/create_project` - Scaffold a new Godot project with `project.godot`, standard folders, and a default main scene.
+- `godot-mcp://tools/validate_scene` - Check a scene for missing resources, broken scripts, orphaned collision shapes, missing textures, invalid signal methods, duplicate names, and layout issues.
+- `godot-mcp://tools/create_particle_system` - Create a GPUParticles2D or GPUParticles3D node with ParticleProcessMaterial settings for emission, direction, velocity, gravity, color, and scale.
+- `godot-mcp://tools/apply_particle_preset` - Create a particle system from a named preset such as fire, smoke, explosion, magic_sparkle, rain, snow, dust, or sparks.
+- `godot-mcp://tools/create_particle_material` - Create a standalone ParticleProcessMaterial `.tres` resource for reuse, optionally from a named preset.
+- `godot-mcp://tools/start_profiler` - Run a Godot project with a profiler for a duration and collect FPS, frame-time, draw-call, memory, and object-count samples.
+- `godot-mcp://tools/get_profiling_data` - Read raw samples and statistical summaries from a completed profiler session.
+- `godot-mcp://tools/analyze_bottlenecks` - Analyze profiling data against thresholds and return severity-ranked bottlenecks, recommendations, and an A-F grade.
+- `godot-mcp://tools/generate_docstring` - Generate `##` GDScript documentation comments for functions and classes, including parameter and return annotations.
+- `godot-mcp://tools/generate_test_from_specification` - Generate GUT test files from natural-language behavior specifications.
+- `godot-mcp://tools/analyze_test_coverage` - Match source functions to test methods and report script-level and overall coverage.
+- `godot-mcp://tools/create_mock_node` - Generate a mock GDScript class with method overrides, configurable return values, and call tracking.
+- `godot-mcp://tools/get_class_info` - Query Godot ClassDB for built-in class properties, methods, signals, constants, and inheritance.
+- `godot-mcp://tools/search_asset_library` - Search the official Godot Asset Library and return plugin/tool/demo metadata.
+- `godot-mcp://tools/configure_audio_bus` - Create an AudioBusLayout resource with named buses, volume, routing, and effects.
+- `godot-mcp://tools/capture_viewport` - Run a scene briefly and save a PNG viewport screenshot for visual verification.
+- `godot-mcp://tools/run_automated_playtest` - Run a project with an automated bot and recorder, collecting position, events, performance data, and optional input events.
+- `godot-mcp://tools/start_playtest_recording` - Start a manual playtest recording session by injecting a recorder autoload and running the game.
+- `godot-mcp://tools/stop_playtest_recording` - Stop a running playtest recording, collect session data, and clean up injected autoloads.
+- `godot-mcp://tools/analyze_playtest_session` - Analyze a playtest session for death clusters, backtracking, difficulty spikes, time distribution, and event frequency.
+- `godot-mcp://tools/generate_heatmap` - Generate JSON grid data and optional HTML heatmaps for position, death, damage, pickup, or time-spent data.
+- `godot-mcp://tools/compare_sessions` - Compare metrics across multiple sessions with per-session breakdowns, aggregates, and trend detection.
+- `godot-mcp://tools/calculate_game_feel_metrics` - Score responsiveness, pacing, difficulty, and engagement from playtest data.
+- `godot-mcp://tools/analyze_difficulty_curve` - Divide a playtest into windows, compute difficulty scores, and classify spikes, valleys, and curve shape.
+- `godot-mcp://tools/compare_to_genre_benchmarks` - Compare playtest metrics against genre benchmarks and return a genre-fit score.
+- `godot-mcp://tools/detect_frustration_points` - Detect repeated deaths, long idle periods, input spam, and backtracking loops with severity and suggested fixes.
+- `godot-mcp://tools/analyze_juice_coverage` - Scan GDScript actions for audio, particles, animation, tween, and screen-feedback coverage.
+- `godot-mcp://tools/generate_sprite` - Generate a 2D sprite PNG from a text description using DALL-E 3 or the placeholder backend.
+- `godot-mcp://tools/generate_texture` - Generate a tileable texture PNG from a text description using DALL-E 3 or the placeholder backend.
+- `godot-mcp://tools/generate_sfx` - Generate a WAV sound effect from a text description using ElevenLabs or the placeholder backend.
+- `godot-mcp://tools/generate_music` - Generate background music from a text description and save it as WAV.
+- `godot-mcp://tools/configure_asset_generation` - Report asset-generation backend configuration, API-key status, and optional connectivity checks.
+- `godot-mcp://tools/setup_multiplayer_peer` - Add a runtime helper node that configures ENet or WebSocket multiplayer peer setup when a scene enters the tree.
+- `godot-mcp://tools/configure_rpc` - Store RPC method metadata and return Godot 4-compatible annotation guidance.
+- `godot-mcp://tools/manage_multiplayer_spawner` - Add or configure MultiplayerSpawner and MultiplayerSynchronizer nodes for networked spawning and synchronization.
+- `godot-mcp://tools/configure_physics_material` - Create a PhysicsMaterial `.tres` resource with friction, bounce, roughness, and absorbency.
+- `godot-mcp://tools/set_collision_config` - Set collision layer, mask, and priority on a CollisionObject2D or CollisionObject3D.
+- `godot-mcp://tools/create_physics_body` - Add RigidBody, StaticBody, CharacterBody, AnimatableBody, or Area nodes with optional collision shapes.
+- `godot-mcp://tools/manage_collision_shape` - Add, remove, or replace collision shapes on physics bodies or areas.
+- `godot-mcp://tools/setup_joint` - Create 2D or 3D physics joints and constraints between bodies.
+- `godot-mcp://tools/generate_navmesh` - Create or update a NavigationRegion3D with NavigationMesh agent settings.
+- `godot-mcp://tools/add_navigation_agent` - Add NavigationAgent2D or NavigationAgent3D nodes with pathfinding and avoidance settings.
+- `godot-mcp://tools/add_navigation_link` - Add NavigationLink2D or NavigationLink3D nodes for off-mesh connections.
+- `godot-mcp://tools/configure_navigation_obstacle` - Add, update, remove, or toggle NavigationObstacle2D or NavigationObstacle3D nodes.
+- `godot-mcp://tools/create_astar_grid` - Save an AStarGrid2D configuration resource for grid-based pathfinding.
+- `godot-mcp://tools/setup_navigation_server` - Validate and return NavigationServer2D or NavigationServer3D runtime configuration.
+- `godot-mcp://tools/launch_editor` - Launch the Godot editor for a specific project.
+- `godot-mcp://tools/run_project` - Run a Godot project and capture output.
+- `godot-mcp://tools/get_debug_output` - Return current captured debug output and parsed errors.
+- `godot-mcp://tools/stop_project` - Stop the currently running Godot project.
+- `godot-mcp://tools/get_godot_version` - Return the installed Godot version.
+- `godot-mcp://tools/list_projects` - List Godot projects under a directory.
+- `godot-mcp://tools/get_project_info` - Return metadata about a Godot project.
+- `godot-mcp://tools/create_scene` - Create a new Godot scene file.
+- `godot-mcp://tools/add_node` - Add a node to an existing scene.
+- `godot-mcp://tools/load_sprite` - Load a texture into a Sprite2D node.
+- `godot-mcp://tools/export_mesh_library` - Export a scene as a MeshLibrary resource.
+- `godot-mcp://tools/save_scene` - Save changes to a scene file.
+- `godot-mcp://tools/get_uid` - Get the Godot 4.4+ UID for a project file.
+- `godot-mcp://tools/update_project_uids` - Resave resources to update UID references.
+- `godot-mcp://tools/list_signals` - List signals available on a node type or scene instance.
+- `godot-mcp://tools/list_connections` - List signal connections in a scene.
+- `godot-mcp://tools/connect_signal` - Connect a signal from a source node to a target method.
+- `godot-mcp://tools/disconnect_signal` - Disconnect an existing signal connection in a scene.
+- `godot-mcp://tools/validate_connection` - Validate nodes, signal existence, and target method existence before connecting a signal.
+- `godot-mcp://tools/analyze_script` - Parse a GDScript file and extract class, function, signal, variable, and dependency structure.
+- `godot-mcp://tools/create_script` - Generate a GDScript file from a template.
+- `godot-mcp://tools/modify_function` - Update an existing GDScript function and optionally adjust its signature.
+- `godot-mcp://tools/add_export_variable` - Add an `@export` variable with optional editor hints.
+- `godot-mcp://tools/extract_dependencies` - Extract preloads, loads, class references, and resource paths from GDScript.
+- `godot-mcp://tools/attach_script` - Attach a GDScript file to a scene node.
+- `godot-mcp://tools/validate_script` - Validate GDScript syntax using Godot's `--check-only` flag.
+- `godot-mcp://tools/create_animation_player` - Add an AnimationPlayer node and optionally create an initial animation.
+- `godot-mcp://tools/add_animation_track` - Add position, rotation, scale, property, method-call, or audio tracks to an animation.
+- `godot-mcp://tools/add_keyframe` - Add keyframes with optional easing to an animation track.
+- `godot-mcp://tools/create_shader_material` - Create shader code and material resources from custom code or templates.
+- `godot-mcp://tools/create_test_suite` - Generate a GUT test script with test methods.
+- `godot-mcp://tools/run_tests` - Execute GUT tests headlessly and parse pass/fail/error details.
+- `godot-mcp://tools/import_texture` - Configure texture import settings such as filtering, mipmaps, and compression.
+- `godot-mcp://tools/import_audio` - Configure audio import settings such as looping, BPM, and compression.
+- `godot-mcp://tools/import_3d_model` - Configure 3D model import settings for collision, materials, animation, and scale.
+- `godot-mcp://tools/create_resource` - Create custom Godot `.tres` resources such as Theme, Environment, Material, or AudioBusLayout.
+- `godot-mcp://tools/modify_project_setting` - Modify `project.godot` settings.
+- `godot-mcp://tools/configure_input_action` - Create or modify input action maps with keyboard, mouse, and gamepad bindings.
+- `godot-mcp://tools/setup_render_layers` - Configure physics and render layer names.
+- `godot-mcp://tools/configure_autoload` - Add or remove autoload singleton scripts.
+- `godot-mcp://tools/create_export_preset` - Generate export presets for desktop, web, mobile, and other target platforms.
+- `godot-mcp://tools/export_project` - Export a Godot project using an existing export preset.
+- `godot-mcp://tools/validate_export` - Check a project for export issues before building.
+- `godot-mcp://tools/create_tilemap` - Create a TileMap node with layers and TileSet configuration.
+- `godot-mcp://tools/paint_tiles` - Paint single tiles, rectangles, lines, or bulk tile operations.
+- `godot-mcp://tools/configure_tileset` - Configure TileSet collision, navigation, terrain, and atlas properties.
+- `godot-mcp://tools/create_translation_file` - Create a CSV, PO, or Godot translation file.
+- `godot-mcp://tools/add_translation` - Add or update a translation entry.
+- `godot-mcp://tools/remove_translation` - Remove translation keys.
+- `godot-mcp://tools/validate_translations` - Validate translation completeness and consistency.
+- `godot-mcp://tools/create_dialogue_resource` - Create a branching dialogue resource.
+- `godot-mcp://tools/configure_localization` - Configure project localization settings.
+- `godot-mcp://tools/extract_translatable_strings` - Scan project files for strings that need translation.
+- `godot-mcp://tools/list_plugins` - List installed plugins and their enabled/configured state.
+- `godot-mcp://tools/configure_plugin` - Enable, disable, or configure plugin settings.
+- `godot-mcp://tools/create_plugin` - Generate a plugin scaffold with `plugin.cfg`, script, and directory structure.
+- `godot-mcp://tools/install_plugin` - Install plugins from the Godot Asset Library or Git repositories.
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
@@ -641,7 +807,13 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "compare_to_genre_benchmarks", "detect_frustration_points",
         "analyze_juice_coverage",
         "generate_sprite", "generate_texture", "generate_sfx",
-        "generate_music", "configure_asset_generation"
+        "generate_music", "configure_asset_generation",
+        "setup_multiplayer_peer", "configure_rpc", "manage_multiplayer_spawner",
+        "configure_physics_material", "set_collision_config",
+        "create_physics_body", "manage_collision_shape", "setup_joint",
+        "add_navigation_agent", "add_navigation_link",
+        "configure_navigation_obstacle", "create_astar_grid",
+        "setup_navigation_server"
       ]
     }
   }
@@ -704,9 +876,9 @@ Add to `.mcp.json` in your project root:
 
 ```text
 src/
-├── index.ts                        # Main server + legacy 52 tool handlers
+├── index.ts                        # Main server, 57 legacy tool handlers, and MCP resource handlers
 ├── types.ts                        # Shared interfaces (ToolDefinition, ServerContext, etc.)
-├── registry.ts                     # ToolRegistry — registration-based dispatch with timeout + logging
+├── registry.ts                     # ToolRegistry - registration-based dispatch with timeout + logging
 ├── utils/
 │   ├── tscn-parser.ts              # TypeScript parser for .tscn scene files
 │   ├── tscn-cache.ts               # Mtime-based cache for parsed TSCN files
@@ -735,15 +907,18 @@ src/
 │   ├── viewport.ts                 # Viewport screenshot capture (1 tool)
 │   ├── playtest.ts                 # Automated playtesting harness (6 tools)
 │   ├── fun-metrics.ts              # Fun metrics framework (5 tools)
-│   └── asset-generation.ts         # Asset generation bridge (5 tools)
+│   ├── asset-generation.ts         # Asset generation bridge (5 tools)
+│   ├── networking.ts               # Networking and multiplayer helpers (3 tools)
+│   ├── physics.ts                  # Physics materials, bodies, shapes, and joints (5 tools)
+│   └── navigation.ts               # Navigation agents, links, obstacles, navmesh, and AStar grid (6 tools)
 └── scripts/
-    └── godot_operations.gd         # GDScript operation handlers (~5,900 lines)
+    └── godot_operations.gd         # GDScript operation handlers (~7,200 lines)
 ```
 
 The server uses a **hybrid dispatch** pattern:
 
-1. **New modular tools** (Tier 1-4, 50 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
-2. **Legacy tools** (Phases 1-12, 52 tools) continue working via the existing switch statement in `src/index.ts`
+1. **Modular tools** (58 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
+2. **Legacy tools** (57 tools) continue working via the existing switch statement in `src/index.ts`
 3. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch
 
 **Infrastructure:**
@@ -752,8 +927,9 @@ The server uses a **hybrid dispatch** pattern:
 - **Validation Middleware** (`validation.ts`) provides declarative parameter validation with consistent error responses
 - **Error Taxonomy** (`errors.ts`) provides structured error categories and codes for consistent error reporting
 - **Operation Logger** (`logger.ts`) automatically logs all registry-dispatched tool calls with timestamps, duration, and sanitized parameters
-- **Per-tool Timeout** — optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
-- **GDScript operations** (`godot_operations.gd`) handles all operations requiring Godot's runtime — scene manipulation, particle creation, animation tree setup, etc. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
+- **Per-tool Timeout** - optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
+- **MCP Resources** expose server info, the full tool catalog, runtime debug output, and one read-only resource for every tool
+- **GDScript operations** (`godot_operations.gd`) handle operations requiring Godot's runtime: scene manipulation, particle creation, animation tree setup, networking helpers, physics, navigation, and more. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
 
 ## Example Prompts
 
@@ -811,6 +987,17 @@ The server uses a **hybrid dispatch** pattern:
 "Generate a pixel art treasure chest sprite"
 "Create a tileable stone wall texture"
 "Generate a sword slash sound effect"
+
+"Set up an ENet multiplayer peer for my lobby scene"
+"Add a MultiplayerSpawner and synchronizer for networked enemies"
+
+"Create a bouncy PhysicsMaterial for my pinball bumpers"
+"Add a RigidBody2D ball with a CircleShape2D collision shape"
+"Set collision layers and masks for my player and hazards"
+
+"Add a NavigationAgent2D to my enemy"
+"Connect two navigation islands with a NavigationLink2D"
+"Create an AStarGrid2D config for my tile-based tactics map"
 ```
 
 ## Troubleshooting
