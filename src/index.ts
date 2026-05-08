@@ -10,9 +10,10 @@
 import { fileURLToPath } from 'url';
 import { join, dirname, basename, normalize } from 'path';
 import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, statSync, copyFileSync, unlinkSync, rmdirSync, createWriteStream } from 'fs';
-import { spawn } from 'child_process';
+import { spawn, exec, execSync } from 'child_process';
 import { promisify } from 'util';
-import { exec } from 'child_process';
+import https from 'https';
+import { tmpdir } from 'os';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -244,6 +245,96 @@ class GodotServer {
     'visibility_sync': 'visibilitySync',
     'visibility_update_only': 'visibilityUpdateOnly',
     'replication_interval': 'replicationInterval',
+    // Tier 14: Physics
+    'physics_type': 'physicsType',
+    'mat_path': 'matPath',
+    'linear_damp': 'linearDamp',
+    'angular_damp': 'angularDamp',
+    'collision_layer': 'collisionLayer',
+    'collision_mask': 'collisionMask',
+    'collision_priority': 'collisionPriority',
+    'layer_set': 'layerSet',
+    'mask_set': 'maskSet',
+    'body_path': 'bodyPath',
+    'body_name': 'bodyName',
+    'body_type': 'bodyType',
+    'gravity_scale': 'gravityScale',
+    'freeze_enabled': 'freezeEnabled',
+    'freeze_mode': 'freezeMode',
+    'can_sleep': 'canSleep',
+    'lock_rotation': 'lockRotation',
+    'continuous_cd': 'continuousCd',
+    'add_collision_shape': 'addCollisionShape',
+    'shape_type': 'shapeType',
+    'shape_size': 'shapeSize',
+    'shape_radius': 'shapeRadius',
+    'shape_name': 'shapeName',
+    'shape_height': 'shapeHeight',
+    'one_way_collision': 'oneWayCollision',
+    'one_way_margin': 'oneWayMargin',
+    'joint_name': 'jointName',
+    'joint_type': 'jointType',
+    'disable_collisions': 'disableCollisions',
+    'motor_enabled': 'motorEnabled',
+    'motor_target_velocity': 'motorTargetVelocity',
+    'motor_max_force': 'motorMaxForce',
+    'angular_limit_lower': 'angularLimitLower',
+    'angular_limit_upper': 'angularLimitUpper',
+    'linear_limit_lower': 'linearLimitLower',
+    'linear_limit_upper': 'linearLimitUpper',
+    'spring_length': 'springLength',
+    'spring_stiffness': 'springStiffness',
+    'spring_damping': 'springDamping',
+    // Tier 16: Navigation
+    'region_name': 'regionName',
+    'cell_height': 'cellHeight',
+    'agent_radius': 'agentRadius',
+    'agent_height': 'agentHeight',
+    'agent_max_slope': 'agentMaxSlope',
+    'agent_max_climb': 'agentMaxClimb',
+    'source_geometry_mode': 'sourceGeometryMode',
+    'agent_name': 'agentName',
+    'agent_type': 'agentType',
+    'max_speed': 'maxSpeed',
+    'path_max_distance': 'pathMaxDistance',
+    'path_desired_distance': 'pathDesiredDistance',
+    'avoidance_enabled': 'avoidanceEnabled',
+    'avoidance_layers': 'avoidanceLayers',
+    'avoidance_priority': 'avoidancePriority',
+    'navigation_layers': 'navigationLayers',
+    'path_post_processing': 'pathPostProcessing',
+    'enable_meta_flags': 'enableMetaFlags',
+    'link_name': 'linkName',
+    'link_type': 'linkType',
+    'start_position': 'startPosition',
+    'end_position': 'endPosition',
+    'start_radius': 'startRadius',
+    'end_radius': 'endRadius',
+    'travel_cost': 'travelCost',
+    'enter_cost': 'enterCost',
+    'obstacle_name': 'obstacleName',
+    'obstacle_type': 'obstacleType',
+    'obstacle_radius': 'obstacleRadius',
+    'obstacle_height': 'obstacleHeight',
+    'affect_navigation': 'affectNavigation',
+    'use_3d_avoidance': 'use3dAvoidance',
+    'estimated_radius': 'estimatedRadius',
+    'grid_size': 'gridSize',
+    'cell_connect_mode': 'cellConnectMode',
+    'default_heuristic': 'defaultHeuristic',
+    'solid_point_weight': 'solidPointWeight',
+    'default_point_weight': 'defaultPointWeight',
+    'jumping_enabled': 'jumpingEnabled',
+    'diagonal_mode': 'diagonalMode',
+    'server_type': 'serverType',
+    'avoidance_time_horizon': 'avoidanceTimeHorizon',
+    'avoidance_max_neighbors': 'avoidanceMaxNeighbors',
+    'avoidance_max_speed': 'avoidanceMaxSpeed',
+    'avoidance_radius_scale': 'avoidanceRadiusScale',
+    'edge_connection_margin': 'edgeConnectionMargin',
+    'use_edge_connections': 'useEdgeConnections',
+    'border_size': 'borderSize',
+    'iteration_cost': 'iterationCost',
   };
 
   /**
@@ -702,9 +793,12 @@ class GodotServer {
     this.logDebug(`Executing operation: ${operation} in project: ${projectPath}`);
     this.logDebug(`Original operation params: ${JSON.stringify(params)}`);
 
-    // Convert camelCase parameters to snake_case for Godot script
-    const snakeCaseParams = this.convertCamelToSnakeCase(params);
-    this.logDebug(`Converted snake_case params: ${JSON.stringify(snakeCaseParams)}`);
+    // Most modern GDScript operations expect snake_case, but some legacy
+    // operations still read camelCase keys directly.
+    const operationParams = this.usesCamelCaseGodotParams(operation)
+      ? params
+      : this.convertCamelToSnakeCase(params);
+    this.logDebug(`Godot operation params: ${JSON.stringify(operationParams)}`);
 
 
     // Ensure godotPath is set
@@ -717,7 +811,7 @@ class GodotServer {
 
     try {
       // Serialize the snake_case parameters to a valid JSON string
-      const paramsJson = JSON.stringify(snakeCaseParams);
+      const paramsJson = JSON.stringify(operationParams);
       // Escape single quotes in the JSON string to prevent command injection
       const escapedParams = paramsJson.replace(/'/g, "'\\''");
       // On Windows, cmd.exe does not strip single quotes, so we use
@@ -731,11 +825,14 @@ class GodotServer {
 
       // Add debug arguments if debug mode is enabled
       const debugArgs = GODOT_DEBUG_MODE ? ['--debug-godot'] : [];
+      const logFilePath = join(tmpdir(), `godot-mcp-${operation}-${process.pid}-${Date.now()}.log`);
 
       // Construct the command with the operation and JSON parameters
       const cmd = [
         `"${this.godotPath}"`,
         '--headless',
+        '--log-file',
+        `"${logFilePath}"`,
         '--path',
         `"${projectPath}"`,
         '--script',
@@ -749,19 +846,93 @@ class GodotServer {
 
       const { stdout, stderr } = await execAsync(cmd);
 
-      return { stdout, stderr };
+      return { stdout, stderr: this.sanitizeGodotStderr(stderr) };
     } catch (error: unknown) {
       // If execAsync throws, it still contains stdout/stderr
       if (error instanceof Error && 'stdout' in error && 'stderr' in error) {
         const execError = error as Error & { stdout: string; stderr: string };
         return {
           stdout: execError.stdout,
-          stderr: execError.stderr,
+          stderr: this.sanitizeGodotStderr(execError.stderr),
         };
       }
 
       throw error;
     }
+  }
+
+  private usesCamelCaseGodotParams(operation: string): boolean {
+    return new Set([
+      'list_signals',
+      'list_connections',
+      'connect_signal',
+      'disconnect_signal',
+      'validate_connection',
+      'analyze_script',
+      'create_script',
+      'modify_function',
+      'add_export_variable',
+      'extract_dependencies',
+      'attach_script',
+    ]).has(operation);
+  }
+
+  private sanitizeGodotStderr(stderr: string): string {
+    if (!stderr) return stderr;
+
+    return stderr
+      .replace(/ERROR: Condition "ret != noErr" is true\. Returning: ""\n\s*at: get_system_ca_certificates[^\n]*\n?/g, '')
+      .split(/\r?\n/)
+      .filter((line) => {
+        const trimmed = line.trim();
+        return !(
+          /RIDs? of type .* were leaked/.test(trimmed) ||
+          /RID allocations of type .* were leaked at exit/.test(trimmed) ||
+          trimmed.includes('ObjectDB instances leaked at exit') ||
+          trimmed.includes('resources still in use at exit') ||
+          trimmed.includes('at: _free_rids') ||
+          trimmed.includes('at: cleanup (core/object/object.cpp') ||
+          trimmed.includes('at: clear (core/io/resource.cpp')
+        );
+      })
+      .join('\n')
+      .trim();
+  }
+
+  /**
+   * Extract a JSON payload from Godot operation stdout.
+   * The shared GDScript operations runner prints diagnostic lines before
+   * operation results, so legacy handlers should not parse stdout wholesale.
+   */
+  private parseJsonFromGodotStdout(stdout: string): any {
+    const lines = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (
+        (line.startsWith('{') && line.endsWith('}')) ||
+        (line.startsWith('[') && line.endsWith(']') && !line.startsWith('[INFO]') && !line.startsWith('[DEBUG]'))
+      ) {
+        return JSON.parse(line);
+      }
+    }
+
+    const objectStart = stdout.indexOf('{');
+    const objectEnd = stdout.lastIndexOf('}');
+    if (objectStart !== -1 && objectEnd > objectStart) {
+      return JSON.parse(stdout.slice(objectStart, objectEnd + 1));
+    }
+
+    const arrayStart = stdout.indexOf('[');
+    const arrayEnd = stdout.lastIndexOf(']');
+    if (arrayStart !== -1 && arrayEnd > arrayStart) {
+      return JSON.parse(stdout.slice(arrayStart, arrayEnd + 1));
+    }
+
+    throw new Error('No JSON payload found in Godot stdout');
   }
 
   /**
@@ -3707,8 +3878,7 @@ class GodotServer {
       // Extract project name from project.godot file
       let projectName = basename(args.projectPath);
       try {
-        const fs = require('fs');
-        const projectFileContent = fs.readFileSync(projectFile, 'utf8');
+        const projectFileContent = readFileSync(projectFile, 'utf8');
         const configNameMatch = projectFileContent.match(/config\/name="([^"]+)"/);
         if (configNameMatch && configNameMatch[1]) {
           projectName = configNameMatch[1];
@@ -3781,6 +3951,10 @@ class GodotServer {
           ]
         );
       }
+
+      const relativeScenePath = args.scenePath.replace(/^res:\/\//, '');
+      const sceneDirectory = dirname(join(args.projectPath, relativeScenePath));
+      mkdirSync(sceneDirectory, { recursive: true });
 
       // Prepare parameters for the operation (already in camelCase)
       const params = {
@@ -4512,7 +4686,7 @@ class GodotServer {
       // Parse the JSON output
       let result;
       try {
-        result = JSON.parse(stdout);
+        result = this.parseJsonFromGodotStdout(stdout);
       } catch (parseError) {
         return this.createErrorResponse(
           `Failed to parse signal list output: ${stdout}`,
@@ -4627,7 +4801,7 @@ class GodotServer {
       // Parse the JSON output
       let result;
       try {
-        result = JSON.parse(stdout);
+        result = this.parseJsonFromGodotStdout(stdout);
       } catch (parseError) {
         return this.createErrorResponse(
           `Failed to parse connections output: ${stdout}`,
@@ -5813,7 +5987,8 @@ class GodotServer {
       this.logDebug(`Validating script: ${args.scriptPath} in project: ${args.projectPath}`);
 
       // Use Godot's --check-only flag to validate the script
-      const cmdArgs = ['--headless', '--path', args.projectPath, '--script', args.scriptPath, '--check-only'];
+      const logFilePath = join(tmpdir(), `godot-mcp-validate-script-${process.pid}-${Date.now()}.log`);
+      const cmdArgs = ['--headless', '--log-file', logFilePath, '--path', args.projectPath, '--script', args.scriptPath, '--check-only'];
 
       this.logDebug(`Running Godot command: ${this.godotPath} ${cmdArgs.join(' ')}`);
 
@@ -5836,7 +6011,10 @@ class GodotServer {
           this.logDebug(`Godot validation process exited with code ${code}`);
 
           // Parse errors from both stdout and stderr
-          const allLines = [...errors, ...output];
+          const sanitizedErrors = this.sanitizeGodotStderr(errors.join('\n'))
+            .split(/\r?\n/)
+            .filter(line => line.trim());
+          const allLines = [...sanitizedErrors, ...output];
           const parsedErrors = this.parseGodotErrors(allLines);
 
           // If exit code is 0, the script is valid
@@ -5854,7 +6032,7 @@ class GodotServer {
                     errors: parsedErrors,
                     error_count: parsedErrors.length,
                     raw_output: output.filter(line => line.trim()),
-                    raw_errors: errors.filter(line => line.trim()),
+                    raw_errors: sanitizedErrors,
                   },
                   null,
                   2
@@ -6280,7 +6458,7 @@ class GodotServer {
 
       // Parse the JSON output
       try {
-        const result = JSON.parse(stdout);
+        const result = this.parseJsonFromGodotStdout(stdout);
         return {
           content: [
             {
@@ -10220,7 +10398,10 @@ variables = [${variables.map(v => `"${v}"`).join(', ')}]
 
       // Add translation files
       if (translationFiles.length > 0) {
-        const filesArray = translationFiles.map(f => `"res://${f}"`).join(', ');
+        const filesArray = translationFiles
+          .map(f => f.startsWith('res://') ? f : `res://${f}`)
+          .map(f => `"${f}"`)
+          .join(', ');
         const translationsLine = `locale/translations=PackedStringArray(${filesArray})`;
 
         if (content.includes('locale/translations=')) {
@@ -11087,7 +11268,6 @@ func _exit_tree() -> void:
           const searchUrl = `https://godotengine.org/asset-library/api/asset?filter=${encodeURIComponent(args.searchQuery)}&godot_version=4.0`;
 
           return new Promise((resolve) => {
-            const https = require('https');
             https.get(searchUrl, (res: any) => {
               let data = '';
               res.on('data', (chunk: any) => data += chunk);
@@ -11140,7 +11320,6 @@ func _exit_tree() -> void:
         const assetUrl = `https://godotengine.org/asset-library/api/asset/${assetId}`;
 
         return new Promise((resolve) => {
-          const https = require('https');
           https.get(assetUrl, (res: any) => {
             let data = '';
             res.on('data', (chunk: any) => data += chunk);
@@ -11184,7 +11363,6 @@ func _exit_tree() -> void:
                 await downloadFile(downloadUrl, zipPath);
 
                 // Extract ZIP using Node.js built-in or spawn unzip
-                const { execSync } = require('child_process');
                 const extractDir = join(tempDir, 'extracted');
                 mkdirSync(extractDir, { recursive: true });
 
@@ -11319,8 +11497,6 @@ func _exit_tree() -> void:
         const tempDir = join(projectPath, '.godot', 'temp_git_clone');
 
         try {
-          const { execSync } = require('child_process');
-
           // Clean up any existing temp dir
           if (existsSync(tempDir)) {
             this.removeDirectorySync(tempDir);

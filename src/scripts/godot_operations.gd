@@ -563,6 +563,7 @@ func add_node(params):
     if not scene:
         printerr("Failed to load scene: " + full_scene_path)
         quit(1)
+        return
     
     if debug_mode:
         print("Scene loaded successfully")
@@ -809,6 +810,7 @@ func export_mesh_library(params):
     if not scene:
         printerr("Failed to load scene: " + full_scene_path)
         quit(1)
+        return
     
     if debug_mode:
         print("Scene loaded successfully")
@@ -2564,7 +2566,18 @@ func modify_function(params):
 
     # Build the new function
     var new_lines = []
-    var base_indent = "\t" if lines[func_start_line].begins_with("\t") else "    "
+    var function_indent_str = lines[func_start_line].substr(0, func_indent_level)
+    var body_indent_str = function_indent_str + "\t"
+
+    for i in range(func_start_line + 1, func_end_line + 1):
+        var existing_body_line = lines[i]
+        if existing_body_line.strip_edges().is_empty() or existing_body_line.strip_edges().begins_with("#"):
+            continue
+
+        var existing_indent_len = len(existing_body_line) - len(existing_body_line.lstrip("\t "))
+        if existing_indent_len > func_indent_level:
+            body_indent_str = existing_body_line.substr(0, existing_indent_len)
+            break
 
     # Add lines before the function
     for i in range(func_start_line):
@@ -2573,20 +2586,13 @@ func modify_function(params):
     # Add function signature (new or existing)
     if new_signature != "":
         # Use new signature
-        var indent_str = ""
-        for j in range(func_indent_level):
-            indent_str += base_indent[0] if base_indent.length() > 0 else "\t"
-        new_lines.append(indent_str + new_signature)
+        new_lines.append(function_indent_str + new_signature)
     else:
         # Keep existing signature
         new_lines.append(lines[func_start_line])
 
     # Add new function body with proper indentation
     var body_lines = new_body.split("\n")
-    var body_indent_str = base_indent
-    for k in range(func_indent_level):
-        body_indent_str = (base_indent[0] if base_indent.length() > 0 else "\t") + body_indent_str
-
     for body_line in body_lines:
         if body_line.strip_edges().is_empty():
             new_lines.append("")
@@ -3257,10 +3263,13 @@ func create_animation_player(params):
         var animation = Animation.new()
         animation.length = 1.0  # Default 1 second length
 
-        # Add the animation to the AnimationPlayer's library
-        var library = animation_player.get_animation_library("")
-        if library == null:
-            # Create a new library if it doesn't exist
+        # Add the animation to the AnimationPlayer's library. Calling
+        # get_animation_library() before a library exists prints an engine
+        # error, so check first to keep stderr clean for MCP callers.
+        var library: AnimationLibrary
+        if animation_player.has_animation_library(""):
+            library = animation_player.get_animation_library("")
+        else:
             library = AnimationLibrary.new()
             animation_player.add_animation_library("", library)
 
@@ -6188,8 +6197,10 @@ func manage_multiplayer_spawner(params: Dictionary) -> void:
         synchronizer = MultiplayerSynchronizer.new()
         synchronizer.name = sync_name
         if sync_properties.size() > 0:
+            var replication_config = SceneReplicationConfig.new()
             for prop in sync_properties:
-                synchronizer.add_property(str(prop))
+                replication_config.add_property(NodePath(str(prop)))
+            synchronizer.replication_config = replication_config
         if sync_interval > 0: synchronizer.replication_interval = sync_interval
         if visibility_sync:
             synchronizer.public_visibility = true
