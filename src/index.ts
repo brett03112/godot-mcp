@@ -248,8 +248,6 @@ class GodotServer {
     // Tier 14: Physics
     'physics_type': 'physicsType',
     'mat_path': 'matPath',
-    'linear_damp': 'linearDamp',
-    'angular_damp': 'angularDamp',
     'collision_layer': 'collisionLayer',
     'collision_mask': 'collisionMask',
     'collision_priority': 'collisionPriority',

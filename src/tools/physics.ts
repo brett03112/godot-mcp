@@ -61,7 +61,7 @@ async function runGdScript(
 function configurePhysicsMaterial(ctx: ServerContext): ToolDefinition {
   return {
     name: 'configure_physics_material',
-    description: 'Create a PhysicsMaterial resource (.tres) with friction, bounce, roughness, and damping settings.',
+    description: 'Create a PhysicsMaterial resource (.tres) with friction, bounce, roughness, and absorbency settings.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -72,8 +72,6 @@ function configurePhysicsMaterial(ctx: ServerContext): ToolDefinition {
         rough: { type: 'boolean', description: 'Rough surface flag (default: false)' },
         bounce: { type: 'number', description: 'Bounciness (default: 0.0)' },
         absorbent: { type: 'boolean', description: 'Absorbent flag (default: false)' },
-        linear_damp: { type: 'number', description: 'Linear damping (default: -1, disabled)' },
-        angular_damp: { type: 'number', description: 'Angular damping (default: -1, disabled)' },
       },
       required: ['project_path', 'mat_path'],
     },
@@ -93,8 +91,6 @@ function configurePhysicsMaterial(ctx: ServerContext): ToolDefinition {
         rough: args.rough ?? false,
         bounce: args.bounce ?? 0.0,
         absorbent: args.absorbent ?? false,
-        linear_damp: args.linearDamp ?? -1.0,
-        angular_damp: args.angularDamp ?? -1.0,
       }, args.projectPath, 'configure physics material');
     },
   };

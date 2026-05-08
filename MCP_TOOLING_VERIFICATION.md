@@ -86,17 +86,17 @@ These tools were previously tested in `test_mcp_enhancements/test_enhancements.m
 | `setup_multiplayer_peer` | REVIEW | Success-path call failed: Godot could not create ENet host on port 10568. | May be sandbox/network binding related; retest outside sandbox before code changes. |
 | `configure_rpc` | PASS | Configured RPC metadata on `mcp_verification/net_scene.tscn`. | Returns annotation guidance; does not edit script source. |
 | `manage_multiplayer_spawner` | PASS | Added `MultiplayerSpawner` and `MultiplayerSynchronizer` after API fix. | Repaired obsolete `add_property()` usage. |
-| `configure_physics_material` | REVIEW | Failed with `Unknown operation: configure_physics_material`. | Tool is registered, but backing GDScript operation is missing. |
-| `set_collision_config` | REVIEW | Code inspection: backing operation is missing. | Not executed after missing-operation finding. |
-| `create_physics_body` | REVIEW | Failed with `Unknown operation: create_physics_body`. | Tool is registered, but backing GDScript operation is missing. |
-| `manage_collision_shape` | REVIEW | Code inspection: backing operation is missing. | Not executed after missing-operation finding. |
-| `setup_joint` | REVIEW | Code inspection: backing operation is missing. | Not executed after missing-operation finding. |
-| `generate_navmesh` | PASS | Added `NavigationRegion3D` metadata to verification scene. | Tool has a backing GDScript operation. |
-| `add_navigation_agent` | REVIEW | Failed with `Unknown operation: add_navigation_agent`. | Tool is registered, but backing GDScript operation is missing. |
-| `add_navigation_link` | REVIEW | Code inspection: backing operation is missing. | Not executed after missing-operation finding. |
-| `configure_navigation_obstacle` | REVIEW | Code inspection: backing operation is missing. | Not executed after missing-operation finding. |
-| `create_astar_grid` | REVIEW | Failed with `Unknown operation: create_astar_grid`. | Also review design: `AStarGrid2D` is not a normal `.tres` Resource in Godot 4. |
-| `setup_navigation_server` | REVIEW | Failed with `Unknown operation: setup_navigation_server`. | Tool is registered, but backing GDScript operation is missing. |
+| `configure_physics_material` | PASS | Created `resources/rev001_physics_material.tres` in a temp fixture copy. | Godot 4.6 `PhysicsMaterial` stores friction, rough, bounce, and absorbent; damping belongs on bodies. |
+| `set_collision_config` | PASS | Set layer `4`, mask `3`, and priority `2` on `REVBall`. | Scene validation passed after the edit. |
+| `create_physics_body` | PASS | Added `REVBall` as a `RigidBody2D` with a `CollisionShape2D`. | Fresh smoke test used a temp copy of `test_mcp_enhancements`. |
+| `manage_collision_shape` | PASS | Added disabled `REVHitbox` collision shape under `REVBall`. | Scene validation passed after the edit. |
+| `setup_joint` | PASS | Created `REVJoint` as a `PinJoint2D` auto-linked to fixture bodies. | Scene validation passed after the edit. |
+| `generate_navmesh` | PASS | Added `REVNavigationRegion` metadata to `tier16_navmesh_repair.tscn`. | Scene validation passed after the edit. |
+| `add_navigation_agent` | PASS | Added `REVAgent` under `AgentBody` with avoidance enabled. | Scene validation passed after the edit. |
+| `add_navigation_link` | PASS | Added one-way `REVLink` between 2D navigation positions. | Scene validation passed after the edit. |
+| `configure_navigation_obstacle` | PASS | Added `REVObstacle` with avoidance enabled. | Scene validation passed after the edit. |
+| `create_astar_grid` | PASS | Created `resources/rev002_astar_grid.tres` as an `AStarGrid2DConfig` resource. | `AStarGrid2D` is `RefCounted` in Godot 4.6, so the tool saves reusable config metadata. |
+| `setup_navigation_server` | PASS | Returned validated 2D NavigationServer runtime configuration. | No file output; map RIDs are runtime state. |
 | `launch_editor` | BLOCKED |  | Success path launches GUI editor; not run in this pass. |
 | `run_project` | BLOCKED |  | Success path launches GUI/runtime; not run in this pass. |
 | `get_debug_output` | PASS | Inactive-process path returned expected MCP error. | Success path depends on `run_project`. |
@@ -169,8 +169,8 @@ These tools were previously tested in `test_mcp_enhancements/test_enhancements.m
 | FIX-007 | PASS | `create_animation_player` false failure | Initial animation creation called `get_animation_library("")` before the default library existed, causing recoverable engine stderr. | Fixed with `has_animation_library("")` guard. |
 | FIX-008 | PASS | `configure_localization` path normalization | Passing `res://...` produced `res://res://...` in `project.godot`. | Fixed by preserving existing `res://` prefixes. |
 | FIX-009 | PASS | `manage_multiplayer_spawner` Godot 4.6 API | Used nonexistent `MultiplayerSynchronizer.add_property()`. | Fixed with `SceneReplicationConfig`. |
-| REV-001 | REVIEW | Physics tools | `configure_physics_material`, `set_collision_config`, `create_physics_body`, `manage_collision_shape`, and `setup_joint` are registered but their GDScript operations are missing. | Implement or disable these tools before advertising them as available. |
-| REV-002 | REVIEW | Navigation tools | `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, and `setup_navigation_server` are registered but their GDScript operations are missing. | Implement or disable these tools; review `create_astar_grid` resource design. |
+| REV-001 | PASS | Physics tools | GDScript operations are implemented and smoke-tested for material creation, body creation, collision config, collision shape management, and joint creation. | Expand variant coverage later for 3D bodies and non-pin joint types. |
+| REV-002 | PASS | Navigation tools | GDScript operations are implemented and smoke-tested for agents, links, obstacles, AStarGrid2D config resources, NavigationServer config, and navmesh region metadata. | Expand variant coverage later for 3D navigation nodes and obstacle update/remove/toggle paths. |
 | REV-003 | REVIEW | `setup_multiplayer_peer` | ENet server setup failed with `Couldn't create an ENet host` in this sandbox. | Retest outside sandbox or make the tool support config-only generation without binding a port. |
 | REV-004 | REVIEW | `export_mesh_library` | Success path still needs a valid imported 3D scene; copied `.gltf` failed to load as a scene in the temp project. | Add a deterministic 3D test scene or improve import handling. |
 | BLK-001 | BLOCKED | GUI tools | `launch_editor`, `run_project`, viewport/playtest GUI success paths were not run in this pass. | Run with explicit GUI approval/display access. |

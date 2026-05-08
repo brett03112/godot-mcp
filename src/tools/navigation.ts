@@ -305,18 +305,17 @@ function configureNavigationObstacle(ctx: ServerContext): ToolDefinition {
 
 // ─── create_astar_grid ────────────────────────────────────────────────────
 
-const VALID_ASTAR_DIMENSIONS = ['2d', '3d'];
 const VALID_CELL_SIZE_MODES = ['orthogonal', 'diagonal'];
 
 function createAstarGrid(ctx: ServerContext): ToolDefinition {
   return {
     name: 'create_astar_grid',
-    description: 'Create an AStarGrid2D resource for grid-based pathfinding, ideal for tilemap-based games. Configures grid size, cell size, connectivity, and default heuristic.',
+    description: 'Create an AStarGrid2D configuration resource for grid-based pathfinding. AStarGrid2D is RefCounted in Godot 4.6, so the saved .tres stores reusable grid settings.',
     inputSchema: {
       type: 'object',
       properties: {
         project_path: { type: 'string', description: 'Path to the Godot project directory' },
-        output_path: { type: 'string', description: 'Relative path to save the AStarGrid2D .tres resource (e.g., "resources/astar_grid.tres")' },
+        output_path: { type: 'string', description: 'Relative path to save the AStarGrid2D config .tres resource (e.g., "resources/astar_grid.tres")' },
         grid_size: { type: 'string', description: 'Grid dimensions as Godot vector (e.g., "Vector2i(100, 100)" for 100x100 grid)' },
         cell_size: { type: 'string', description: 'Cell size in pixels (e.g., "Vector2(16, 16)")' },
         cell_connect_mode: { type: 'string', enum: VALID_CELL_SIZE_MODES, description: '"orthogonal" (4-way) or "diagonal" (8-way) (default: "orthogonal")' },
