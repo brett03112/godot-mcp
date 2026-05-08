@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/mcp_multiplayer_peer_tier13_networking_repair.gd" id="1_flw4f"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_flw4f"]
+properties/0/path = NodePath("position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath("rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[node name="root" type="Node" unique_id=1281237749]
+
+[node name="McpMultiplayerPeer" type="Node" parent="." unique_id=1175211150]
+script = ExtResource("1_flw4f")
+port = 10667
+max_clients = 4
+server_url = "ws://localhost:10667"
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=2120177906]
+spawn_path = NodePath("AgentBody")
+spawn_limit = 8
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1035266277]
+replication_interval = 0.1
+replication_config = SubResource("SceneReplicationConfig_flw4f")

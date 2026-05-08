@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_40ntd"]
+radius = 12.0
+
+[node name="root" type="Node2D" unique_id=2038581283]
+
+[node name="AgentBody" type="CharacterBody2D" parent="." unique_id=347841934]
+
+[node name="CollisionShape" type="CollisionShape2D" parent="AgentBody" unique_id=966104693]
+shape = SubResource("CircleShape2D_40ntd")
+
+[node name="NavAgent" type="NavigationAgent2D" parent="AgentBody" unique_id=734539029]
+path_desired_distance = 8.0
+target_desired_distance = 8.0
+path_max_distance = 0.0
+path_metadata_flags = 15
+avoidance_enabled = true
+radius = 14.0
+max_speed = 180.0
+
+[node name="JumpLink" type="NavigationLink2D" parent="." unique_id=1324230745]
+bidirectional = false
+end_position = Vector2(128, 0)
+enter_cost = 0.25
+travel_cost = 1.5
+
+[node name="CrateObstacle" type="NavigationObstacle2D" parent="." unique_id=1053210246]
+radius = 20.0
+affect_navigation_mesh = true

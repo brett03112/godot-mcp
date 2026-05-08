@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_h88lt"]
+geometry_parsed_geometry_type = 1
+agent_height = 2.0
+
+[node name="root" type="Node3D" unique_id=818520553]
+
+[node name="TestNavigationRegion" type="NavigationRegion3D" parent="." unique_id=813152198]
+navigation_mesh = SubResource("NavigationMesh_h88lt")

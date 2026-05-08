@@ -1,0 +1,13 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+resource_name = "AStarGrid2DConfig"
+metadata/grid_size = Vector2i(12, 8)
+metadata/cell_size = Vector2(16, 16)
+metadata/cell_connect_mode = "diagonal"
+metadata/default_heuristic = "octile"
+metadata/diagonal_mode = "at_least_one_walkable"
+metadata/offset = Vector2(0, 0)
+metadata/jumping_enabled = false
+metadata/solid_point_weight = 1.0
+metadata/default_point_weight = 1.0

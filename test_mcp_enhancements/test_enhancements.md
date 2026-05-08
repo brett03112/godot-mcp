@@ -1103,3 +1103,83 @@ T4.49–T4.62 (metrics)   → reads sessions
 ```
 
 All analysis tools (Phases 8–11) depend on session data from Phases 6–7. If playtesting fails, analysis tests cannot proceed.
+
+---
+---
+
+# Continuation Test Pass: Resources + Tiers 13/14/16
+
+**Project:** `test_mcp_enhancements/`
+**Date Executed:** 2026-05-08
+**Godot:** 4.6.2.stable.official.71f334935
+
+## MCP Resource Endpoints
+
+| ID | Description | Result |
+|----|-------------|--------|
+| R.01 | `resources/list` exposes server info, tool catalog, runtime debug output, and per-tool resource URIs | **PASS** — 115 resources/tools surfaced |
+| R.02 | `godot-mcp://server/info` | **PASS** — reports Godot path, operations script path, and tool count |
+| R.03 | `godot-mcp://tools/catalog` | **PASS** — returns full tool definitions |
+| R.04 | `godot-mcp://tools/configure_physics_material` | **PASS** — returns single-tool schema |
+| R.05 | `godot-mcp://runtime/debug-output` | **PASS** — returns empty output/errors when no project process is running |
+
+## Tier 13: Networking
+
+| Tool | Test Artifact | Result |
+|------|---------------|--------|
+| `setup_multiplayer_peer` | `tier13_networking_repair.tscn`, `scripts/mcp_multiplayer_peer_tier13_networking_repair.gd` | **PASS** — creates a runtime helper node/script instead of trying to serialize a live `MultiplayerPeer` |
+| `configure_rpc` | `tier13_networking_repair.tscn` | **PASS** — returns valid Godot 4 RPC annotation: `@rpc("any_peer", "call_remote", "unreliable", 1)` |
+| `manage_multiplayer_spawner` | `tier13_networking_repair.tscn` | **PASS** — adds `MultiplayerSpawner` and `MultiplayerSynchronizer` |
+
+## Tier 14: Physics
+
+| Tool | Test Artifact | Result |
+|------|---------------|--------|
+| `configure_physics_material` | `resources/tier14_test_physics.tres` | **PASS** — saves Godot 4.6 `PhysicsMaterial` with friction/rough/bounce |
+| `create_physics_body` | `tier14_physics_repair.tscn` | **PASS** — creates `RigidBody2D` and `StaticBody2D` with collision shapes |
+| `set_collision_config` | `tier14_physics_repair.tscn` | **PASS** — sets layer/mask/priority on `Ball` |
+| `manage_collision_shape` | `tier14_physics_repair.tscn` | **PASS** — adds disabled `Hitbox` collision shape |
+| `setup_joint` | `tier14_physics_repair.tscn` | **PASS** — creates `PinJoint2D` connecting auto-detected bodies |
+
+## Tier 16: Navigation
+
+| Tool | Test Artifact | Result |
+|------|---------------|--------|
+| `add_navigation_agent` | `tier16_navigation_repair.tscn` | **PASS** — adds `NavigationAgent2D` under `AgentBody` |
+| `add_navigation_link` | `tier16_navigation_repair.tscn` | **PASS** — adds `NavigationLink2D` |
+| `configure_navigation_obstacle` | `tier16_navigation_repair.tscn` | **PASS** — adds `NavigationObstacle2D` |
+| `create_astar_grid` | `resources/tier16_astar_grid.tres` | **PASS** — saves config resource; Godot 4.6 `AStarGrid2D` is `RefCounted`, not directly serializable as `.tres` |
+| `setup_navigation_server` | no file output | **PASS** — validates/returns runtime NavigationServer config |
+| `generate_navmesh` | `tier16_navmesh_repair.tscn` | **PASS** — adds `NavigationRegion3D` with `NavigationMesh` |
+
+## Bugs Found & Fixed
+
+### BUG-T13.1: `setup_multiplayer_peer` tried to serialize runtime-only peer state
+
+- **File:** `src/scripts/godot_operations.gd`
+- **Issue:** The operation called `scene.multiplayer.multiplayer_peer = peer` on an instantiated scene that was not inside the tree, so `scene.multiplayer` was null. A live `MultiplayerPeer` also should not be packed into `.tscn`.
+- **Fix:** Generate and attach a helper node/script that creates the ENet/WebSocket peer in `_ready()` and assigns it to `get_tree().get_multiplayer().multiplayer_peer` at runtime.
+
+### BUG-T13.2: `configure_rpc` annotation argument order was invalid
+
+- **File:** `src/scripts/godot_operations.gd`
+- **Issue:** The old annotation placed transfer mode before sync mode and emitted invalid channel text.
+- **Fix:** Use Godot 4 order: `@rpc(call_mode, sync_mode, transfer_mode, channel)`.
+
+### BUG-T14.1 / BUG-T16.1: Registered physics/navigation tools had no GDScript operations
+
+- **File:** `src/scripts/godot_operations.gd`
+- **Issue:** Tier 14 and most Tier 16 tools were registered in TypeScript but dispatched to operations that did not exist, returning `Unknown operation`.
+- **Fix:** Added dispatch entries and implementations for physics materials, collision config, physics bodies, collision shapes, joints, navigation agents, links, obstacles, AStar grid config, and NavigationServer config.
+
+### BUG-T14.2: New operations built responses after freeing scene nodes
+
+- **File:** `src/scripts/godot_operations.gd`
+- **Issue:** Initial repair saved the scene, freed the tree, then read node properties for JSON responses.
+- **Fix:** Capture response values before `scene_root.free()`.
+
+## Verification
+
+- `npm run build` passes and copies `godot_operations.gd` to `build/scripts/`.
+- `validate_script` passes for `scripts/mcp_multiplayer_peer_tier13_networking_repair.gd`.
+- `validate_scene` passes for `tier13_networking_repair.tscn`, `tier14_physics_repair.tscn`, `tier16_navigation_repair.tscn`, and `tier16_navmesh_repair.tscn`.

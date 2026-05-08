@@ -148,6 +148,28 @@ func _init():
             configure_rpc(params)
         "manage_multiplayer_spawner":
             manage_multiplayer_spawner(params)
+        # Tier 14: Physics
+        "configure_physics_material":
+            configure_physics_material(params)
+        "set_collision_config":
+            set_collision_config(params)
+        "create_physics_body":
+            create_physics_body(params)
+        "manage_collision_shape":
+            manage_collision_shape(params)
+        "setup_joint":
+            setup_joint(params)
+        # Tier 16: Navigation
+        "add_navigation_agent":
+            add_navigation_agent(params)
+        "add_navigation_link":
+            add_navigation_link(params)
+        "configure_navigation_obstacle":
+            configure_navigation_obstacle(params)
+        "create_astar_grid":
+            create_astar_grid(params)
+        "setup_navigation_server":
+            setup_navigation_server(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -6022,6 +6044,10 @@ func setup_multiplayer_peer(params: Dictionary) -> void:
     if scene_path.is_empty():
         log_error("scene_path is required")
         return
+    if peer_type == "webrtc":
+        log_error("WebRTC peer setup requires signaling and is not implemented by this scene helper")
+        return
+
     var full_scene_path = "res://" + scene_path
     var packed_scene = load(full_scene_path) as PackedScene
     if packed_scene == null:
@@ -6038,44 +6064,31 @@ func setup_multiplayer_peer(params: Dictionary) -> void:
             log_error("Network node not found: " + network_node_path)
             scene.free()
             return
-    var peer: MultiplayerPeer = null
-    match peer_type.to_lower():
-        "enet":
-            var enet_peer = ENetMultiplayerPeer.new()
-            if mode == "server":
-                var err = enet_peer.create_server(port, max_clients)
-                if err != OK:
-                    log_error("Failed to create ENet server on port " + str(port) + ": " + str(err))
-                    scene.free()
-                    return
-            else:
-                var err = enet_peer.create_client(address, port)
-                if err != OK:
-                    log_error("Failed to create ENet client to " + address + ":" + str(port) + ": " + str(err))
-                    scene.free()
-                    return
-            peer = enet_peer
-        "websocket":
-            var ws_peer = WebSocketMultiplayerPeer.new()
-            if mode == "server":
-                var err = ws_peer.create_server(port)
-                if err != OK:
-                    log_error("Failed to create WebSocket server on port " + str(port) + ": " + str(err))
-                    scene.free()
-                    return
-            else:
-                var err = ws_peer.create_client(server_url)
-                if err != OK:
-                    log_error("Failed to create WebSocket client to " + server_url + ": " + str(err))
-                    scene.free()
-                    return
-            peer = ws_peer
-        _:
-            log_error("Unsupported peer type: " + peer_type)
-            scene.free()
-            return
+
+    var script_path = "res://scripts/mcp_multiplayer_peer_" + _safe_file_stem(scene_path.get_basename()) + ".gd"
+    if not _write_text_file(script_path, _multiplayer_peer_script_source()):
+        scene.free()
+        return
+
+    var helper_node_name = _make_unique_child_name(network_node, "McpMultiplayerPeer")
+    var helper_node = Node.new()
+    helper_node.name = helper_node_name
+    var helper_script = load(script_path) as Script
+    if helper_script == null:
+        log_error("Failed to load generated multiplayer helper script: " + script_path)
+        scene.free()
+        return
+    helper_node.set_script(helper_script)
+    helper_node.set("peer_type", peer_type)
+    helper_node.set("mode", mode)
+    helper_node.set("port", port)
+    helper_node.set("address", address)
+    helper_node.set("max_clients", max_clients)
+    helper_node.set("server_url", server_url)
+    network_node.add_child(helper_node)
+    helper_node.owner = scene
     network_node.set_multiplayer_authority(1 if mode == "server" else 0)
-    scene.multiplayer.multiplayer_peer = peer
+
     var new_packed = PackedScene.new()
     var pack_err = new_packed.pack(scene)
     scene.free()
@@ -6086,7 +6099,7 @@ func setup_multiplayer_peer(params: Dictionary) -> void:
     if save_err != OK:
         log_error("Failed to save scene: " + str(save_err))
         return
-    var result = {"success":true,"peer_type":peer_type,"mode":mode,"port":port,"address":address if mode=="client" else "","max_clients":max_clients if mode=="server" else 0,"network_node":network_node_path}
+    var result = {"success":true,"peer_type":peer_type,"mode":mode,"port":port,"address":address if mode=="client" else "","max_clients":max_clients if mode=="server" else 0,"network_node":network_node_path,"helper_node":helper_node_name,"script_path":script_path,"note":"A runtime helper node creates and assigns the MultiplayerPeer when the scene enters the tree."}
     print(JSON.stringify(result))
     log_info("setup_multiplayer_peer completed successfully")
 
@@ -6119,10 +6132,8 @@ func configure_rpc(params: Dictionary) -> void:
             log_error("Node not found: " + node_path)
             scene.free()
             return
-    var rpc_annotation = "@rpc(\"" + call_mode + "\", \"" + transfer_mode + "\""
-    if sync: rpc_annotation += ", \"call_local\""
-    if channel > 0: rpc_annotation += ", " + str(channel) + "_channel"
-    rpc_annotation += ")"
+    var sync_mode = "call_local" if sync else "call_remote"
+    var rpc_annotation = "@rpc(\"" + call_mode + "\", \"" + sync_mode + "\", \"" + transfer_mode + "\", " + str(channel) + ")"
     var new_packed = PackedScene.new()
     var pack_err = new_packed.pack(scene)
     scene.free()
@@ -6224,3 +6235,977 @@ func manage_multiplayer_spawner(params: Dictionary) -> void:
     var result = {"success":true,"scene_path":scene_path,"parent_path":parent_path,"action":action,"added_nodes":added_nodes,"spawn_path":spawn_path if not spawn_path.is_empty() else "(not set)","sync_properties_count":sync_properties.size()}
     print(JSON.stringify(result))
     log_info("manage_multiplayer_spawner completed successfully")
+
+
+# --- Tier 14/16 shared helpers ---
+
+func _to_res_path(path: String) -> String:
+    if path.begins_with("res://"):
+        return path
+    return "res://" + path
+
+
+func _load_scene_for_edit(scene_path: String) -> Dictionary:
+    var full_scene_path = _to_res_path(scene_path)
+    var packed_scene = load(full_scene_path) as PackedScene
+    if packed_scene == null:
+        log_error("Failed to load scene: " + full_scene_path)
+        return {}
+    var scene_root = packed_scene.instantiate()
+    if scene_root == null:
+        log_error("Failed to instantiate scene: " + full_scene_path)
+        return {}
+    return {
+        "full_scene_path": full_scene_path,
+        "scene_root": scene_root,
+    }
+
+
+func _save_scene_root(scene_root: Node, full_scene_path: String) -> bool:
+    var new_packed = PackedScene.new()
+    var pack_err = new_packed.pack(scene_root)
+    if pack_err != OK:
+        log_error("Failed to pack scene: " + str(pack_err))
+        return false
+    var save_err = ResourceSaver.save(new_packed, full_scene_path)
+    if save_err != OK:
+        log_error("Failed to save scene: " + str(save_err))
+        return false
+    return true
+
+
+func _get_edit_parent(scene_root: Node, parent_path: String) -> Node:
+    if parent_path == "." or parent_path == "" or parent_path == "root":
+        return scene_root
+    var normalized_path = parent_path
+    if normalized_path.begins_with("root/"):
+        normalized_path = normalized_path.substr(5)
+    return scene_root.get_node_or_null(NodePath(normalized_path))
+
+
+func _has_property(obj: Object, property_name: String) -> bool:
+    for property_info in obj.get_property_list():
+        if str(property_info.get("name", "")) == property_name:
+            return true
+    return false
+
+
+func _set_if_property(obj: Object, property_name: String, value) -> bool:
+    if _has_property(obj, property_name):
+        obj.set(property_name, value)
+        return true
+    return false
+
+
+func _constructor_parts(value: String) -> PackedStringArray:
+    var start = value.find("(")
+    var end = value.rfind(")")
+    if start < 0 or end <= start:
+        return PackedStringArray()
+    var inner = value.substr(start + 1, end - start - 1)
+    return inner.split(",")
+
+
+func _parse_vector2(value, fallback := Vector2.ZERO) -> Vector2:
+    if value is Vector2:
+        return value
+    if value is Array and value.size() >= 2:
+        return Vector2(float(value[0]), float(value[1]))
+    if value is String:
+        var parts = _constructor_parts(value.strip_edges())
+        if parts.size() >= 2:
+            return Vector2(float(parts[0].strip_edges()), float(parts[1].strip_edges()))
+    return fallback
+
+
+func _parse_vector2i(value, fallback := Vector2i.ZERO) -> Vector2i:
+    if value is Vector2i:
+        return value
+    if value is Vector2:
+        return Vector2i(int(value.x), int(value.y))
+    if value is Array and value.size() >= 2:
+        return Vector2i(int(value[0]), int(value[1]))
+    if value is String:
+        var parts = _constructor_parts(value.strip_edges())
+        if parts.size() >= 2:
+            return Vector2i(int(parts[0].strip_edges()), int(parts[1].strip_edges()))
+    return fallback
+
+
+func _parse_vector3(value, fallback := Vector3.ZERO) -> Vector3:
+    if value is Vector3:
+        return value
+    if value is Array and value.size() >= 3:
+        return Vector3(float(value[0]), float(value[1]), float(value[2]))
+    if value is String:
+        var parts = _constructor_parts(value.strip_edges())
+        if parts.size() >= 3:
+            return Vector3(float(parts[0].strip_edges()), float(parts[1].strip_edges()), float(parts[2].strip_edges()))
+    return fallback
+
+
+func _physics_node_is_3d(body_type: String) -> bool:
+    return body_type.ends_with("_3d")
+
+
+func _create_collision_shape_resource(shape_type: String, is_3d: bool, shape_size, shape_radius: float, shape_height: float):
+    var normalized_type = shape_type.to_lower()
+    if is_3d:
+        match normalized_type:
+            "box", "rectangle":
+                var box = BoxShape3D.new()
+                box.size = _parse_vector3(shape_size, Vector3(1, 1, 1))
+                return box
+            "sphere", "circle":
+                var sphere = SphereShape3D.new()
+                sphere.radius = shape_radius
+                return sphere
+            "cylinder":
+                var cylinder = CylinderShape3D.new()
+                cylinder.radius = shape_radius
+                cylinder.height = shape_height
+                return cylinder
+            "capsule", "capsule_3d":
+                var capsule3d = CapsuleShape3D.new()
+                capsule3d.radius = shape_radius
+                capsule3d.height = shape_height
+                return capsule3d
+            "world_boundary":
+                return WorldBoundaryShape3D.new()
+            _:
+                log_error("Unsupported 3D collision shape type: " + shape_type)
+                return null
+
+    match normalized_type:
+        "rectangle", "box":
+            var rect = RectangleShape2D.new()
+            rect.size = _parse_vector2(shape_size, Vector2(64, 64))
+            return rect
+        "circle", "sphere":
+            var circle = CircleShape2D.new()
+            circle.radius = shape_radius
+            return circle
+        "capsule", "capsule_2d":
+            var capsule2d = CapsuleShape2D.new()
+            capsule2d.radius = shape_radius
+            capsule2d.height = shape_height
+            return capsule2d
+        "segment":
+            var segment = SegmentShape2D.new()
+            var size = _parse_vector2(shape_size, Vector2(64, 0))
+            segment.a = Vector2(-size.x / 2.0, -size.y / 2.0)
+            segment.b = Vector2(size.x / 2.0, size.y / 2.0)
+            return segment
+        "world_boundary":
+            return WorldBoundaryShape2D.new()
+        _:
+            log_error("Unsupported 2D collision shape type: " + shape_type)
+            return null
+
+
+func _create_collision_shape_node(is_3d: bool, shape_name: String, shape_type: String, shape_size, shape_radius: float, shape_height: float, disabled: bool, one_way_collision: bool, one_way_margin: float) -> Node:
+    var shape_resource = _create_collision_shape_resource(shape_type, is_3d, shape_size, shape_radius, shape_height)
+    if shape_resource == null:
+        return null
+
+    if is_3d:
+        var shape_node_3d = CollisionShape3D.new()
+        shape_node_3d.name = shape_name
+        shape_node_3d.shape = shape_resource
+        shape_node_3d.disabled = disabled
+        return shape_node_3d
+
+    var shape_node_2d = CollisionShape2D.new()
+    shape_node_2d.name = shape_name
+    shape_node_2d.shape = shape_resource
+    shape_node_2d.disabled = disabled
+    shape_node_2d.one_way_collision = one_way_collision
+    shape_node_2d.one_way_collision_margin = one_way_margin
+    return shape_node_2d
+
+
+func _make_unique_child_name(parent: Node, base_name: String) -> String:
+    if not parent.has_node(base_name):
+        return base_name
+    var counter = 2
+    var candidate = base_name + str(counter)
+    while parent.has_node(candidate):
+        counter += 1
+        candidate = base_name + str(counter)
+    return candidate
+
+
+func _is_physics_body_node(node: Node) -> bool:
+    return node is PhysicsBody2D or node is PhysicsBody3D or node is Area2D or node is Area3D
+
+
+func _collect_physics_body_paths(root: Node, node: Node, paths: Array) -> void:
+    if _is_physics_body_node(node):
+        paths.append(str(root.get_path_to(node)))
+    for child in node.get_children():
+        if child is Node:
+            _collect_physics_body_paths(root, child, paths)
+
+
+func _relative_joint_path(body_path: String) -> NodePath:
+    if body_path.begins_with("../") or body_path.begins_with("/"):
+        return NodePath(body_path)
+    return NodePath("../" + body_path)
+
+
+func _nav_path_postprocessing_mode(mode: String) -> int:
+    match mode.to_lower():
+        "center":
+            return 1
+        _:
+            return 0
+
+
+func _nav_metadata_flags(flags: Array) -> int:
+    var mask = 0
+    for flag in flags:
+        match str(flag):
+            "path":
+                mask |= 1
+            "closest":
+                mask |= 2
+            "request":
+                mask |= 4
+            "update":
+                mask |= 8
+            "navigation_layers":
+                mask |= 16
+    return mask
+
+
+func _astar_heuristic(value: String) -> int:
+    match value.to_lower():
+        "manhattan":
+            return AStarGrid2D.HEURISTIC_MANHATTAN
+        "octile":
+            return AStarGrid2D.HEURISTIC_OCTILE
+        "chebyshev":
+            return AStarGrid2D.HEURISTIC_CHEBYSHEV
+        _:
+            return AStarGrid2D.HEURISTIC_EUCLIDEAN
+
+
+func _astar_diagonal_mode(cell_connect_mode: String, diagonal_mode: String) -> int:
+    if cell_connect_mode.to_lower() == "orthogonal":
+        return AStarGrid2D.DIAGONAL_MODE_NEVER
+    match diagonal_mode.to_lower():
+        "at_least_one_walkable":
+            return AStarGrid2D.DIAGONAL_MODE_AT_LEAST_ONE_WALKABLE
+        "only_if_no_obstacles":
+            return AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+        _:
+            return AStarGrid2D.DIAGONAL_MODE_ALWAYS
+
+
+func _safe_file_stem(value: String) -> String:
+    var safe = ""
+    for i in range(value.length()):
+        var c = value.substr(i, 1)
+        if c.is_valid_identifier() or c.is_valid_int() or c == "_":
+            safe += c
+        elif c in ["/", "\\", ".", "-", " "]:
+            safe += "_"
+    if safe.is_empty():
+        return "generated"
+    return safe
+
+
+func _write_text_file(res_path: String, text: String) -> bool:
+    var full_path = _to_res_path(res_path)
+    var absolute_path = ProjectSettings.globalize_path(full_path)
+    var dir_path = absolute_path.get_base_dir()
+    if not DirAccess.dir_exists_absolute(dir_path):
+        DirAccess.make_dir_recursive_absolute(dir_path)
+    var file = FileAccess.open(full_path, FileAccess.WRITE)
+    if file == null:
+        log_error("Failed to open file for writing: " + full_path)
+        return false
+    file.store_string(text)
+    file.close()
+    return true
+
+
+func _multiplayer_peer_script_source() -> String:
+    return """extends Node
+
+@export_enum("enet", "websocket") var peer_type := "enet"
+@export_enum("server", "client") var mode := "server"
+@export var port := 10567
+@export var address := "127.0.0.1"
+@export var max_clients := 32
+@export var server_url := "ws://localhost:10567"
+
+func _ready() -> void:
+    var peer: MultiplayerPeer = null
+    var err := OK
+
+    match peer_type:
+        "enet":
+            var enet_peer := ENetMultiplayerPeer.new()
+            if mode == "server":
+                err = enet_peer.create_server(port, max_clients)
+            else:
+                err = enet_peer.create_client(address, port)
+            peer = enet_peer
+        "websocket":
+            var ws_peer := WebSocketMultiplayerPeer.new()
+            if mode == "server":
+                err = ws_peer.create_server(port)
+            else:
+                err = ws_peer.create_client(server_url)
+            peer = ws_peer
+        _:
+            push_error("Unsupported multiplayer peer_type: " + peer_type)
+            return
+
+    if err != OK:
+        push_error("Failed to create multiplayer peer: " + str(err))
+        return
+
+    get_tree().get_multiplayer().multiplayer_peer = peer
+"""
+
+
+# --- Tier 14: Physics ---
+
+func configure_physics_material(params: Dictionary) -> void:
+    log_info("Starting configure_physics_material operation")
+    var mat_path: String = params.get("mat_path", "")
+    if mat_path.is_empty():
+        log_error("mat_path is required")
+        return
+
+    var material = PhysicsMaterial.new()
+    material.friction = float(params.get("friction", 1.0))
+    material.rough = bool(params.get("rough", false))
+    material.bounce = float(params.get("bounce", 0.0))
+    material.absorbent = bool(params.get("absorbent", false))
+
+    var full_mat_path = _to_res_path(mat_path)
+    var absolute_path = ProjectSettings.globalize_path(full_mat_path)
+    var dir = DirAccess.open("res://")
+    var resource_dir = absolute_path.get_base_dir()
+    if not DirAccess.dir_exists_absolute(resource_dir):
+        DirAccess.make_dir_recursive_absolute(resource_dir)
+
+    var save_err = ResourceSaver.save(material, full_mat_path)
+    if save_err != OK:
+        log_error("Failed to save PhysicsMaterial: " + str(save_err))
+        return
+
+    var result = {
+        "success": true,
+        "mat_path": mat_path,
+        "physics_type": params.get("physics_type", "2d"),
+        "friction": material.friction,
+        "rough": material.rough,
+        "bounce": material.bounce,
+        "absorbent": material.absorbent,
+        "note": "PhysicsMaterial in Godot 4.6 stores friction, rough, bounce, and absorbent. Damping belongs on physics bodies."
+    }
+    print(JSON.stringify(result))
+    log_info("configure_physics_material completed successfully")
+
+
+func set_collision_config(params: Dictionary) -> void:
+    log_info("Starting set_collision_config operation")
+    var scene_path: String = params.get("scene_path", "")
+    var node_path: String = params.get("node_path", "")
+    if scene_path.is_empty() or node_path.is_empty():
+        log_error("scene_path and node_path are required")
+        return
+
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var target = _get_edit_parent(scene_root, node_path)
+    if target == null:
+        log_error("Collision node not found: " + node_path)
+        scene_root.free()
+        return
+    if not (target is CollisionObject2D or target is CollisionObject3D):
+        log_error("Node is not a CollisionObject2D/3D: " + node_path)
+        scene_root.free()
+        return
+
+    var layer_set = bool(params.get("layer_set", true))
+    var mask_set = bool(params.get("mask_set", true))
+    if layer_set:
+        target.collision_layer = int(params.get("collision_layer", 1))
+    if mask_set:
+        target.collision_mask = int(params.get("collision_mask", 1))
+    if _has_property(target, "collision_priority"):
+        target.collision_priority = float(params.get("collision_priority", 1.0))
+
+    var result_layer = target.collision_layer
+    var result_mask = target.collision_mask
+    var result_priority = target.get("collision_priority") if _has_property(target, "collision_priority") else null
+    if not _save_scene_root(scene_root, loaded["full_scene_path"]):
+        scene_root.free()
+        return
+    scene_root.free()
+
+    var result = {
+        "success": true,
+        "scene_path": scene_path,
+        "node_path": node_path,
+        "collision_layer": result_layer,
+        "collision_mask": result_mask,
+        "collision_priority": result_priority
+    }
+    print(JSON.stringify(result))
+    log_info("set_collision_config completed successfully")
+
+
+func create_physics_body(params: Dictionary) -> void:
+    log_info("Starting create_physics_body operation")
+    var scene_path: String = params.get("scene_path", "")
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+
+    var body_type: String = params.get("body_type", "rigid_body_2d")
+    var body: Node = null
+    match body_type:
+        "rigid_body_2d":
+            body = RigidBody2D.new()
+        "rigid_body_3d":
+            body = RigidBody3D.new()
+        "static_body_2d":
+            body = StaticBody2D.new()
+        "static_body_3d":
+            body = StaticBody3D.new()
+        "character_body_2d":
+            body = CharacterBody2D.new()
+        "character_body_3d":
+            body = CharacterBody3D.new()
+        "animatable_body_2d":
+            body = AnimatableBody2D.new()
+        "animatable_body_3d":
+            body = AnimatableBody3D.new()
+        "area_2d":
+            body = Area2D.new()
+        "area_3d":
+            body = Area3D.new()
+        _:
+            log_error("Unsupported body_type: " + body_type)
+            return
+
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var parent = _get_edit_parent(scene_root, params.get("parent_path", "."))
+    if parent == null:
+        log_error("Parent node not found: " + str(params.get("parent_path", ".")))
+        scene_root.free()
+        return
+
+    body.name = _make_unique_child_name(parent, params.get("body_name", "PhysicsBody"))
+    if body is RigidBody2D or body is RigidBody3D:
+        body.set("mass", float(params.get("mass", 1.0)))
+        body.set("gravity_scale", float(params.get("gravity_scale", 1.0)))
+        body.set("freeze", bool(params.get("freeze_enabled", false)))
+        body.set("freeze_mode", 1 if str(params.get("freeze_mode", "kinematic")) == "kinematic" else 0)
+        body.set("can_sleep", bool(params.get("can_sleep", true)))
+        body.set("lock_rotation", bool(params.get("lock_rotation", false)))
+        var ccd_mode = str(params.get("continuous_cd", "disabled"))
+        var ccd_value = 0
+        if ccd_mode == "cast_ray":
+            ccd_value = 1
+        elif ccd_mode == "cast_shape":
+            ccd_value = 2
+        body.set("continuous_cd", ccd_value)
+
+    parent.add_child(body)
+    body.owner = scene_root
+
+    var added_shape = ""
+    if bool(params.get("add_collision_shape", false)):
+        var is_3d = _physics_node_is_3d(body_type)
+        var shape_node = _create_collision_shape_node(
+            is_3d,
+            "CollisionShape",
+            params.get("shape_type", "box" if is_3d else "rectangle"),
+            params.get("shape_size", "Vector3(1, 1, 1)" if is_3d else "Vector2(64, 64)"),
+            float(params.get("shape_radius", 32.0)),
+            float(params.get("shape_height", 64.0)),
+            false,
+            false,
+            1.0
+        )
+        if shape_node == null:
+            scene_root.free()
+            return
+        body.add_child(shape_node)
+        shape_node.owner = scene_root
+        added_shape = shape_node.name
+
+    var result_body_name = body.name
+    if not _save_scene_root(scene_root, loaded["full_scene_path"]):
+        scene_root.free()
+        return
+    scene_root.free()
+
+    var result = {
+        "success": true,
+        "scene_path": scene_path,
+        "parent_path": params.get("parent_path", "."),
+        "body_name": result_body_name,
+        "body_type": body_type,
+        "collision_shape": added_shape
+    }
+    print(JSON.stringify(result))
+    log_info("create_physics_body completed successfully")
+
+
+func manage_collision_shape(params: Dictionary) -> void:
+    log_info("Starting manage_collision_shape operation")
+    var scene_path: String = params.get("scene_path", "")
+    var body_path: String = params.get("body_path", "")
+    if scene_path.is_empty() or body_path.is_empty():
+        log_error("scene_path and body_path are required")
+        return
+
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var body = _get_edit_parent(scene_root, body_path)
+    if body == null:
+        log_error("Physics body not found: " + body_path)
+        scene_root.free()
+        return
+    if not _is_physics_body_node(body):
+        log_error("Node is not a physics body or area: " + body_path)
+        scene_root.free()
+        return
+
+    var action: String = params.get("action", "add")
+    var shape_name: String = params.get("shape_name", "CollisionShape")
+    var removed_count = 0
+
+    if action in ["remove", "replace"] and body.has_node(shape_name):
+        var existing = body.get_node(shape_name)
+        body.remove_child(existing)
+        existing.free()
+        removed_count += 1
+
+    var added_shape = ""
+    if action in ["add", "replace"]:
+        var is_3d = body is Node3D
+        var final_shape_name = _make_unique_child_name(body, shape_name)
+        var shape_node = _create_collision_shape_node(
+            is_3d,
+            final_shape_name,
+            params.get("shape_type", "box" if is_3d else "rectangle"),
+            params.get("shape_size", "Vector3(1, 1, 1)" if is_3d else "Vector2(64, 64)"),
+            float(params.get("shape_radius", 32.0)),
+            float(params.get("shape_height", 64.0)),
+            bool(params.get("disabled", false)),
+            bool(params.get("one_way_collision", false)),
+            float(params.get("one_way_margin", 1.0))
+        )
+        if shape_node == null:
+            scene_root.free()
+            return
+        body.add_child(shape_node)
+        shape_node.owner = scene_root
+        added_shape = shape_node.name
+    elif action != "remove":
+        log_error("Unsupported collision shape action: " + action)
+        scene_root.free()
+        return
+
+    if not _save_scene_root(scene_root, loaded["full_scene_path"]):
+        scene_root.free()
+        return
+    scene_root.free()
+
+    var result = {
+        "success": true,
+        "scene_path": scene_path,
+        "body_path": body_path,
+        "action": action,
+        "removed_count": removed_count,
+        "added_shape": added_shape
+    }
+    print(JSON.stringify(result))
+    log_info("manage_collision_shape completed successfully")
+
+
+func setup_joint(params: Dictionary) -> void:
+    log_info("Starting setup_joint operation")
+    var scene_path: String = params.get("scene_path", "")
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var parent_path: String = params.get("parent_path", ".")
+    var parent = _get_edit_parent(scene_root, parent_path)
+    if parent == null:
+        log_error("Parent node not found: " + parent_path)
+        scene_root.free()
+        return
+
+    var joint_type: String = params.get("joint_type", "pin_joint_2d")
+    var joint: Node = null
+    match joint_type:
+        "pin_joint_2d":
+            joint = PinJoint2D.new()
+        "groove_joint_2d":
+            joint = GrooveJoint2D.new()
+        "damped_spring_joint_2d":
+            joint = DampedSpringJoint2D.new()
+        "hinge_joint_3d":
+            joint = HingeJoint3D.new()
+        "slider_joint_3d":
+            joint = SliderJoint3D.new()
+        "cone_twist_joint_3d":
+            joint = ConeTwistJoint3D.new()
+        "generic_6dof_joint_3d":
+            joint = Generic6DOFJoint3D.new()
+        "spring_arm_3d":
+            joint = SpringArm3D.new()
+        _:
+            log_error("Unsupported joint_type: " + joint_type)
+            scene_root.free()
+            return
+
+    joint.name = _make_unique_child_name(parent, params.get("joint_name", "Joint"))
+    parent.add_child(joint)
+    joint.owner = scene_root
+
+    var body_paths: Array = []
+    if params.has("node_a_path") and not str(params.get("node_a_path")).is_empty():
+        body_paths.append(str(params.get("node_a_path")))
+    if params.has("node_b_path") and not str(params.get("node_b_path")).is_empty():
+        body_paths.append(str(params.get("node_b_path")))
+    if body_paths.size() < 2:
+        body_paths.clear()
+        _collect_physics_body_paths(scene_root, parent, body_paths)
+
+    if body_paths.size() >= 2:
+        _set_if_property(joint, "node_a", _relative_joint_path(body_paths[0]))
+        _set_if_property(joint, "node_b", _relative_joint_path(body_paths[1]))
+
+    _set_if_property(joint, "bias", float(params.get("bias", 0.5)))
+    _set_if_property(joint, "softness", float(params.get("softness", 0.0)))
+    _set_if_property(joint, "disable_collision", bool(params.get("disable_collisions", true)))
+    _set_if_property(joint, "exclude_nodes_from_collision", bool(params.get("disable_collisions", true)))
+    _set_if_property(joint, "motor_enabled", bool(params.get("motor_enabled", false)))
+    _set_if_property(joint, "motor_target_velocity", float(params.get("motor_target_velocity", 0.0)))
+    _set_if_property(joint, "angular_limit_enabled", true)
+    _set_if_property(joint, "angular_limit_lower", deg_to_rad(float(params.get("angular_limit_lower", -90.0))))
+    _set_if_property(joint, "angular_limit_upper", deg_to_rad(float(params.get("angular_limit_upper", 90.0))))
+    _set_if_property(joint, "rest_length", float(params.get("spring_length", 1.0)))
+    _set_if_property(joint, "length", float(params.get("spring_length", 1.0)))
+    _set_if_property(joint, "stiffness", float(params.get("spring_stiffness", 20.0)))
+    _set_if_property(joint, "damping", float(params.get("spring_damping", 1.0)))
+    _set_if_property(joint, "spring_length", float(params.get("spring_length", 1.0)))
+
+    var result_joint_name = joint.name
+    var result_node_a = str(joint.get("node_a")) if _has_property(joint, "node_a") else ""
+    var result_node_b = str(joint.get("node_b")) if _has_property(joint, "node_b") else ""
+    if not _save_scene_root(scene_root, loaded["full_scene_path"]):
+        scene_root.free()
+        return
+    scene_root.free()
+
+    var result = {
+        "success": true,
+        "scene_path": scene_path,
+        "parent_path": parent_path,
+        "joint_name": result_joint_name,
+        "joint_type": joint_type,
+        "node_a": result_node_a,
+        "node_b": result_node_b
+    }
+    print(JSON.stringify(result))
+    log_info("setup_joint completed successfully")
+
+
+# --- Tier 16: Navigation ---
+
+func add_navigation_agent(params: Dictionary) -> void:
+    log_info("Starting add_navigation_agent operation")
+    var scene_path: String = params.get("scene_path", "")
+    var parent_path: String = params.get("parent_path", "")
+    if scene_path.is_empty() or parent_path.is_empty():
+        log_error("scene_path and parent_path are required")
+        return
+
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var parent = _get_edit_parent(scene_root, parent_path)
+    if parent == null:
+        log_error("Parent node not found: " + parent_path)
+        scene_root.free()
+        return
+
+    var agent_type: String = params.get("agent_type", "2d")
+    var agent: Node = NavigationAgent3D.new() if agent_type == "3d" else NavigationAgent2D.new()
+    agent.name = _make_unique_child_name(parent, params.get("agent_name", "NavigationAgent"))
+    _set_if_property(agent, "radius", float(params.get("agent_radius", 0.5 if agent_type == "3d" else 10.0)))
+    _set_if_property(agent, "height", float(params.get("agent_height", 2.0)))
+    _set_if_property(agent, "max_speed", float(params.get("max_speed", 10.0 if agent_type == "3d" else 200.0)))
+    _set_if_property(agent, "path_desired_distance", float(params.get("path_desired_distance", 1.0 if agent_type == "3d" else 5.0)))
+    _set_if_property(agent, "target_desired_distance", float(params.get("path_desired_distance", 1.0 if agent_type == "3d" else 5.0)))
+    _set_if_property(agent, "path_max_distance", float(params.get("path_max_distance", 0.0)))
+    _set_if_property(agent, "path_search_max_distance", float(params.get("path_max_distance", 0.0)))
+    _set_if_property(agent, "avoidance_enabled", bool(params.get("avoidance_enabled", true)))
+    _set_if_property(agent, "avoidance_layers", int(params.get("avoidance_layers", 1)))
+    _set_if_property(agent, "avoidance_priority", float(params.get("avoidance_priority", 1.0)))
+    _set_if_property(agent, "navigation_layers", int(params.get("navigation_layers", 1)))
+    _set_if_property(agent, "path_postprocessing", _nav_path_postprocessing_mode(params.get("path_post_processing", "edge_centered")))
+    _set_if_property(agent, "path_metadata_flags", _nav_metadata_flags(params.get("enable_meta_flags", ["path", "closest", "request", "update"])))
+
+    parent.add_child(agent)
+    agent.owner = scene_root
+
+    var result_agent_name = agent.name
+    var result_agent_max_speed = agent.get("max_speed") if _has_property(agent, "max_speed") else null
+    var result_agent_avoidance_enabled = agent.get("avoidance_enabled") if _has_property(agent, "avoidance_enabled") else null
+    if not _save_scene_root(scene_root, loaded["full_scene_path"]):
+        scene_root.free()
+        return
+    scene_root.free()
+
+    var result = {
+        "success": true,
+        "scene_path": scene_path,
+        "parent_path": parent_path,
+        "agent_name": result_agent_name,
+        "agent_type": agent_type,
+        "max_speed": result_agent_max_speed,
+        "avoidance_enabled": result_agent_avoidance_enabled
+    }
+    print(JSON.stringify(result))
+    log_info("add_navigation_agent completed successfully")
+
+
+func add_navigation_link(params: Dictionary) -> void:
+    log_info("Starting add_navigation_link operation")
+    var scene_path: String = params.get("scene_path", "")
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var parent_path: String = params.get("parent_path", ".")
+    var parent = _get_edit_parent(scene_root, parent_path)
+    if parent == null:
+        log_error("Parent node not found: " + parent_path)
+        scene_root.free()
+        return
+
+    var link_type: String = params.get("link_type", "2d")
+    var link: Node = NavigationLink3D.new() if link_type == "3d" else NavigationLink2D.new()
+    link.name = _make_unique_child_name(parent, params.get("link_name", "NavigationLink"))
+    _set_if_property(link, "bidirectional", bool(params.get("bidirectional", true)))
+    _set_if_property(link, "navigation_layers", int(params.get("navigation_layers", 1)))
+    _set_if_property(link, "enter_cost", float(params.get("enter_cost", 0.0)))
+    _set_if_property(link, "travel_cost", float(params.get("travel_cost", 1.0)))
+    if link_type == "3d":
+        _set_if_property(link, "start_position", _parse_vector3(params.get("start_position", "Vector3(0, 0, 0)")))
+        _set_if_property(link, "end_position", _parse_vector3(params.get("end_position", "Vector3(0, 0, 100)")))
+    else:
+        _set_if_property(link, "start_position", _parse_vector2(params.get("start_position", "Vector2(0, 0)")))
+        _set_if_property(link, "end_position", _parse_vector2(params.get("end_position", "Vector2(100, 0)")))
+
+    parent.add_child(link)
+    link.owner = scene_root
+
+    var result_link_name = link.name
+    var result_bidirectional = link.get("bidirectional")
+    if not _save_scene_root(scene_root, loaded["full_scene_path"]):
+        scene_root.free()
+        return
+    scene_root.free()
+
+    var result = {
+        "success": true,
+        "scene_path": scene_path,
+        "parent_path": parent_path,
+        "link_name": result_link_name,
+        "link_type": link_type,
+        "bidirectional": result_bidirectional
+    }
+    print(JSON.stringify(result))
+    log_info("add_navigation_link completed successfully")
+
+
+func configure_navigation_obstacle(params: Dictionary) -> void:
+    log_info("Starting configure_navigation_obstacle operation")
+    var scene_path: String = params.get("scene_path", "")
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var parent_path: String = params.get("parent_path", ".")
+    var parent = _get_edit_parent(scene_root, parent_path)
+    if parent == null:
+        log_error("Parent node not found: " + parent_path)
+        scene_root.free()
+        return
+
+    var obstacle_name: String = params.get("obstacle_name", "NavigationObstacle")
+    var action: String = params.get("action", "add")
+    var existing = parent.get_node_or_null(NodePath(obstacle_name))
+
+    if action == "remove":
+        if existing == null:
+            log_error("Navigation obstacle not found: " + obstacle_name)
+            scene_root.free()
+            return
+        parent.remove_child(existing)
+        existing.free()
+    else:
+        var obstacle_type: String = params.get("obstacle_type", "2d")
+        var obstacle: Node = existing
+        if obstacle == null:
+            obstacle = NavigationObstacle3D.new() if obstacle_type == "3d" else NavigationObstacle2D.new()
+            obstacle.name = _make_unique_child_name(parent, obstacle_name)
+            parent.add_child(obstacle)
+            obstacle.owner = scene_root
+        if action == "toggle":
+            var current_enabled = bool(obstacle.get("avoidance_enabled")) if _has_property(obstacle, "avoidance_enabled") else true
+            _set_if_property(obstacle, "avoidance_enabled", not current_enabled)
+        else:
+            _set_if_property(obstacle, "radius", float(params.get("obstacle_radius", 1.0 if obstacle_type == "3d" else 32.0)))
+            _set_if_property(obstacle, "height", float(params.get("obstacle_height", 2.0)))
+            _set_if_property(obstacle, "avoidance_layers", int(params.get("avoidance_layers", 1)))
+            _set_if_property(obstacle, "avoidance_enabled", bool(params.get("avoidance_enabled", true)))
+            _set_if_property(obstacle, "affect_navigation_mesh", bool(params.get("affect_navigation", true)))
+            _set_if_property(obstacle, "use_3d_avoidance", bool(params.get("use_3d_avoidance", true)))
+            if params.has("velocity"):
+                if obstacle_type == "3d":
+                    _set_if_property(obstacle, "velocity", _parse_vector3(params.get("velocity")))
+                else:
+                    _set_if_property(obstacle, "velocity", _parse_vector2(params.get("velocity")))
+
+    if not _save_scene_root(scene_root, loaded["full_scene_path"]):
+        scene_root.free()
+        return
+    scene_root.free()
+
+    var result = {
+        "success": true,
+        "scene_path": scene_path,
+        "parent_path": parent_path,
+        "obstacle_name": obstacle_name,
+        "action": action
+    }
+    print(JSON.stringify(result))
+    log_info("configure_navigation_obstacle completed successfully")
+
+
+func create_astar_grid(params: Dictionary) -> void:
+    log_info("Starting create_astar_grid operation")
+    var output_path: String = params.get("output_path", "")
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+
+    var grid_size = _parse_vector2i(params.get("grid_size", "Vector2i(10, 10)"), Vector2i(10, 10))
+    var cell_size = _parse_vector2(params.get("cell_size", "Vector2(16, 16)"), Vector2(16, 16))
+    var cell_connect_mode: String = params.get("cell_connect_mode", "orthogonal")
+    var default_heuristic: String = params.get("default_heuristic", "euclidean")
+    var diagonal_mode_name: String = params.get("diagonal_mode", "always")
+
+    var grid = AStarGrid2D.new()
+    grid.region = Rect2i(Vector2i.ZERO, grid_size)
+    grid.cell_size = cell_size
+    grid.default_compute_heuristic = _astar_heuristic(default_heuristic)
+    grid.default_estimate_heuristic = _astar_heuristic(default_heuristic)
+    grid.diagonal_mode = _astar_diagonal_mode(cell_connect_mode, diagonal_mode_name)
+    grid.jumping_enabled = bool(params.get("jumping_enabled", false))
+    grid.offset = _parse_vector2(params.get("offset", "Vector2(0, 0)"), Vector2.ZERO)
+    grid.update()
+
+    # AStarGrid2D is RefCounted in Godot 4.6, not Resource, so store a reusable
+    # Resource config that scripts can load and use to reconstruct the grid.
+    var config_resource = Resource.new()
+    config_resource.resource_name = "AStarGrid2DConfig"
+    config_resource.set_meta("grid_size", grid_size)
+    config_resource.set_meta("cell_size", cell_size)
+    config_resource.set_meta("cell_connect_mode", cell_connect_mode)
+    config_resource.set_meta("default_heuristic", default_heuristic)
+    config_resource.set_meta("diagonal_mode", diagonal_mode_name)
+    config_resource.set_meta("offset", grid.offset)
+    config_resource.set_meta("jumping_enabled", grid.jumping_enabled)
+    config_resource.set_meta("solid_point_weight", float(params.get("solid_point_weight", 1.0)))
+    config_resource.set_meta("default_point_weight", float(params.get("default_point_weight", 1.0)))
+
+    var full_output_path = _to_res_path(output_path)
+    var absolute_output_path = ProjectSettings.globalize_path(full_output_path)
+    var output_dir = absolute_output_path.get_base_dir()
+    if not DirAccess.dir_exists_absolute(output_dir):
+        DirAccess.make_dir_recursive_absolute(output_dir)
+    var save_err = ResourceSaver.save(config_resource, full_output_path)
+    if save_err != OK:
+        log_error("Failed to save AStarGrid2D config resource: " + str(save_err))
+        return
+
+    var result = {
+        "success": true,
+        "output_path": output_path,
+        "resource_type": "AStarGrid2DConfig",
+        "grid_size": str(grid_size),
+        "cell_size": str(cell_size),
+        "cell_connect_mode": cell_connect_mode,
+        "default_heuristic": default_heuristic,
+        "note": "AStarGrid2D is RefCounted in Godot 4.6, so this saves a Resource config rather than a direct AStarGrid2D instance."
+    }
+    print(JSON.stringify(result))
+    log_info("create_astar_grid completed successfully")
+
+
+func setup_navigation_server(params: Dictionary) -> void:
+    log_info("Starting setup_navigation_server operation")
+    var server_type: String = params.get("server_type", "2d")
+    var config = {
+        "server_type": server_type,
+        "avoidance_enabled": bool(params.get("avoidance_enabled", true)),
+        "avoidance_time_horizon": float(params.get("avoidance_time_horizon", 2.0 if server_type == "3d" else 1.5)),
+        "avoidance_max_neighbors": int(params.get("avoidance_max_neighbors", 256 if server_type == "3d" else 512)),
+        "avoidance_max_speed": float(params.get("avoidance_max_speed", 10.0 if server_type == "3d" else 300.0)),
+        "avoidance_radius_scale": float(params.get("avoidance_radius_scale", 2.0)),
+        "cell_size": float(params.get("cell_size", 0.25 if server_type == "3d" else 1.0)),
+        "cell_height": float(params.get("cell_height", 0.25)),
+        "edge_connection_margin": float(params.get("edge_connection_margin", 1.0 if server_type == "3d" else 5.0)),
+        "use_edge_connections": bool(params.get("use_edge_connections", true)),
+        "border_size": float(params.get("border_size", 1.0 if server_type == "3d" else 10.0)),
+        "iteration_cost": float(params.get("iteration_cost", 1.0)),
+        "agent_radius": float(params.get("agent_radius", 0.5 if server_type == "3d" else 10.0)),
+        "agent_height": float(params.get("agent_height", 2.0)),
+        "agent_max_slope": float(params.get("agent_max_slope", 45.0)),
+        "agent_max_climb": float(params.get("agent_max_climb", 0.25))
+    }
+
+    var result = {
+        "success": true,
+        "config": config,
+        "note": "NavigationServer maps are runtime RIDs, so this tool validates and returns the requested configuration. Persist map-specific values in scene nodes or a project resource."
+    }
+    print(JSON.stringify(result))
+    log_info("setup_navigation_server completed successfully")

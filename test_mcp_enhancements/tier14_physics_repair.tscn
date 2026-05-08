@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_nk15w"]
+radius = 24.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5c0sw"]
+size = Vector2(32, 16)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_nk15w"]
+size = Vector2(96, 16)
+
+[node name="root" type="Node2D" unique_id=1731449223]
+
+[node name="Ball" type="RigidBody2D" parent="." unique_id=1943393523]
+collision_layer = 3
+collision_mask = 5
+collision_priority = 2.0
+mass = 2.0
+gravity_scale = 0.5
+lock_rotation = true
+freeze_mode = 1
+
+[node name="CollisionShape" type="CollisionShape2D" parent="Ball" unique_id=345312604]
+shape = SubResource("CircleShape2D_nk15w")
+
+[node name="Hitbox" type="CollisionShape2D" parent="Ball" unique_id=612766123]
+shape = SubResource("RectangleShape2D_5c0sw")
+disabled = true
+
+[node name="Box" type="StaticBody2D" parent="." unique_id=1127339184]
+
+[node name="CollisionShape" type="CollisionShape2D" parent="Box" unique_id=872330287]
+shape = SubResource("RectangleShape2D_nk15w")
+
+[node name="BallPin" type="PinJoint2D" parent="." unique_id=1434149146]
+node_a = NodePath("../Ball")
+node_b = NodePath("../Box")
+bias = 0.5
+softness = 0.2
+angular_limit_enabled = true
+angular_limit_lower = -1.5707964
+angular_limit_upper = 1.5707964

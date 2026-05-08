@@ -1,0 +1,8 @@
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+[mcp_servers.godot-mcp]
+args = ["/Users/brett/godot/godot-mcp/build/index.js"]
+command = "node"
+
+[mcp_servers.godot-mcp.env]
+GODOT_PATH = "/Applications/Godot.app/Contents/MacOS/godot"

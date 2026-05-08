@@ -5,7 +5,7 @@
  * and manage MultiplayerSpawner/MultiplayerSynchronizer nodes.
  *
  * Tools:
- *   - setup_multiplayer_peer   Create and configure a multiplayer peer (server/client)
+ *   - setup_multiplayer_peer   Create and configure an ENet/WebSocket peer helper (server/client)
  *   - configure_rpc            Register @rpc method settings on a node
  *   - manage_multiplayer_spawner  Add/configure MultiplayerSpawner and MultiplayerSynchronizer
  */
@@ -24,7 +24,7 @@ export function registerNetworkingTools(registry: ToolRegistry, ctx: ServerConte
 
 // ─── Valid peer types ─────────────────────────────────────────────────────────
 
-const VALID_PEER_TYPES = ['enet', 'websocket', 'webrtc'] as const;
+const VALID_PEER_TYPES = ['enet', 'websocket'] as const;
 const VALID_MODES = ['server', 'client'] as const;
 const VALID_RPC_MODES = ['any_peer', 'authority'] as const;
 const VALID_TRANSFER_MODES = ['unreliable', 'unreliable_ordered', 'reliable'] as const;
@@ -34,7 +34,7 @@ const VALID_TRANSFER_MODES = ['unreliable', 'unreliable_ordered', 'reliable'] as
 function setupMultiplayerPeer(ctx: ServerContext): ToolDefinition {
   return {
     name: 'setup_multiplayer_peer',
-    description: 'Create and configure a multiplayer peer (ENet, WebSocket, or WebRTC) for a Godot project. Sets up the MultiplayerAPI on the SceneTree for networking support.',
+    description: 'Create and configure a multiplayer peer (ENet or WebSocket) for a Godot project. Adds a runtime helper node that sets up the MultiplayerAPI when the scene enters the tree.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -49,7 +49,7 @@ function setupMultiplayerPeer(ctx: ServerContext): ToolDefinition {
         peer_type: {
           type: 'string',
           enum: VALID_PEER_TYPES,
-          description: 'Multiplayer peer type: "enet" (UDP, low-latency), "websocket" (TCP, web-compatible), or "webrtc" (browser P2P)',
+          description: 'Multiplayer peer type: "enet" (UDP, low-latency) or "websocket" (TCP, web-compatible). WebRTC requires signaling and is not configured by this helper.',
         },
         mode: {
           type: 'string',
