@@ -59,6 +59,7 @@ import { registerBatchTools } from './tools/batch.js';
 import { registerScriptPatchTools } from './tools/script-patch.js';
 import { registerProjectFilesystemTools } from './tools/project-filesystem.js';
 import { registerResourceWorkflowTools } from './tools/resource-workflow.js';
+import { registerUiThemeWorkflowTools } from './tools/ui-theme-workflow.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -374,6 +375,22 @@ class GodotServer {
     'visual_node_path': 'visualNodePath',
     'replace_existing': 'replaceExisting',
     'overwrite': 'overwrite',
+    'root_name': 'rootName',
+    'root_size': 'rootSize',
+    'theme_path': 'themePath',
+    'keep_offsets': 'keepOffsets',
+    'override_type': 'overrideType',
+    'theme_type': 'themeType',
+    'default_font_size': 'defaultFontSize',
+    'font_sizes': 'fontSizes',
+    'bg_color': 'bgColor',
+    'border_color': 'borderColor',
+    'border_width': 'borderWidth',
+    'corner_radius': 'cornerRadius',
+    'content_margin': 'contentMargin',
+    'viewport_size': 'viewportSize',
+    'safe_margin': 'safeMargin',
+    'min_touch_size': 'minTouchSize',
   };
 
   /**
@@ -748,6 +765,7 @@ class GodotServer {
     registerScriptPatchTools(this.toolRegistry, ctx);
     registerProjectFilesystemTools(this.toolRegistry, ctx);
     registerResourceWorkflowTools(this.toolRegistry, ctx);
+    registerUiThemeWorkflowTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

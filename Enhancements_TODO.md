@@ -176,20 +176,20 @@ Verification note, 2026-06-03: focused Phase 1.4 TDD added 4 Node tests covering
 
 ### 1.5 Add UI And Theme Workflow Tools
 
-- [ ] Add `create_ui_layout`.
-- [ ] Add `draw_ui_recipe`.
-- [ ] Add `set_control_anchor_preset`.
-- [ ] Add `set_control_offsets`.
-- [ ] Add `set_control_text`.
-- [ ] Add `set_control_theme_override`.
-- [ ] Add `create_theme`.
-- [ ] Add `theme_set_color`.
-- [ ] Add `theme_set_constant`.
-- [ ] Add `theme_set_font_size`.
-- [ ] Add `theme_set_stylebox_flat`.
-- [ ] Add `apply_theme`.
-- [ ] Add `inspect_ui_layout`.
-- [ ] Add `validate_ui_safe_area`.
+- [x] Add `create_ui_layout`.
+- [x] Add `draw_ui_recipe`.
+- [x] Add `set_control_anchor_preset`.
+- [x] Add `set_control_offsets`.
+- [x] Add `set_control_text`.
+- [x] Add `set_control_theme_override`.
+- [x] Add `create_theme`.
+- [x] Add `theme_set_color`.
+- [x] Add `theme_set_constant`.
+- [x] Add `theme_set_font_size`.
+- [x] Add `theme_set_stylebox_flat`.
+- [x] Add `apply_theme`.
+- [x] Add `inspect_ui_layout`.
+- [x] Add `validate_ui_safe_area`.
 
 Tooling idea:
 
@@ -197,8 +197,10 @@ Tooling idea:
 
 Acceptance:
 
-- [ ] Codex can create a usable menu scene from one recipe.
-- [ ] The resulting UI validates for empty containers, missing text, offscreen controls, and obvious anchor mistakes.
+- [x] Codex can create a usable menu scene from one recipe.
+- [x] The resulting UI validates for empty containers, missing text, offscreen controls, and obvious anchor mistakes.
+
+Verification note, 2026-06-03: focused Phase 1.5 TDD added 5 Node tests covering registration for all 14 UI/theme workflow tools, declarative layout and recipe operation payloads, control mutation payloads, Theme and StyleBoxFlat payloads, theme application payloads, and inspect/validate viewport constraints. RED was observed as `ERR_MODULE_NOT_FOUND` for `build/tools/ui-theme-workflow.js` before implementation. After adding `src/tools/ui-theme-workflow.ts`, registering it from `src/index.ts`, and adding Godot operations in `src/scripts/godot_operations.gd`, `npm run build && node --test tests/ui-theme-workflow.test.mjs` passed 5/5 focused tests and final `npm test` passed 39/39 repo tests. A Godot 4.6.3 headless smoke against `test_mcp_enhancements` created and mutated a real Theme resource with color, constant, font-size, and `StyleBoxFlat` entries, generated a pause-menu scene from `draw_ui_recipe`, applied the theme, changed button text and panel offsets, inspected 7 Control nodes, validated 0 safe-area/layout issues, and removed the temporary `mcp_phase15_*` smoke artifacts. A compiled MCP stdio smoke with `GODOT_PATH=C:\Users\brett\Desktop\Godot\Godot.exe` listed 155 tools including `create_ui_layout`, `draw_ui_recipe`, `set_control_anchor_preset`, and `validate_ui_safe_area`, created a temporary `res://scenes/mcp_phase15_mcp_smoke_menu.tscn` from a main-menu recipe, validated it with 0 issues, and deleted the temporary scene.
 
 ### 1.6 Add Camera Workflow Tools
 
