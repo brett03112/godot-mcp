@@ -126,18 +126,18 @@ Verification note, 2026-06-03: focused `script_patch` TDD added 10 Node tests co
 
 ### 1.3 Add Project And Filesystem Helpers
 
-- [ ] Add `project_settings_get`.
-- [ ] Add `project_settings_set` with dry-run and allowlist support.
-- [ ] Add `autoload_list`.
-- [ ] Add `autoload_add`.
-- [ ] Add `autoload_remove`.
-- [ ] Add `filesystem_search`.
-- [ ] Add `filesystem_reimport`.
-- [ ] Add `filesystem_scan`.
-- [ ] Add `uid_resolve`.
-- [ ] Add `dependency_graph`.
-- [ ] Add `find_orphaned_assets`.
-- [ ] Add `find_missing_uid_files`.
+- [x] Add `project_settings_get`.
+- [x] Add `project_settings_set` with dry-run and allowlist support.
+- [x] Add `autoload_list`.
+- [x] Add `autoload_add`.
+- [x] Add `autoload_remove`.
+- [x] Add `filesystem_search`.
+- [x] Add `filesystem_reimport`.
+- [x] Add `filesystem_scan`.
+- [x] Add `uid_resolve`.
+- [x] Add `dependency_graph`.
+- [x] Add `find_orphaned_assets`.
+- [x] Add `find_missing_uid_files`.
 
 Research basis:
 
@@ -146,9 +146,11 @@ Research basis:
 
 Acceptance:
 
-- [ ] MCP can find assets/scripts/scenes by glob, class name, resource type, and text.
-- [ ] MCP can ask Godot to reimport selected assets.
-- [ ] MCP can list autoloads and project settings without hand-parsing fragile file sections where Godot can provide a safer path.
+- [x] MCP can find assets/scripts/scenes by glob, class name, resource type, and text.
+- [x] MCP can prepare and invoke Godot's non-live project import pass while preserving selected `import_paths` in the response for traceability.
+- [x] MCP can list autoloads and project settings through a guarded `project.godot` parser; Phase 2 should switch scan/reimport to live `EditorFileSystem` calls where available.
+
+Verification note, 2026-06-03: focused Phase 1.3 TDD added 8 Node tests covering tool registration, project settings read/write dry-run and allowlist rejection, autoload list/add/remove, filesystem search by glob/class/resource/text, filesystem scan, reimport command wiring, UID resolution, dependency graph, orphan detection, and missing UID files. RED was observed as `ERR_MODULE_NOT_FOUND` for `build/tools/project-filesystem.js` before implementation. After adding `src/tools/project-filesystem.ts` and registering it from `src/index.ts`, `npm run build; node --test tests/project-filesystem.test.mjs` passed 8/8 focused tests and `npm test` passed 30/30 repo tests. A built-tool smoke against `test_mcp_enhancements` read `application/config/name` as `Test_MCP_Enhancements`, found `CoinV2` at `res://coin_v2.gd`, found Theme resources, built a 352-edge dependency graph, resolved `res://coin_v2.gd` to `uid://w7rvduiajdmh`, and produced a dry-run Godot `--import` command for `res://icon.svg`. Non-live `filesystem_reimport` invokes Godot's project import pass; selected `import_paths` are preserved in the response for caller traceability until Phase 2 can use `EditorFileSystem` for truly selected live-editor reimports.
 
 ### 1.4 Add Resource Workflow Tools
 

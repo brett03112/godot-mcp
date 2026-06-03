@@ -57,6 +57,7 @@ import { registerPhysicsTools } from './tools/physics.js';
 import { registerNavigationTools } from './tools/navigation.js';
 import { registerBatchTools } from './tools/batch.js';
 import { registerScriptPatchTools } from './tools/script-patch.js';
+import { registerProjectFilesystemTools } from './tools/project-filesystem.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -721,6 +722,7 @@ class GodotServer {
     // Phase 1 enhancements
     registerBatchTools(this.toolRegistry, ctx);
     registerScriptPatchTools(this.toolRegistry, ctx);
+    registerProjectFilesystemTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
