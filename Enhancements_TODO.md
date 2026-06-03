@@ -260,22 +260,24 @@ Goal: Give Codex awareness of the Godot editor the user already has open.
 
 ### 2.1 Create The Addon Skeleton
 
-- [ ] Add `addons/godot_mcp_live/plugin.cfg`.
-- [ ] Add `addons/godot_mcp_live/godot_mcp_live.gd`.
-- [ ] Add `addons/godot_mcp_live/session_state.gd`.
-- [ ] Add `addons/godot_mcp_live/command_dispatcher.gd`.
-- [ ] Add `addons/godot_mcp_live/transport_websocket.gd`.
-- [ ] Add `addons/godot_mcp_live/transport_http.gd` only if WebSocket proves awkward.
-- [ ] Mark editor scripts with `@tool`.
-- [ ] Use `EditorPlugin._enter_tree()` to start the bridge.
-- [ ] Use `EditorPlugin._exit_tree()` to disconnect and clean up.
-- [ ] Add a minimal dock panel showing connection state, active session ID, server URL, and last error.
+- [x] Add `addons/godot_mcp_live/plugin.cfg`.
+- [x] Add `addons/godot_mcp_live/godot_mcp_live.gd`.
+- [x] Add `addons/godot_mcp_live/session_state.gd`.
+- [x] Add `addons/godot_mcp_live/command_dispatcher.gd`.
+- [x] Add `addons/godot_mcp_live/transport_websocket.gd`.
+- [x] Skip `addons/godot_mcp_live/transport_http.gd`; WebSocket did not prove awkward in the Phase 2.1 loopback proof.
+- [x] Mark editor scripts with `@tool`.
+- [x] Use `EditorPlugin._enter_tree()` to start the bridge.
+- [x] Use `EditorPlugin._exit_tree()` to disconnect and clean up.
+- [x] Add a minimal dock panel showing connection state, active session ID, server URL, and last error.
 
 Acceptance:
 
-- [ ] The addon appears in Godot's Project Settings > Plugins.
-- [ ] Enabling the plugin connects to the MCP server.
-- [ ] Disabling the plugin disconnects cleanly.
+- [x] The addon appears in Godot's Project Settings > Plugins.
+- [x] Enabling the plugin connects to the MCP server.
+- [x] Disabling the plugin disconnects cleanly.
+
+Verification note, 2026-06-03: Phase 2.1 added the live addon skeleton under `test_mcp_enhancements/addons/godot_mcp_live/`, enabled it alongside GUT in `test_mcp_enhancements/project.godot`, and added focused structural coverage in `tests/live-addon-skeleton.test.mjs`. RED was observed before implementation as missing addon files and missing `res://addons/godot_mcp_live/plugin.cfg` enablement. After implementation, `npm run build && node --test tests/live-addon-skeleton.test.mjs` passed 3/3 focused tests and final `npm test` passed 54/54 repo tests. A strict editor-mode load with `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path C:\Users\brett\Desktop\godot-mcp\test_mcp_enhancements --quit` exited 0 with no addon script errors; it emitted only the existing nested-project warning and a generic headless editor shutdown ObjectDB warning. A loopback WebSocket listener on `127.0.0.1:6010` plus a fresh headless editor instance received the addon's `hello` payload with `project_path: C:/Users/brett/Desktop/godot-mcp/test_mcp_enhancements/` and `connection_state: connected`, proving enable-time connection behavior. A listener-only check against the already-open editor did not observe a connection, so the existing GUI window likely needs project/plugin reload before it hot-loads the newly added addon.
 
 ### 2.2 Add MCP-Side Live Session Manager
 
@@ -806,7 +808,7 @@ These are not all first-pass requirements, but they are strong candidates for ma
 The first milestone should be intentionally small:
 
 - [x] Add `batch_execute`.
-- [ ] Add a minimal live addon.
+- [x] Add a minimal live addon.
 - [ ] Add MCP session manager.
 - [ ] Add `session_list`.
 - [ ] Add `session_activate`.
