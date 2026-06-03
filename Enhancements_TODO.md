@@ -351,24 +351,26 @@ Live GUI acceptance update, 2026-06-03: after restarting Codex, the active MCP p
 
 ### 2.4 Add Live Scene Mutation Tools
 
-- [ ] Add `live_scene_get_hierarchy`.
-- [ ] Add `live_node_get_properties`.
-- [ ] Add `live_node_set_property`.
-- [ ] Add `live_node_create`.
-- [ ] Add `live_node_delete`.
-- [ ] Add `live_node_duplicate`.
-- [ ] Add `live_node_reparent`.
-- [ ] Add `live_node_rename`.
-- [ ] Add `live_node_connect_signal`.
-- [ ] Add `live_node_disconnect_signal`.
-- [ ] Add `live_scene_mark_dirty`.
-- [ ] Add `live_scene_save`.
+- [x] Add `live_scene_get_hierarchy`.
+- [x] Add `live_node_get_properties`.
+- [x] Add `live_node_set_property`.
+- [x] Add `live_node_create`.
+- [x] Add `live_node_delete`.
+- [x] Add `live_node_duplicate`.
+- [x] Add `live_node_reparent`.
+- [x] Add `live_node_rename`.
+- [x] Add `live_node_connect_signal`.
+- [x] Add `live_node_disconnect_signal`.
+- [x] Add `live_scene_mark_dirty`.
+- [x] Add `live_scene_save`.
 
 Acceptance:
 
-- [ ] Codex can add a node to the currently open scene without the user providing a `.tscn` path.
-- [ ] Codex can change a selected node property and save the active scene.
-- [ ] File-backed validators see the saved change afterward.
+- [x] Codex can add a node to the currently open scene without the user providing a `.tscn` path.
+- [x] Codex can change a selected node property and save the active scene.
+- [x] File-backed validators see the saved change afterward.
+
+Verification note, 2026-06-03: focused Phase 2.4 TDD added `tests/live-scene-mutation.test.mjs` covering registration and MCP command mapping for all 12 live scene mutation tools, plus addon contract checks for dispatcher command branches and handlers. RED was observed as missing registry entries and missing addon handler names. After extending `src/tools/live-editor.ts` and `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, `npm run build && node --test tests/live-scene-mutation.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 18/18 focused live tests, `npm test` passed 69/69 repo tests, and `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path test_mcp_enhancements --quit` exited 0 with only the known nested-project warning and ObjectDB shutdown warning. A fresh MCP stdio plus headless Godot 4.6.3 editor live smoke connected session `godot-mcp-1780527663355-734808`, opened `res://test_animation_with_anim.tscn`, read hierarchy root `root`, created `McpPhase24LiveProof_1780527661189` without passing a `.tscn` path, set `visible=false`, saved with `error_code: 0`, confirmed the saved scene file contained the proof node and `visible = false`, confirmed file-backed `node_find` saw the proof node, deleted it, saved again with `error_code: 0`, and confirmed the saved scene file no longer contained the proof node. The already-open GUI editor addon still had the Phase 2.3 dispatcher loaded and returned `unsupported_command` for `live_scene_get_hierarchy`; a plugin/editor reload is required before the GUI session can answer Phase 2.4 commands. A fresh hidden listener was restored afterward at PID 2340 with an established GUI connection on `127.0.0.1:6010`.
 
 ### 2.5 Add Editor Filesystem And Import Operations
 
@@ -821,7 +823,7 @@ The first milestone should be intentionally small:
 - [x] Add `editor_state`.
 - [x] Add `selection_get`.
 - [x] Add `scene_current`.
-- [ ] Add `live_scene_get_hierarchy`.
+- [x] Add `live_scene_get_hierarchy`.
 - [ ] Verify against the currently open `test_mcp_enhancements` Godot 4.6 project.
 
 Done means:

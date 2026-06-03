@@ -51,6 +51,30 @@ func handle_message(message: Dictionary) -> Dictionary:
 			result = _handle_editor_monitors_get(args)
 		"editor_quit":
 			result = _handle_editor_quit(args)
+		"live_scene_get_hierarchy":
+			result = _handle_live_scene_get_hierarchy(args)
+		"live_node_get_properties":
+			result = _handle_live_node_get_properties(args)
+		"live_node_set_property":
+			result = _handle_live_node_set_property(args)
+		"live_node_create":
+			result = _handle_live_node_create(args)
+		"live_node_delete":
+			result = _handle_live_node_delete(args)
+		"live_node_duplicate":
+			result = _handle_live_node_duplicate(args)
+		"live_node_reparent":
+			result = _handle_live_node_reparent(args)
+		"live_node_rename":
+			result = _handle_live_node_rename(args)
+		"live_node_connect_signal":
+			result = _handle_live_node_connect_signal(args)
+		"live_node_disconnect_signal":
+			result = _handle_live_node_disconnect_signal(args)
+		"live_scene_mark_dirty":
+			result = _handle_live_scene_mark_dirty()
+		"live_scene_save":
+			result = _handle_scene_save_active()
 		_:
 			result = _error("unsupported_command", "Unsupported live editor command: %s." % command, {
 				"command": command,
@@ -312,6 +336,428 @@ func _handle_editor_quit(args: Dictionary) -> Dictionary:
 	})
 
 
+func _handle_live_scene_get_hierarchy(args: Dictionary) -> Dictionary:
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var max_depth := int(args.get("max_depth", DEFAULT_HIERARCHY_DEPTH))
+	if max_depth < 0:
+		max_depth = DEFAULT_HIERARCHY_DEPTH
+	var include_properties := bool(args.get("include_properties", false))
+
+	return _ok({
+		"active_scene": str(root.scene_file_path),
+		"root_name": str(root.name),
+		"root_type": root.get_class(),
+		"root_path": ".",
+		"hierarchy": [_serialize_node(root, root, 0, max_depth, include_properties)],
+	})
+
+
+func _handle_live_node_get_properties(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	if node_path == "":
+		return _error("missing_node_path", "node_path is required.")
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var node := _resolve_node_path(root, node_path)
+	if not node:
+		return _error("node_not_found", "Node path does not exist in the active scene.", {
+			"node_path": node_path,
+		})
+
+	var property_names = args.get("property_names", [])
+	if typeof(property_names) != TYPE_ARRAY:
+		return _error("invalid_property_names", "property_names must be an array when provided.")
+
+	var names := _property_names_for_node(node, property_names)
+	var properties := {}
+	var missing: Array[String] = []
+	for property_name in names:
+		if _node_has_property(node, property_name):
+			properties[property_name] = _serialize_variant(node.get(property_name))
+		else:
+			missing.append(property_name)
+
+	return _ok({
+		"path": _node_live_path(root, node),
+		"name": str(node.name),
+		"type": node.get_class(),
+		"properties": properties,
+		"missing_properties": missing,
+	})
+
+
+func _handle_live_node_set_property(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	var property_name := str(args.get("property_name", ""))
+	if node_path == "":
+		return _error("missing_node_path", "node_path is required.")
+	if property_name == "":
+		return _error("missing_property_name", "property_name is required.")
+	if not args.has("property_value"):
+		return _error("missing_property_value", "property_value is required.")
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var node := _resolve_node_path(root, node_path)
+	if not node:
+		return _error("node_not_found", "Node path does not exist in the active scene.", {
+			"node_path": node_path,
+		})
+	if not _node_has_property(node, property_name):
+		return _error("property_not_found", "The requested property does not exist on the node.", {
+			"node_path": node_path,
+			"property_name": property_name,
+		})
+
+	var old_value = node.get(property_name)
+	var new_value = _decode_variant(args.get("property_value"))
+	node.set(property_name, new_value)
+
+	var marked_dirty := bool(args.get("mark_dirty", true))
+	if marked_dirty:
+		_mark_scene_dirty(root)
+
+	return _ok({
+		"path": _node_live_path(root, node),
+		"property_name": property_name,
+		"old_value": _serialize_variant(old_value),
+		"new_value": _serialize_variant(node.get(property_name)),
+		"marked_dirty": marked_dirty,
+	})
+
+
+func _handle_live_node_create(args: Dictionary) -> Dictionary:
+	var parent_path := str(args.get("parent_path", ""))
+	var node_type := str(args.get("node_type", ""))
+	var node_name := str(args.get("node_name", ""))
+	if parent_path == "":
+		return _error("missing_parent_path", "parent_path is required.")
+	if node_type == "":
+		return _error("missing_node_type", "node_type is required.")
+	if node_name == "":
+		return _error("missing_node_name", "node_name is required.")
+	if not ClassDB.class_exists(node_type):
+		return _error("unknown_node_type", "Godot class does not exist.", {
+			"node_type": node_type,
+		})
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var parent := _resolve_node_path(root, parent_path)
+	if not parent:
+		return _error("parent_not_found", "Parent path does not exist in the active scene.", {
+			"parent_path": parent_path,
+		})
+
+	var instance = ClassDB.instantiate(node_type)
+	if not instance or not (instance is Node):
+		if instance:
+			instance.free()
+		return _error("invalid_node_type", "Godot class is not a Node.", {
+			"node_type": node_type,
+		})
+
+	var node: Node = instance
+	node.name = node_name
+	parent.add_child(node, true)
+	node.owner = root
+	_set_owner_recursive(node, root)
+
+	var applied := _apply_node_properties(node, args.get("properties", {}))
+	if not bool(applied.get("ok", false)):
+		parent.remove_child(node)
+		node.free()
+		return applied
+
+	_mark_scene_dirty(root)
+	if bool(args.get("select", false)):
+		_select_single_node(node)
+
+	return _ok({
+		"created": true,
+		"path": _node_live_path(root, node),
+		"name": str(node.name),
+		"type": node.get_class(),
+		"parent_path": _node_live_path(root, parent),
+		"applied_properties": applied.get("properties", {}),
+	})
+
+
+func _handle_live_node_delete(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	if node_path == "":
+		return _error("missing_node_path", "node_path is required.")
+	if node_path == ".":
+		return _error("cannot_delete_root", "The active scene root cannot be deleted.")
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var target := _resolve_node_path(root, node_path)
+	if not target:
+		return _error("node_not_found", "Node path does not exist in the active scene.", {
+			"node_path": node_path,
+		})
+
+	var parent := target.get_parent()
+	var removed_path := _node_live_path(root, target)
+	var reparented_children: Array[String] = []
+	if bool(args.get("keep_children", false)):
+		var children := target.get_children()
+		for child in children:
+			if child is Node:
+				var child_node: Node = child
+				target.remove_child(child_node)
+				parent.add_child(child_node)
+				child_node.owner = root
+				_set_owner_recursive(child_node, root)
+				reparented_children.append(_node_live_path(root, child_node))
+
+	parent.remove_child(target)
+	target.queue_free()
+	_mark_scene_dirty(root)
+
+	return _ok({
+		"deleted": true,
+		"path": removed_path,
+		"parent_path": _node_live_path(root, parent),
+		"keep_children": bool(args.get("keep_children", false)),
+		"reparented_children": reparented_children,
+	})
+
+
+func _handle_live_node_duplicate(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	if node_path == "":
+		return _error("missing_node_path", "node_path is required.")
+	if node_path == ".":
+		return _error("cannot_duplicate_root", "The active scene root cannot be duplicated.")
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var target := _resolve_node_path(root, node_path)
+	if not target:
+		return _error("node_not_found", "Node path does not exist in the active scene.", {
+			"node_path": node_path,
+		})
+
+	var duplicate = target.duplicate()
+	if not duplicate or not (duplicate is Node):
+		return _error("duplicate_failed", "Godot failed to duplicate the requested node.", {
+			"node_path": node_path,
+		})
+
+	var duplicate_node: Node = duplicate
+	var new_name := str(args.get("new_name", ""))
+	if new_name != "":
+		duplicate_node.name = new_name
+	else:
+		duplicate_node.name = "%sCopy" % str(target.name)
+
+	var parent := target.get_parent()
+	parent.add_child(duplicate_node, true)
+	duplicate_node.owner = root
+	_set_owner_recursive(duplicate_node, root)
+	_mark_scene_dirty(root)
+	if bool(args.get("select", false)):
+		_select_single_node(duplicate_node)
+
+	return _ok({
+		"duplicated": true,
+		"original_path": _node_live_path(root, target),
+		"new_path": _node_live_path(root, duplicate_node),
+		"new_name": str(duplicate_node.name),
+		"type": duplicate_node.get_class(),
+	})
+
+
+func _handle_live_node_reparent(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	var new_parent_path := str(args.get("new_parent_path", ""))
+	if node_path == "":
+		return _error("missing_node_path", "node_path is required.")
+	if new_parent_path == "":
+		return _error("missing_new_parent_path", "new_parent_path is required.")
+	if node_path == ".":
+		return _error("cannot_reparent_root", "The active scene root cannot be reparented.")
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var target := _resolve_node_path(root, node_path)
+	var new_parent := _resolve_node_path(root, new_parent_path)
+	if not target:
+		return _error("node_not_found", "Node path does not exist in the active scene.", {
+			"node_path": node_path,
+		})
+	if not new_parent:
+		return _error("parent_not_found", "New parent path does not exist in the active scene.", {
+			"new_parent_path": new_parent_path,
+		})
+	if target == new_parent or target.is_ancestor_of(new_parent):
+		return _error("invalid_reparent", "A node cannot be reparented under itself or one of its descendants.", {
+			"node_path": node_path,
+			"new_parent_path": new_parent_path,
+		})
+
+	var old_path := _node_live_path(root, target)
+	var old_parent_path := _node_live_path(root, target.get_parent())
+	var keep_global_transform := bool(args.get("keep_global_transform", true))
+	target.owner = null
+	_clear_owner_recursive(target)
+	target.reparent(new_parent, keep_global_transform)
+	target.owner = root
+	_set_owner_recursive(target, root)
+	_mark_scene_dirty(root)
+
+	return _ok({
+		"reparented": true,
+		"old_path": old_path,
+		"new_path": _node_live_path(root, target),
+		"old_parent_path": old_parent_path,
+		"new_parent_path": _node_live_path(root, new_parent),
+		"keep_global_transform": keep_global_transform,
+	})
+
+
+func _handle_live_node_rename(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	var new_name := str(args.get("new_name", ""))
+	if node_path == "":
+		return _error("missing_node_path", "node_path is required.")
+	if new_name == "":
+		return _error("missing_new_name", "new_name is required.")
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var target := _resolve_node_path(root, node_path)
+	if not target:
+		return _error("node_not_found", "Node path does not exist in the active scene.", {
+			"node_path": node_path,
+		})
+
+	var old_path := _node_live_path(root, target)
+	var old_name := str(target.name)
+	target.name = new_name
+	_mark_scene_dirty(root)
+
+	return _ok({
+		"renamed": true,
+		"old_path": old_path,
+		"new_path": _node_live_path(root, target),
+		"old_name": old_name,
+		"new_name": str(target.name),
+	})
+
+
+func _handle_live_node_connect_signal(args: Dictionary) -> Dictionary:
+	var connection := _resolve_connection_args(args)
+	if not bool(connection.get("ok", false)):
+		return connection
+
+	var root: Node = connection["root"]
+	var source: Node = connection["source"]
+	var target: Node = connection["target"]
+	var signal_name := str(connection["signal_name"])
+	var method_name := str(connection["method_name"])
+	var binds: Array = connection["binds"]
+	var callable := Callable(target, method_name)
+	if binds.size() > 0:
+		callable = callable.bindv(binds)
+
+	if source.is_connected(StringName(signal_name), callable):
+		return _ok({
+			"connected": true,
+			"already_connected": true,
+			"connection": _connection_summary(root, source, signal_name, target, method_name, binds, int(args.get("flags", CONNECT_PERSIST))),
+		})
+
+	var flags := int(args.get("flags", CONNECT_PERSIST))
+	var err := source.connect(StringName(signal_name), callable, flags)
+	if err != OK:
+		return _error("connect_failed", "Signal connection failed.", {
+			"error_code": err,
+			"source_node_path": _node_live_path(root, source),
+			"signal_name": signal_name,
+			"target_node_path": _node_live_path(root, target),
+			"method_name": method_name,
+		})
+
+	_mark_scene_dirty(root)
+	return _ok({
+		"connected": true,
+		"connection": _connection_summary(root, source, signal_name, target, method_name, binds, flags),
+	})
+
+
+func _handle_live_node_disconnect_signal(args: Dictionary) -> Dictionary:
+	var connection := _resolve_connection_args(args)
+	if not bool(connection.get("ok", false)):
+		return connection
+
+	var root: Node = connection["root"]
+	var source: Node = connection["source"]
+	var target: Node = connection["target"]
+	var signal_name := str(connection["signal_name"])
+	var method_name := str(connection["method_name"])
+	var binds: Array = connection["binds"]
+	var callable := Callable(target, method_name)
+	if binds.size() > 0:
+		callable = callable.bindv(binds)
+
+	if not source.is_connected(StringName(signal_name), callable):
+		return _error("connection_not_found", "The requested signal connection does not exist.", {
+			"source_node_path": _node_live_path(root, source),
+			"signal_name": signal_name,
+			"target_node_path": _node_live_path(root, target),
+			"method_name": method_name,
+		})
+
+	source.disconnect(StringName(signal_name), callable)
+	_mark_scene_dirty(root)
+	return _ok({
+		"disconnected": true,
+		"connection": _connection_summary(root, source, signal_name, target, method_name, binds, 0),
+	})
+
+
+func _handle_live_scene_mark_dirty() -> Dictionary:
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	_mark_scene_dirty(root)
+	return _ok({
+		"marked_dirty": true,
+		"scene_path": str(root.scene_file_path),
+	})
+
+
 func _current_scene_data(include_hierarchy: bool = true) -> Dictionary:
 	var editor := _get_editor_interface()
 	if not editor:
@@ -361,19 +807,302 @@ func _selected_node_data() -> Array[Dictionary]:
 	return selected
 
 
-func _serialize_node(node: Node, root: Node, depth: int, max_depth: int) -> Dictionary:
+func _serialize_node(node: Node, root: Node, depth: int, max_depth: int, include_properties: bool = false) -> Dictionary:
 	var children: Array[Dictionary] = []
 	if depth < max_depth:
 		for child in node.get_children():
 			if child is Node:
-				children.append(_serialize_node(child, root, depth + 1, max_depth))
+				children.append(_serialize_node(child, root, depth + 1, max_depth, include_properties))
 
-	return {
+	var data := {
 		"path": _node_live_path(root, node),
 		"name": str(node.name),
 		"type": node.get_class(),
 		"child_count": node.get_child_count(),
 		"children": children,
+	}
+	if include_properties:
+		data["properties"] = _compact_node_properties(node)
+	return data
+
+
+func _active_scene_context() -> Dictionary:
+	var editor := _get_editor_interface()
+	if not editor:
+		return _error("editor_unavailable", "EditorInterface is not available.")
+
+	var root := editor.get_edited_scene_root()
+	if not root:
+		return _error("no_active_scene", "There is no active scene in the live editor.")
+
+	return {
+		"ok": true,
+		"editor": editor,
+		"root": root,
+	}
+
+
+func _compact_node_properties(node: Node) -> Dictionary:
+	var properties := {}
+	for property_name in _property_names_for_node(node, []):
+		if properties.size() >= 20:
+			break
+		properties[property_name] = _serialize_variant(node.get(property_name))
+	return properties
+
+
+func _property_names_for_node(node: Object, requested_names: Array) -> Array[String]:
+	var names: Array[String] = []
+	var seen := {}
+
+	if not requested_names.is_empty():
+		for raw_name in requested_names:
+			var requested_name := str(raw_name)
+			if requested_name != "" and not seen.has(requested_name):
+				seen[requested_name] = true
+				names.append(requested_name)
+		return names
+
+	for property in node.get_property_list():
+		var property_name := str(property.get("name", ""))
+		if property_name == "" or seen.has(property_name):
+			continue
+		var usage := int(property.get("usage", 0))
+		if (usage & PROPERTY_USAGE_STORAGE) != 0 or (usage & PROPERTY_USAGE_EDITOR) != 0 or (usage & PROPERTY_USAGE_SCRIPT_VARIABLE) != 0:
+			seen[property_name] = true
+			names.append(property_name)
+
+	return names
+
+
+func _node_has_property(node: Object, property_name: String) -> bool:
+	for property in node.get_property_list():
+		if str(property.get("name", "")) == property_name:
+			return true
+	return false
+
+
+func _apply_node_properties(node: Node, properties) -> Dictionary:
+	if properties == null:
+		properties = {}
+	if typeof(properties) != TYPE_DICTIONARY:
+		return _error("invalid_properties", "properties must be an object when provided.")
+
+	var applied := {}
+	for raw_name in properties.keys():
+		var property_name := str(raw_name)
+		if not _node_has_property(node, property_name):
+			return _error("property_not_found", "The requested property does not exist on the node.", {
+				"node_path": str(node.name),
+				"property_name": property_name,
+			})
+		node.set(property_name, _decode_variant(properties[raw_name]))
+		applied[property_name] = _serialize_variant(node.get(property_name))
+
+	return {
+		"ok": true,
+		"properties": applied,
+	}
+
+
+func _decode_variant(value):
+	match typeof(value):
+		TYPE_DICTIONARY:
+			var dict: Dictionary = value
+			var value_type := str(dict.get("type", ""))
+			var encoded = dict.get("value", null)
+			if value_type == "Vector2" and typeof(encoded) == TYPE_ARRAY and encoded.size() >= 2:
+				return Vector2(float(encoded[0]), float(encoded[1]))
+			if value_type == "Vector2i" and typeof(encoded) == TYPE_ARRAY and encoded.size() >= 2:
+				return Vector2i(int(encoded[0]), int(encoded[1]))
+			if value_type == "Vector3" and typeof(encoded) == TYPE_ARRAY and encoded.size() >= 3:
+				return Vector3(float(encoded[0]), float(encoded[1]), float(encoded[2]))
+			if value_type == "Vector3i" and typeof(encoded) == TYPE_ARRAY and encoded.size() >= 3:
+				return Vector3i(int(encoded[0]), int(encoded[1]), int(encoded[2]))
+			if value_type == "Color" and typeof(encoded) == TYPE_ARRAY and encoded.size() >= 4:
+				return Color(float(encoded[0]), float(encoded[1]), float(encoded[2]), float(encoded[3]))
+			if value_type == "NodePath":
+				return NodePath(str(encoded))
+
+			var decoded := {}
+			for key in dict.keys():
+				decoded[key] = _decode_variant(dict[key])
+			return decoded
+		TYPE_ARRAY:
+			var decoded_array := []
+			for item in value:
+				decoded_array.append(_decode_variant(item))
+			return decoded_array
+		_:
+			return value
+
+
+func _serialize_variant(value):
+	match typeof(value):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
+			return value
+		TYPE_STRING_NAME, TYPE_NODE_PATH:
+			return str(value)
+		TYPE_VECTOR2:
+			return { "type": "Vector2", "value": [value.x, value.y] }
+		TYPE_VECTOR2I:
+			return { "type": "Vector2i", "value": [value.x, value.y] }
+		TYPE_VECTOR3:
+			return { "type": "Vector3", "value": [value.x, value.y, value.z] }
+		TYPE_VECTOR3I:
+			return { "type": "Vector3i", "value": [value.x, value.y, value.z] }
+		TYPE_RECT2:
+			return { "type": "Rect2", "position": _serialize_variant(value.position), "size": _serialize_variant(value.size) }
+		TYPE_RECT2I:
+			return { "type": "Rect2i", "position": _serialize_variant(value.position), "size": _serialize_variant(value.size) }
+		TYPE_TRANSFORM2D:
+			return { "type": "Transform2D", "text": str(value) }
+		TYPE_VECTOR4:
+			return { "type": "Vector4", "value": [value.x, value.y, value.z, value.w] }
+		TYPE_VECTOR4I:
+			return { "type": "Vector4i", "value": [value.x, value.y, value.z, value.w] }
+		TYPE_PLANE:
+			return { "type": "Plane", "text": str(value) }
+		TYPE_QUATERNION:
+			return { "type": "Quaternion", "value": [value.x, value.y, value.z, value.w] }
+		TYPE_AABB:
+			return { "type": "AABB", "position": _serialize_variant(value.position), "size": _serialize_variant(value.size) }
+		TYPE_BASIS:
+			return { "type": "Basis", "text": str(value) }
+		TYPE_TRANSFORM3D:
+			return { "type": "Transform3D", "text": str(value) }
+		TYPE_PROJECTION:
+			return { "type": "Projection", "text": str(value) }
+		TYPE_COLOR:
+			return { "type": "Color", "value": [value.r, value.g, value.b, value.a] }
+		TYPE_ARRAY:
+			var result_array := []
+			for item in value:
+				result_array.append(_serialize_variant(item))
+			return result_array
+		TYPE_DICTIONARY:
+			var result_dict := {}
+			for key in value.keys():
+				result_dict[str(key)] = _serialize_variant(value[key])
+			return result_dict
+		TYPE_OBJECT:
+			if value == null:
+				return null
+			if value is Resource:
+				var resource: Resource = value
+				return {
+					"type": resource.get_class(),
+					"resource_path": str(resource.resource_path),
+				}
+			if value is Node:
+				var node: Node = value
+				return {
+					"type": node.get_class(),
+					"name": str(node.name),
+					"path": str(node.get_path()),
+				}
+			return {
+				"type": value.get_class(),
+				"text": str(value),
+			}
+		_:
+			return str(value)
+
+
+func _mark_scene_dirty(root: Node = null) -> void:
+	var editor := _get_editor_interface()
+	if not editor:
+		return
+	editor.mark_scene_as_unsaved()
+	if root:
+		editor.set_object_edited(root, true)
+
+
+func _select_single_node(node: Node) -> void:
+	var editor := _get_editor_interface()
+	if not editor:
+		return
+	var selection := editor.get_selection()
+	if selection:
+		selection.clear()
+		selection.add_node(node)
+	editor.edit_node(node)
+
+
+func _set_owner_recursive(node: Node, owner: Node) -> void:
+	for child in node.get_children():
+		if child is Node:
+			var child_node: Node = child
+			child_node.owner = owner
+			_set_owner_recursive(child_node, owner)
+
+
+func _clear_owner_recursive(node: Node) -> void:
+	for child in node.get_children():
+		if child is Node:
+			var child_node: Node = child
+			child_node.owner = null
+			_clear_owner_recursive(child_node)
+
+
+func _resolve_connection_args(args: Dictionary) -> Dictionary:
+	var source_node_path := str(args.get("source_node_path", ""))
+	var signal_name := str(args.get("signal_name", ""))
+	var target_node_path := str(args.get("target_node_path", ""))
+	var method_name := str(args.get("method_name", ""))
+	if source_node_path == "":
+		return _error("missing_source_node_path", "source_node_path is required.")
+	if signal_name == "":
+		return _error("missing_signal_name", "signal_name is required.")
+	if target_node_path == "":
+		return _error("missing_target_node_path", "target_node_path is required.")
+	if method_name == "":
+		return _error("missing_method_name", "method_name is required.")
+
+	var binds = args.get("binds", [])
+	if typeof(binds) != TYPE_ARRAY:
+		return _error("invalid_binds", "binds must be an array when provided.")
+
+	var context := _active_scene_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var root: Node = context["root"]
+	var source := _resolve_node_path(root, source_node_path)
+	var target := _resolve_node_path(root, target_node_path)
+	if not source:
+		return _error("source_node_not_found", "Source node path does not exist in the active scene.", {
+			"source_node_path": source_node_path,
+		})
+	if not target:
+		return _error("target_node_not_found", "Target node path does not exist in the active scene.", {
+			"target_node_path": target_node_path,
+		})
+	if not source.has_signal(StringName(signal_name)):
+		return _error("signal_not_found", "Source node does not expose the requested signal.", {
+			"source_node_path": source_node_path,
+			"signal_name": signal_name,
+		})
+
+	return {
+		"ok": true,
+		"root": root,
+		"source": source,
+		"target": target,
+		"signal_name": signal_name,
+		"method_name": method_name,
+		"binds": binds,
+	}
+
+
+func _connection_summary(root: Node, source: Node, signal_name: String, target: Node, method_name: String, binds: Array, flags: int) -> Dictionary:
+	return {
+		"source_node_path": _node_live_path(root, source),
+		"signal_name": signal_name,
+		"target_node_path": _node_live_path(root, target),
+		"method_name": method_name,
+		"flags": flags,
+		"binds": _serialize_variant(binds),
 	}
 
 
