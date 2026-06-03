@@ -97,30 +97,32 @@ Verification note, 2026-06-03: `npm test` passed 7/7 batch tests. A compiled MCP
 
 ### 1.2 Add `script_patch`
 
-- [ ] Add an anchor-based GDScript patch tool.
-- [ ] Support modes:
+- [x] Add an anchor-based GDScript patch tool.
+- [x] Support modes:
   - `insert_before`
   - `insert_after`
   - `replace_block`
   - `replace_range`
   - `append_to_file`
-- [ ] Support anchors by:
+- [x] Support anchors by:
   - exact text
   - function name
   - class member/property name
   - regex, opt-in only
-- [ ] Add `validate_after` to run existing script validation.
-- [ ] Add `dry_run` to return a unified diff without writing.
-- [ ] Add guardrails:
+- [x] Add `validate_after` to run existing script validation.
+- [x] Add `dry_run` to return a unified diff without writing.
+- [x] Add guardrails:
   - reject missing anchor unless `allow_append_fallback` is true
   - reject ambiguous anchors unless caller provides `occurrence`
   - preserve line endings
-- [ ] Add tests for exact anchor insert, function block replace, ambiguous anchor rejection, and dry-run diff.
+- [x] Add tests for exact anchor insert, function block replace, ambiguous anchor rejection, and dry-run diff.
 
 Acceptance:
 
-- [ ] Codex can apply a small script edit without regenerating the whole file.
-- [ ] A bad patch returns a precise failure reason and does not write partial content.
+- [x] Codex can apply a small script edit without regenerating the whole file.
+- [x] A bad patch returns a precise failure reason and does not write partial content.
+
+Verification note, 2026-06-03: focused `script_patch` TDD added 10 Node tests covering registration, exact anchor insert with CRLF preservation, function block replacement, ambiguous exact anchor rejection, dry-run unified diff, one-based `replace_range`, class member replacement, regex opt-in, append fallback, and `validate_after` content validation. `npm run build; node --test tests/script-patch.test.mjs` passed 10/10 focused tests after implementation. Final `npm test` passed 22/22 tests, and a compiled MCP stdio smoke with `GODOT_PATH=C:\Users\brett\Desktop\Godot\Godot.exe` listed `script_patch` and successfully patched a temporary `test_mcp_enhancements/mcp_script_patch_smoke.gd` file with `validate_after: true` before deleting the temporary file.
 
 ### 1.3 Add Project And Filesystem Helpers
 

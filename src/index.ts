@@ -56,6 +56,7 @@ import { registerPhysicsTools } from './tools/physics.js';
 // Tier 16 imports
 import { registerNavigationTools } from './tools/navigation.js';
 import { registerBatchTools } from './tools/batch.js';
+import { registerScriptPatchTools } from './tools/script-patch.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -341,6 +342,13 @@ class GodotServer {
     'timeout_ms': 'timeoutMs',
     'allow_recursive_batch': 'allowRecursiveBatch',
     'declared_touched_paths': 'declaredTouchedPaths',
+    'anchor_type': 'anchorType',
+    'patch_text': 'patchText',
+    'replacement_text': 'replacementText',
+    'start_line': 'startLine',
+    'end_line': 'endLine',
+    'validate_after': 'validateAfter',
+    'allow_append_fallback': 'allowAppendFallback',
   };
 
   /**
@@ -655,6 +663,8 @@ class GodotServer {
       validatePath: (path: string) => this.validatePath(path),
       executeOperation: (op: string, params: OperationParams, projectPath: string) =>
         this.executeOperation(op, params, projectPath),
+      validateScript: (params: { projectPath: string; scriptPath: string; scriptContent?: string }) =>
+        this.handleValidateScript(params),
       normalizeParameters: (params: OperationParams) => this.normalizeParameters(params),
       convertCamelToSnakeCase: (params: OperationParams) => this.convertCamelToSnakeCase(params),
       parseGodotErrors: (lines: string[]) => this.parseGodotErrors(lines),
@@ -710,6 +720,7 @@ class GodotServer {
     registerNavigationTools(this.toolRegistry, ctx);
     // Phase 1 enhancements
     registerBatchTools(this.toolRegistry, ctx);
+    registerScriptPatchTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
@@ -5994,9 +6005,19 @@ class GodotServer {
 
       this.logDebug(`Validating script: ${args.scriptPath} in project: ${args.projectPath}`);
 
+      let validationScriptPath = args.scriptPath;
+      let tempScriptFile: string | null = null;
+      if (typeof args.scriptContent === 'string') {
+        const scriptDir = dirname(args.scriptPath);
+        const tempName = `.${basename(args.scriptPath, '.gd')}.mcp-validate-${process.pid}-${Date.now()}.gd`;
+        validationScriptPath = (scriptDir === '.' ? tempName : join(scriptDir, tempName)).replace(/\\/g, '/');
+        tempScriptFile = join(args.projectPath, validationScriptPath);
+        writeFileSync(tempScriptFile, args.scriptContent, 'utf8');
+      }
+
       // Use Godot's --check-only flag to validate the script
       const logFilePath = join(tmpdir(), `godot-mcp-validate-script-${process.pid}-${Date.now()}.log`);
-      const cmdArgs = ['--headless', '--log-file', logFilePath, '--path', args.projectPath, '--script', args.scriptPath, '--check-only'];
+      const cmdArgs = ['--headless', '--log-file', logFilePath, '--path', args.projectPath, '--script', validationScriptPath, '--check-only'];
 
       this.logDebug(`Running Godot command: ${this.godotPath} ${cmdArgs.join(' ')}`);
 
@@ -6017,6 +6038,9 @@ class GodotServer {
 
         godotProcess.on('close', (code: number | null) => {
           this.logDebug(`Godot validation process exited with code ${code}`);
+          if (tempScriptFile && existsSync(tempScriptFile)) {
+            unlinkSync(tempScriptFile);
+          }
 
           // Parse errors from both stdout and stderr
           const sanitizedErrors = this.sanitizeGodotStderr(errors.join('\n'))
@@ -6036,6 +6060,7 @@ class GodotServer {
                   {
                     valid: isValid,
                     script_path: args.scriptPath,
+                    validated_script_path: validationScriptPath,
                     exit_code: code,
                     errors: parsedErrors,
                     error_count: parsedErrors.length,
@@ -6052,6 +6077,9 @@ class GodotServer {
 
         godotProcess.on('error', (err: Error) => {
           console.error('Failed to start Godot validation process:', err);
+          if (tempScriptFile && existsSync(tempScriptFile)) {
+            unlinkSync(tempScriptFile);
+          }
           resolve(this.createErrorResponse(
             `Failed to validate script: ${err.message}`,
             [

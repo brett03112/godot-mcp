@@ -94,6 +94,8 @@ export interface ServerContext {
   validatePath: (path: string) => boolean;
   /** Execute a Godot operation via godot_operations.gd */
   executeOperation: (operation: string, params: OperationParams, projectPath: string) => Promise<OperationResult>;
+  /** Validate GDScript through the server's script validation path */
+  validateScript?: (params: { projectPath: string; scriptPath: string; scriptContent?: string }) => Promise<ToolResponse>;
   /** Normalize parameters to camelCase format */
   normalizeParameters: (params: OperationParams) => OperationParams;
   /** Convert camelCase keys to snake_case */

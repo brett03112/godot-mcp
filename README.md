@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **115 tools** across 30 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **116 tools** across 30 categories plus **118 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (115 tools)
+## Tool Reference (116 tools)
 
 ### Project Management (7 tools)
 
@@ -121,7 +121,7 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 | `attach_script` | Attach GDScript files to scene nodes with ExtResource management |
 | `validate_script` | Validate GDScript syntax using Godot's `--check-only` flag |
 
-### Extended Code Intelligence (4 tools)
+### Extended Code Intelligence (5 tools)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -129,6 +129,7 @@ reparent_node(project_path, scene_path, node_path="UI/OldParent/Button", new_par
 | `generate_test_from_specification` | Generate GUT test methods from natural language behavior descriptions |
 | `analyze_test_coverage` | Match source functions to test methods by naming convention, report per-script coverage % |
 | `create_mock_node` | Generate mock GDScript classes with call tracking and configurable return values |
+| `script_patch` | Apply anchor-based GDScript edits with dry-run diffs, validation, and missing/ambiguous anchor guardrails |
 
 ```text
 # Example: Generate documentation for a script
@@ -701,6 +702,7 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/extract_dependencies` - Extract preloads, loads, class references, and resource paths from GDScript.
 - `godot-mcp://tools/attach_script` - Attach a GDScript file to a scene node.
 - `godot-mcp://tools/validate_script` - Validate GDScript syntax using Godot's `--check-only` flag.
+- `godot-mcp://tools/script_patch` - Apply anchor-based GDScript edits with dry-run diffs, validation, and guardrails.
 - `godot-mcp://tools/create_animation_player` - Add an AnimationPlayer node and optionally create an initial animation.
 - `godot-mcp://tools/add_animation_track` - Add position, rotation, scale, property, method-call, or audio tracks to an animation.
 - `godot-mcp://tools/add_keyframe` - Add keyframes with optional easing to an animation track.
@@ -777,7 +779,7 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "disconnect_signal", "validate_connection",
         "analyze_script", "create_script", "modify_function",
         "add_export_variable", "extract_dependencies", "attach_script",
-        "validate_script",
+        "validate_script", "script_patch",
         "create_animation_player", "add_animation_track", "add_keyframe",
         "configure_animation_tree", "create_animation_library",
         "create_shader_material", "apply_material", "set_shader_parameter",
