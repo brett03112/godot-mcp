@@ -4,11 +4,11 @@ extends GutTest
 var _instance
 
 func before_each():
-	coin = Coin.new()
-	add_child_autofree(coin)
+	_instance = Coin.new()
+	add_child_autofree(_instance)
 
 func after_each():
-	coin = null
+	_instance = null
 
 func test_be_valid_after_init():
 	## should be valid after init

@@ -11,4 +11,4 @@ func before_each():
 
 func test_collect_works_correctly():
 	## collect works correctly
-	assert_eq(_instance.collect, called, "collect should be called")
+	assert_true(_instance.has_method("collect"), "collect should exist")

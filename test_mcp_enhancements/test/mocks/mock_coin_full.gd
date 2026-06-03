@@ -2,6 +2,8 @@ extends Area2D
 class_name MockCoinFull
 ## Auto-generated mock for Area2D
 
+signal collected(points: int)
+
 ## Call tracking — each entry is { "method": String, "args": Array }
 var _calls: Array[Dictionary] = []
 
@@ -15,7 +17,7 @@ func _ready() -> void:
 	collected.connect(_on_signal_emitted.bind("collected"))
 	body_entered.connect(_on_signal_emitted.bind("body_entered"))
 
-func _on_signal_emitted(signal_name: String) -> void:
+func _on_signal_emitted(_payload: Variant = null, signal_name: String = "") -> void:
 	_emitted_signals.append({"signal": signal_name, "time": Time.get_ticks_msec()})
 
 func collect():

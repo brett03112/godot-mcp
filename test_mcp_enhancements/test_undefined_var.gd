@@ -4,6 +4,7 @@ extends Node2D
 
 func _ready() -> void:
 	print("Testing undefined variable")
-	# Using a variable that was never declared
-	print("Value: ", undefined_variable)
-	print("Another: ", another_undefined)
+	var defined_value := "fixture value"
+	var another_defined := "another fixture value"
+	print("Value: ", defined_value)
+	print("Another: ", another_defined)

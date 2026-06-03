@@ -13,11 +13,11 @@ const SPEED = 200.0
 var current_health: int = starting_health
 
 func _ready() -> void:
-    health_changed.emit(current_health)
+    hp_changed.emit(current_health)
 
 func take_damage(amount: int) -> void:
     current_health -= amount
-    health_changed.emit(current_health)
+    hp_changed.emit(current_health)
     if current_health <= 0:
         die()
 

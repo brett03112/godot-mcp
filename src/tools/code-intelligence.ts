@@ -393,6 +393,9 @@ function generateTestFromSpecification(ctx: ServerContext): ToolDefinition {
       }
 
       lines.push(`var _instance`);
+      for (const variableName of inferSetupVariables(className, setupCode, teardownCode)) {
+        lines.push(`var ${variableName}`);
+      }
       lines.push('');
 
       // Setup
@@ -539,6 +542,13 @@ function generateAssertions(description: string, expected: string, className: st
   }
 
   return assertions;
+}
+
+function inferSetupVariables(className: string, setupCode?: string, teardownCode?: string): string[] {
+  const combined = `${setupCode || ''}\n${teardownCode || ''}`;
+  const lowerClassName = className.charAt(0).toLowerCase() + className.slice(1);
+  const assignmentPattern = new RegExp(`(^|\\n)\\s*${lowerClassName}\\s*=`);
+  return assignmentPattern.test(combined) ? [lowerClassName] : [];
 }
 
 // ─── analyze_test_coverage ──────────────────────────────────────────────────
@@ -770,6 +780,12 @@ function createMockNode(ctx: ServerContext): ToolDefinition {
 
       // Signal tracking
       if (signalsToTrack.length > 0) {
+        for (const sig of signalsToTrack) {
+          if (!isInheritedSignal(baseClass, sig)) {
+            lines.push(`signal ${sig}`);
+          }
+        }
+        lines.push('');
         lines.push('## Signal emission tracking');
         lines.push('var _emitted_signals: Array[Dictionary] = []');
         lines.push('');
@@ -778,7 +794,7 @@ function createMockNode(ctx: ServerContext): ToolDefinition {
           lines.push(`\t${sig}.connect(_on_signal_emitted.bind("${sig}"))`);
         }
         lines.push('');
-        lines.push('func _on_signal_emitted(signal_name: String) -> void:');
+        lines.push('func _on_signal_emitted(_payload: Variant = null, signal_name: String = "") -> void:');
         lines.push('\t_emitted_signals.append({"signal": signal_name, "time": Time.get_ticks_msec()})');
         lines.push('');
       }
@@ -871,4 +887,24 @@ function createMockNode(ctx: ServerContext): ToolDefinition {
       };
     },
   };
+}
+
+function isInheritedSignal(baseClass: string, signalName: string): boolean {
+  const inheritedSignals: Record<string, Set<string>> = {
+    Area2D: new Set([
+      'area_entered',
+      'area_exited',
+      'area_shape_entered',
+      'area_shape_exited',
+      'body_entered',
+      'body_exited',
+      'body_shape_entered',
+      'body_shape_exited',
+      'input_event',
+      'mouse_entered',
+      'mouse_exited',
+    ]),
+  };
+
+  return inheritedSignals[baseClass]?.has(signalName) || false;
 }
