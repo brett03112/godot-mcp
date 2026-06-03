@@ -58,6 +58,7 @@ import { registerNavigationTools } from './tools/navigation.js';
 import { registerBatchTools } from './tools/batch.js';
 import { registerScriptPatchTools } from './tools/script-patch.js';
 import { registerProjectFilesystemTools } from './tools/project-filesystem.js';
+import { registerResourceWorkflowTools } from './tools/resource-workflow.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -350,6 +351,29 @@ class GodotServer {
     'end_line': 'endLine',
     'validate_after': 'validateAfter',
     'allow_append_fallback': 'allowAppendFallback',
+    'include_properties': 'includeProperties',
+    'references': 'references',
+    'uid': 'uid',
+    'dimension': 'dimension',
+    'points': 'points',
+    'fill': 'fill',
+    'seed': 'seed',
+    'frequency': 'frequency',
+    'noise_type': 'noiseType',
+    'seamless': 'seamless',
+    'as_normal_map': 'asNormalMap',
+    'min_value': 'minValue',
+    'max_value': 'maxValue',
+    'bake_resolution': 'bakeResolution',
+    'background_mode': 'backgroundMode',
+    'background_color': 'backgroundColor',
+    'ambient_light_color': 'ambientLightColor',
+    'ambient_light_energy': 'ambientLightEnergy',
+    'glow_enabled': 'glowEnabled',
+    'ssao_enabled': 'ssaoEnabled',
+    'visual_node_path': 'visualNodePath',
+    'replace_existing': 'replaceExisting',
+    'overwrite': 'overwrite',
   };
 
   /**
@@ -723,6 +747,7 @@ class GodotServer {
     registerBatchTools(this.toolRegistry, ctx);
     registerScriptPatchTools(this.toolRegistry, ctx);
     registerProjectFilesystemTools(this.toolRegistry, ctx);
+    registerResourceWorkflowTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

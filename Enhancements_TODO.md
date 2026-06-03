@@ -154,23 +154,25 @@ Verification note, 2026-06-03: focused Phase 1.3 TDD added 8 Node tests covering
 
 ### 1.4 Add Resource Workflow Tools
 
-- [ ] Add `resource_search`.
-- [ ] Add `resource_get_info`.
-- [ ] Add `resource_assign`.
-- [ ] Add `resource_preview_metadata`.
-- [ ] Add `create_gradient_texture`.
-- [ ] Add `create_noise_texture`.
-- [ ] Add `create_curve_resource`.
-- [ ] Add `set_curve_points`.
-- [ ] Add `create_environment_resource`.
-- [ ] Add `create_physics_material`.
-- [ ] Add `autofit_physics_shape`.
-- [ ] Add `resource_convert_format` for safe `.tres`/`.res` conversion where Godot supports it.
+- [x] Add `resource_search`.
+- [x] Add `resource_get_info`.
+- [x] Add `resource_assign`.
+- [x] Add `resource_preview_metadata`.
+- [x] Add `create_gradient_texture`.
+- [x] Add `create_noise_texture`.
+- [x] Add `create_curve_resource`.
+- [x] Add `set_curve_points`.
+- [x] Add `create_environment_resource`.
+- [x] Add `create_physics_material`.
+- [x] Add `autofit_physics_shape`.
+- [x] Add `resource_convert_format` for safe `.tres`/`.res` conversion where Godot supports it.
 
 Acceptance:
 
-- [ ] Codex can create common `.tres` resources without manually authoring resource text.
-- [ ] Codex can assign a created resource to a node property and validate the scene afterward.
+- [x] Codex can create common `.tres` resources without manually authoring resource text.
+- [x] Codex can assign a created resource to a node property and validate the scene afterward.
+
+Verification note, 2026-06-03: focused Phase 1.4 TDD added 4 Node tests covering registration for all 12 resource workflow tools, resource search/info/preview metadata parsing, ResourceSaver operation dispatch for gradient/noise/environment/physics material creation, and curve/assignment/autofit/format-conversion parameter mapping. `npm run build && node --test tests/resource-workflow.test.mjs` passed 4/4 focused tests, and final `npm test` passed 34/34 repo tests. A Godot 4.6.3 headless smoke against `test_mcp_enhancements` created real `GradientTexture2D`, `NoiseTexture2D`, `Curve`, `Environment`, and `PhysicsMaterial` resources via `ResourceSaver.save()`, replaced Curve points, converted the generated gradient from `.tres` to `.res`, assigned the generated gradient texture to a copied Sprite2D scene property, autofit a copied physics scene's `CollisionShape2D` to `Vector2(48, 24)`, and then removed the temporary `mcp_phase14_*` smoke artifacts.
 
 ### 1.5 Add UI And Theme Workflow Tools
 
