@@ -374,12 +374,12 @@ Verification note, 2026-06-03: focused Phase 2.4 TDD added `tests/live-scene-mut
 
 ### 2.5 Add Editor Filesystem And Import Operations
 
-- [ ] Add `editor_filesystem_scan`.
-- [ ] Add `editor_filesystem_reimport`.
-- [ ] Add `editor_resource_reload`.
-- [ ] Add `editor_resource_uid_update`.
-- [ ] Add `editor_open_resource`.
-- [ ] Add `editor_focus_file`.
+- [x] Add `editor_filesystem_scan`.
+- [x] Add `editor_filesystem_reimport`.
+- [x] Add `editor_resource_reload`.
+- [x] Add `editor_resource_uid_update`.
+- [x] Add `editor_open_resource`.
+- [x] Add `editor_focus_file`.
 
 Research basis:
 
@@ -387,7 +387,9 @@ Research basis:
 
 Acceptance:
 
-- [ ] Codex can create a file externally, ask the live editor to scan/reimport, and then see the resource in the editor filesystem.
+- [x] Codex can create a file externally, ask the live editor to scan/reimport, and then see the resource in the editor filesystem.
+
+Verification note, 2026-06-03: focused Phase 2.5 TDD added `tests/live-editor-filesystem.test.mjs` covering registration and live-command mapping for all 6 editor filesystem/import tools, plus addon contract checks for dispatcher command branches and handlers. RED was observed as missing registry entries and missing addon handler names. After extending `src/tools/live-editor.ts` and `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, `npm run build && node --test tests/live-editor-filesystem.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 18/18 focused live tests, `npm test` passed 71/71 repo tests, and `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path test_mcp_enhancements --quit` exited 0 with only the known nested-project warning and ObjectDB shutdown warning. Context7/Godot 4.6 docs confirmed `EditorFileSystem.update_file()`, `scan()`, `reimport_files()`, `EditorInterface.get_resource_filesystem()`, `EditorInterface.get_file_system_dock()`, and `FileSystemDock.navigate_to_path()`. A fresh MCP stdio server from the built code listed 212 tools, a fresh headless Godot live editor session `godot-mcp-1780528878653-200823` connected for `test_mcp_enhancements`, an externally-created `res://mcp_phase25_live_probe.svg` scanned visible/existing with `waited_ms: 51`, reimported with no timeout, reloaded as `CompressedTexture2D`, returned UID `uid://chkcmhe8omw04`, focused and opened as a resource, then cleanup removed the probe and a follow-up scan reported `exists: false` and `visible: false`. The live listener was restored afterward on `127.0.0.1:6010` with one established editor connection.
 
 ## Phase 3 - Runtime Control, Debugger Bridge, And Play Mode Awareness
 

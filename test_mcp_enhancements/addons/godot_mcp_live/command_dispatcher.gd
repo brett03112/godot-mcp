@@ -75,6 +75,18 @@ func handle_message(message: Dictionary) -> Dictionary:
 			result = _handle_live_scene_mark_dirty()
 		"live_scene_save":
 			result = _handle_scene_save_active()
+		"editor_filesystem_scan":
+			result = _handle_editor_filesystem_scan(args)
+		"editor_filesystem_reimport":
+			result = _handle_editor_filesystem_reimport(args)
+		"editor_resource_reload":
+			result = _handle_editor_resource_reload(args)
+		"editor_resource_uid_update":
+			result = _handle_editor_resource_uid_update(args)
+		"editor_open_resource":
+			result = _handle_editor_open_resource(args)
+		"editor_focus_file":
+			result = _handle_editor_focus_file(args)
 		_:
 			result = _error("unsupported_command", "Unsupported live editor command: %s." % command, {
 				"command": command,
@@ -758,6 +770,184 @@ func _handle_live_scene_mark_dirty() -> Dictionary:
 	})
 
 
+func _handle_editor_filesystem_scan(args: Dictionary) -> Dictionary:
+	var context := _editor_filesystem_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var paths_result := _normalize_res_path_array(args.get("paths", []), false)
+	if not bool(paths_result.get("ok", false)):
+		return paths_result
+
+	var fs: EditorFileSystem = context["filesystem"]
+	var paths: Array = paths_result["paths"]
+	for path in paths:
+		fs.update_file(str(path))
+
+	fs.scan()
+	var wait_result := {}
+	if bool(args.get("wait_for_scan", true)):
+		wait_result = _wait_for_filesystem_idle(fs, 2500)
+	return _ok({
+		"scanned": true,
+		"mode": "selected_paths" if paths.size() > 0 else "full_project",
+		"wait_requested": bool(args.get("wait_for_scan", true)),
+		"wait": wait_result,
+		"scan_status": _filesystem_scan_status(fs),
+		"paths": paths,
+		"files": _filesystem_metadata_for_paths(fs, paths),
+	})
+
+
+func _handle_editor_filesystem_reimport(args: Dictionary) -> Dictionary:
+	var context := _editor_filesystem_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var paths_result := _normalize_res_path_array(args.get("paths", []), true)
+	if not bool(paths_result.get("ok", false)):
+		return paths_result
+
+	var fs: EditorFileSystem = context["filesystem"]
+	var paths: Array = paths_result["paths"]
+	var packed_paths := PackedStringArray()
+	for path in paths:
+		var res_path := str(path)
+		fs.update_file(res_path)
+		packed_paths.append(res_path)
+
+	var wait_result := _wait_for_filesystem_idle(fs, 2500)
+	if bool(wait_result.get("timed_out", false)):
+		return _error("filesystem_scan_busy", "EditorFileSystem is still scanning; retry reimport after scan completes.", {
+			"paths": paths,
+			"scan_status": _filesystem_scan_status(fs),
+		})
+
+	fs.reimport_files(packed_paths)
+	return _ok({
+		"reimported": true,
+		"paths": paths,
+		"wait": wait_result,
+		"scan_status": _filesystem_scan_status(fs),
+		"files": _filesystem_metadata_for_paths(fs, paths),
+	})
+
+
+func _handle_editor_resource_reload(args: Dictionary) -> Dictionary:
+	var path_result := _required_res_path(args, "resource_path")
+	if not bool(path_result.get("ok", false)):
+		return path_result
+
+	var res_path := str(path_result["path"])
+	var cache_mode_result := _resource_cache_mode(str(args.get("cache_mode", "replace")))
+	if not bool(cache_mode_result.get("ok", false)):
+		return cache_mode_result
+
+	var context := _editor_filesystem_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var fs: EditorFileSystem = context["filesystem"]
+	fs.update_file(res_path)
+	var resource := ResourceLoader.load(res_path, "", int(cache_mode_result["cache_mode"]))
+	if not resource:
+		return _error("resource_load_failed", "Godot could not load the requested resource.", {
+			"resource_path": res_path,
+		})
+
+	return _ok({
+		"reloaded": true,
+		"resource_path": res_path,
+		"cache_mode": cache_mode_result["name"],
+		"resource": _resource_metadata(resource, res_path),
+		"file": _filesystem_file_metadata(fs, res_path),
+	})
+
+
+func _handle_editor_resource_uid_update(args: Dictionary) -> Dictionary:
+	var context := _editor_filesystem_context()
+	if not bool(context.get("ok", false)):
+		return context
+
+	var paths_result := _normalize_res_path_array(args.get("paths", []), true)
+	if not bool(paths_result.get("ok", false)):
+		return paths_result
+
+	var fs: EditorFileSystem = context["filesystem"]
+	var paths: Array = paths_result["paths"]
+	for path in paths:
+		fs.update_file(str(path))
+	fs.scan()
+	var wait_result := _wait_for_filesystem_idle(fs, 2500)
+
+	return _ok({
+		"updated": true,
+		"paths": paths,
+		"wait": wait_result,
+		"scan_status": _filesystem_scan_status(fs),
+		"files": _filesystem_metadata_for_paths(fs, paths),
+	})
+
+
+func _handle_editor_open_resource(args: Dictionary) -> Dictionary:
+	var path_result := _required_res_path(args, "resource_path")
+	if not bool(path_result.get("ok", false)):
+		return path_result
+
+	var editor := _get_editor_interface()
+	if not editor:
+		return _error("editor_unavailable", "EditorInterface is not available.")
+
+	var res_path := str(path_result["path"])
+	var mode := "resource"
+	if res_path.ends_with(".tscn") or res_path.ends_with(".scn"):
+		editor.open_scene_from_path(res_path)
+		mode = "scene"
+		return _ok({
+			"opened": true,
+			"resource_path": res_path,
+			"mode": mode,
+		})
+
+	var resource := ResourceLoader.load(res_path, "", ResourceLoader.CACHE_MODE_REPLACE)
+	if not resource:
+		return _error("resource_load_failed", "Godot could not load the requested resource.", {
+			"resource_path": res_path,
+		})
+
+	editor.edit_resource(resource)
+	return _ok({
+		"opened": true,
+		"resource_path": res_path,
+		"mode": mode,
+		"resource": _resource_metadata(resource, res_path),
+	})
+
+
+func _handle_editor_focus_file(args: Dictionary) -> Dictionary:
+	var path_result := _required_res_path(args, "resource_path")
+	if not bool(path_result.get("ok", false)):
+		return path_result
+
+	var editor := _get_editor_interface()
+	if not editor:
+		return _error("editor_unavailable", "EditorInterface is not available.")
+
+	var dock := editor.get_file_system_dock()
+	if not dock:
+		return _error("filesystem_dock_unavailable", "FileSystemDock is not available.")
+
+	var res_path := str(path_result["path"])
+	dock.navigate_to_path(res_path)
+
+	var fs := editor.get_resource_filesystem()
+	return _ok({
+		"focused": true,
+		"resource_path": res_path,
+		"file": _filesystem_file_metadata(fs, res_path) if fs else {},
+	})
+
+
 func _current_scene_data(include_hierarchy: bool = true) -> Dictionary:
 	var editor := _get_editor_interface()
 	if not editor:
@@ -1158,6 +1348,184 @@ func _collect_monitors(requested_monitors: Array) -> Dictionary:
 	return {
 		"values": values,
 		"unknown": unknown,
+	}
+
+
+func _editor_filesystem_context() -> Dictionary:
+	var editor := _get_editor_interface()
+	if not editor:
+		return _error("editor_unavailable", "EditorInterface is not available.")
+
+	var fs := editor.get_resource_filesystem()
+	if not fs:
+		return _error("filesystem_unavailable", "EditorFileSystem is not available.")
+
+	return {
+		"ok": true,
+		"editor": editor,
+		"filesystem": fs,
+	}
+
+
+func _required_res_path(args: Dictionary, field_name: String) -> Dictionary:
+	var raw_path := str(args.get(field_name, ""))
+	if raw_path == "":
+		return _error("missing_%s" % field_name, "%s is required." % field_name)
+
+	var res_path := _normalize_res_resource_path(raw_path)
+	if res_path == "":
+		return _error("invalid_%s" % field_name, "%s must stay inside res:// and cannot contain '..'." % field_name, {
+			field_name: raw_path,
+		})
+
+	return {
+		"ok": true,
+		"path": res_path,
+	}
+
+
+func _normalize_res_path_array(raw_paths, required: bool) -> Dictionary:
+	if raw_paths == null:
+		raw_paths = []
+	if typeof(raw_paths) != TYPE_ARRAY:
+		return _error("invalid_paths", "paths must be an array of project resource paths.")
+
+	var paths: Array[String] = []
+	var seen := {}
+	for raw_path in raw_paths:
+		var res_path := _normalize_res_resource_path(str(raw_path))
+		if res_path == "":
+			return _error("invalid_resource_path", "Resource paths must stay inside res:// and cannot contain '..'.", {
+				"resource_path": str(raw_path),
+			})
+		if not seen.has(res_path):
+			seen[res_path] = true
+			paths.append(res_path)
+
+	if required and paths.is_empty():
+		return _error("missing_paths", "At least one resource path is required.")
+
+	return {
+		"ok": true,
+		"paths": paths,
+	}
+
+
+func _normalize_res_resource_path(resource_path: String) -> String:
+	var cleaned := resource_path.replace("\\", "/").strip_edges()
+	if cleaned == "" or cleaned.contains(".."):
+		return ""
+	if cleaned.begins_with("res://"):
+		return cleaned
+	while cleaned.begins_with("/"):
+		cleaned = cleaned.substr(1)
+	if cleaned == "":
+		return ""
+	return "res://%s" % cleaned
+
+
+func _filesystem_scan_status(fs: EditorFileSystem) -> Dictionary:
+	return {
+		"is_scanning": fs.is_scanning(),
+		"progress": fs.get_scanning_progress(),
+	}
+
+
+func _wait_for_filesystem_idle(fs: EditorFileSystem, timeout_ms: int) -> Dictionary:
+	var started := Time.get_ticks_msec()
+	var waited_ms := 0
+	while fs.is_scanning() and waited_ms < timeout_ms:
+		OS.delay_msec(25)
+		waited_ms = int(Time.get_ticks_msec() - started)
+
+	return {
+		"waited_ms": waited_ms,
+		"timed_out": fs.is_scanning(),
+	}
+
+
+func _filesystem_metadata_for_paths(fs: EditorFileSystem, paths: Array) -> Array[Dictionary]:
+	var files: Array[Dictionary] = []
+	for path in paths:
+		files.append(_filesystem_file_metadata(fs, str(path)))
+	return files
+
+
+func _filesystem_file_metadata(fs: EditorFileSystem, res_path: String) -> Dictionary:
+	var full_path := ProjectSettings.globalize_path(res_path)
+	var exists := FileAccess.file_exists(full_path) or DirAccess.dir_exists_absolute(full_path)
+	var uid_data := _resource_uid_metadata(res_path)
+	return {
+		"path": res_path,
+		"full_path": full_path,
+		"exists": exists,
+		"visible": _editor_filesystem_contains_path(fs.get_filesystem(), res_path),
+		"type": str(fs.get_file_type(res_path)) if exists else "",
+		"uid": uid_data["uid"],
+		"uid_id": uid_data["uid_id"],
+		"uid_available": uid_data["uid_available"],
+	}
+
+
+func _editor_filesystem_contains_path(directory: EditorFileSystemDirectory, res_path: String) -> bool:
+	if not directory:
+		return false
+
+	for index in range(directory.get_file_count()):
+		if str(directory.get_file_path(index)) == res_path:
+			return true
+
+	for index in range(directory.get_subdir_count()):
+		if _editor_filesystem_contains_path(directory.get_subdir(index), res_path):
+			return true
+
+	return false
+
+
+func _resource_uid_metadata(res_path: String) -> Dictionary:
+	var uid_id := int(ResourceLoader.get_resource_uid(res_path))
+	var uid_text := ""
+	if uid_id > 0:
+		uid_text = ResourceUID.id_to_text(uid_id)
+	if uid_text == "":
+		uid_text = ResourceUID.path_to_uid(res_path)
+	return {
+		"uid": uid_text,
+		"uid_id": uid_id,
+		"uid_available": uid_text != "",
+	}
+
+
+func _resource_cache_mode(cache_mode: String) -> Dictionary:
+	var normalized := cache_mode.to_lower()
+	match normalized:
+		"reuse":
+			return { "ok": true, "name": normalized, "cache_mode": ResourceLoader.CACHE_MODE_REUSE }
+		"ignore":
+			return { "ok": true, "name": normalized, "cache_mode": ResourceLoader.CACHE_MODE_IGNORE }
+		"replace":
+			return { "ok": true, "name": normalized, "cache_mode": ResourceLoader.CACHE_MODE_REPLACE }
+		"ignore_deep":
+			return { "ok": true, "name": normalized, "cache_mode": ResourceLoader.CACHE_MODE_IGNORE_DEEP }
+		"replace_deep":
+			return { "ok": true, "name": normalized, "cache_mode": ResourceLoader.CACHE_MODE_REPLACE_DEEP }
+		_:
+			return _error("invalid_cache_mode", "cache_mode must be reuse, ignore, replace, ignore_deep, or replace_deep.", {
+				"cache_mode": cache_mode,
+			})
+
+
+func _resource_metadata(resource: Resource, fallback_path: String) -> Dictionary:
+	if not resource:
+		return {}
+
+	var resource_path := str(resource.resource_path)
+	if resource_path == "":
+		resource_path = fallback_path
+
+	return {
+		"type": resource.get_class(),
+		"resource_path": resource_path,
 	}
 
 

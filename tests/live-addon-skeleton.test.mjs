@@ -88,6 +88,12 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(dispatcher, /"live_node_disconnect_signal"/);
   assert.match(dispatcher, /"live_scene_mark_dirty"/);
   assert.match(dispatcher, /"live_scene_save"/);
+  assert.match(dispatcher, /"editor_filesystem_scan"/);
+  assert.match(dispatcher, /"editor_filesystem_reimport"/);
+  assert.match(dispatcher, /"editor_resource_reload"/);
+  assert.match(dispatcher, /"editor_resource_uid_update"/);
+  assert.match(dispatcher, /"editor_open_resource"/);
+  assert.match(dispatcher, /"editor_focus_file"/);
   assert.match(dispatcher, /func _handle_live_scene_get_hierarchy\(args: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_live_node_get_properties\(args: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_live_node_set_property\(args: Dictionary\) -> Dictionary:/);
@@ -99,6 +105,12 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(dispatcher, /func _handle_live_node_connect_signal\(args: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_live_node_disconnect_signal\(args: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_live_scene_mark_dirty\(\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_filesystem_scan\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_filesystem_reimport\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_resource_reload\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_resource_uid_update\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_open_resource\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_focus_file\(args: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /"unsupported_command"/);
 
   const transport = await readFile(join(addonRoot, 'transport_websocket.gd'), 'utf8');

@@ -301,6 +301,83 @@ export function registerLiveEditorTools(registry: ToolRegistry, options: LiveEdi
       description: 'Save the current live editor scene.',
       timeout: 10000,
     }),
+    liveCommandTool(manager, {
+      name: 'editor_filesystem_scan',
+      command: 'editor_filesystem_scan',
+      description: 'Ask the live Godot editor filesystem to scan externally changed project files.',
+      properties: {
+        paths: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional project resource paths to update before scanning. Omit to scan the whole project.',
+        },
+        wait_for_scan: { type: 'boolean', description: 'Wait briefly for the scan to settle before returning metadata (default: true).' },
+      },
+      timeout: 15000,
+    }),
+    liveCommandTool(manager, {
+      name: 'editor_filesystem_reimport',
+      command: 'editor_filesystem_reimport',
+      description: 'Ask the live Godot editor to reimport selected project resources.',
+      properties: {
+        paths: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Project resource paths to reimport, for example res://icon.svg.',
+        },
+      },
+      required: ['paths'],
+      timeout: 15000,
+    }),
+    liveCommandTool(manager, {
+      name: 'editor_resource_reload',
+      command: 'editor_resource_reload',
+      description: 'Reload a resource through the live Godot editor process.',
+      properties: {
+        resource_path: { type: 'string', description: 'Project resource path to reload, for example res://materials/theme.tres.' },
+        cache_mode: {
+          type: 'string',
+          enum: ['reuse', 'ignore', 'replace', 'ignore_deep', 'replace_deep'],
+          description: 'ResourceLoader cache mode to use (default: replace).',
+        },
+      },
+      required: ['resource_path'],
+      timeout: 10000,
+    }),
+    liveCommandTool(manager, {
+      name: 'editor_resource_uid_update',
+      command: 'editor_resource_uid_update',
+      description: 'Ask the live Godot editor to refresh UID metadata for selected resources.',
+      properties: {
+        paths: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Project resource paths whose UID metadata should be refreshed.',
+        },
+      },
+      required: ['paths'],
+      timeout: 15000,
+    }),
+    liveCommandTool(manager, {
+      name: 'editor_open_resource',
+      command: 'editor_open_resource',
+      description: 'Open or edit a project resource in the live Godot editor.',
+      properties: {
+        resource_path: { type: 'string', description: 'Project resource path to open, for example res://coin_v2.gd.' },
+      },
+      required: ['resource_path'],
+      timeout: 10000,
+    }),
+    liveCommandTool(manager, {
+      name: 'editor_focus_file',
+      command: 'editor_focus_file',
+      description: 'Focus a project resource path in the live Godot editor filesystem dock.',
+      properties: {
+        resource_path: { type: 'string', description: 'Project resource path to reveal in the filesystem dock.' },
+      },
+      required: ['resource_path'],
+      timeout: 10000,
+    }),
   ]);
 }
 
