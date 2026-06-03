@@ -133,6 +133,14 @@ test('active Godot fixture preloads resolve to existing project files', async ()
   }
 });
 
+test('dependency fixture static class calls resolve to declared static methods', async () => {
+  const dependencyScript = await readProjectFile('test_dependencies.gd');
+  const gameManagerScript = await readProjectFile('test_singleton.gd');
+
+  assert.match(dependencyScript, /GameManager\.spawn_entity\(enemy\)/);
+  assert.match(gameManagerScript, /static func spawn_entity\(/);
+});
+
 test('create_mock_node declares tracked custom signals before connecting them', async () => {
   await withTempProject(async (projectPath) => {
     const registry = new ToolRegistry();

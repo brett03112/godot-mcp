@@ -24,5 +24,8 @@ func has_value(key: String) -> bool:
 func clear_data() -> void:
 	data.clear()
 
+static func spawn_entity(_entity: Variant) -> void:
+	pass
+
 func log_info(message: String) -> void:
 	print("[" + name + "] " + message)
