@@ -3,9 +3,9 @@
     "godot-mcp": {
       "type": "stdio",
       "command": "node",
-      "args": ["/Users/brett/godot/godot-mcp/build/index.js"],
+      "args": ["C:/Users/brett/Desktop/godot-mcp/build/index.js"],
       "env": {
-        "GODOT_PATH": "/Applications/Godot.app/Contents/MacOS/godot"
+        "GODOT_PATH": "C:/Users/brett/Desktop/Godot/Godot.exe"
       }
     }
   }
