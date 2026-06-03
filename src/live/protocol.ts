@@ -21,10 +21,18 @@ export type LiveHeartbeatMessage = {
   session: Record<string, unknown>;
 };
 
+export type LiveCommandMessage = {
+  kind: 'command';
+  request_id: string;
+  command: string;
+  args: Record<string, unknown>;
+};
+
 export type LiveCommandResponseMessage = {
   kind: 'command_response';
   request_id?: string | number | null;
   status?: string;
+  data?: unknown;
   error?: unknown;
   session?: Record<string, unknown>;
 };
@@ -44,6 +52,12 @@ export function isLiveSessionUpdateMessage(value: unknown): value is LiveSession
   return isObject(value)
     && ['hello', 'heartbeat', 'command_response'].includes(String(value.kind))
     && isObject(value.session);
+}
+
+export function isLiveCommandResponseMessage(value: unknown): value is LiveCommandResponseMessage {
+  return isObject(value)
+    && value.kind === 'command_response'
+    && (typeof value.request_id === 'string' || typeof value.request_id === 'number');
 }
 
 export function normalizeLiveSessionSnapshot(session: Record<string, unknown>): LiveSessionSnapshot {

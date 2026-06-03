@@ -1,8 +1,11 @@
 import { resolve } from 'path';
 import {
+  LiveCommandMessage,
+  LiveCommandResponseMessage,
   LiveHelloMessage,
   LiveProtocolMessage,
   LiveSessionSnapshot,
+  isLiveCommandResponseMessage,
   isLiveHelloMessage,
   isLiveSessionUpdateMessage,
   normalizeLiveSessionSnapshot,
@@ -26,13 +29,35 @@ export type LiveSessionManagerOptions = {
   staleTimeoutMs?: number;
 };
 
+export type LiveCommandResult = {
+  requestId: string;
+  status: 'success';
+  data: unknown;
+  session: LiveSessionRecord | null;
+};
+
+export type LiveCommandOptions = {
+  sessionId?: string;
+  projectPath?: string;
+  timeoutMs?: number;
+};
+
 type StoredLiveSession = LiveSessionRecord & {
   connection?: LiveConnectionHandle;
+};
+
+type PendingLiveCommand = {
+  sessionId: string;
+  resolve: (result: LiveCommandResult) => void;
+  reject: (error: Error) => void;
+  timeout: NodeJS.Timeout;
 };
 
 export class LiveSessionManager {
   private sessions: Map<string, StoredLiveSession> = new Map();
   private activeSessionId: string | null = null;
+  private pendingCommands: Map<string, PendingLiveCommand> = new Map();
+  private requestSequence = 0;
   private now: () => number;
   private staleTimeoutMs: number;
 
@@ -65,9 +90,10 @@ export class LiveSessionManager {
 
   recordMessage(sessionId: string, message: LiveProtocolMessage): void {
     const record = this.sessions.get(sessionId);
-    if (!record) return;
-    record.lastSeenMs = this.now();
-    if (isLiveSessionUpdateMessage(message)) {
+    if (record) {
+      record.lastSeenMs = this.now();
+    }
+    if (record && isLiveSessionUpdateMessage(message)) {
       const snapshot = normalizeLiveSessionSnapshot(message.session);
       record.activeScene = snapshot.activeScene;
       record.playState = snapshot.playState;
@@ -75,6 +101,9 @@ export class LiveSessionManager {
       record.connectionState = snapshot.connectionState;
       record.lastHeartbeatUnix = snapshot.lastHeartbeatUnix;
       record.lastError = snapshot.lastError;
+    }
+    if (isLiveCommandResponseMessage(message)) {
+      this.resolvePendingCommand(sessionId, message);
     }
   }
 
@@ -106,6 +135,51 @@ export class LiveSessionManager {
   }
 
   resolveTargetSession(options: { sessionId?: string; projectPath?: string } = {}): LiveSessionRecord {
+    return this.toPublicRecord(this.resolveTargetStoredSession(options));
+  }
+
+  async sendCommand(command: string, args: Record<string, unknown> = {}, options: LiveCommandOptions = {}): Promise<LiveCommandResult> {
+    this.cleanupStaleSessions();
+    const session = this.resolveTargetStoredSession(options);
+
+    if (!session.connection?.send) {
+      throw new Error(`Live session ${session.sessionId} is not command-capable.`);
+    }
+
+    const requestId = this.nextRequestId();
+    const timeoutMs = options.timeoutMs ?? 5000;
+    const payload: LiveCommandMessage = {
+      kind: 'command',
+      request_id: requestId,
+      command,
+      args,
+    };
+
+    return new Promise<LiveCommandResult>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingCommands.delete(requestId);
+        reject(new Error(`Live command timed out after ${timeoutMs}ms: ${command}`));
+      }, timeoutMs);
+      timeout.unref?.();
+
+      this.pendingCommands.set(requestId, {
+        sessionId: session.sessionId,
+        resolve,
+        reject,
+        timeout,
+      });
+
+      try {
+        session.connection?.send?.(payload);
+      } catch (error: any) {
+        clearTimeout(timeout);
+        this.pendingCommands.delete(requestId);
+        reject(new Error(`Failed to send live command ${command}: ${error?.message || String(error)}`));
+      }
+    });
+  }
+
+  private resolveTargetStoredSession(options: { sessionId?: string; projectPath?: string } = {}): StoredLiveSession {
     this.cleanupStaleSessions();
     const normalizedProjectPath = options.projectPath ? normalizeProjectPath(options.projectPath) : null;
 
@@ -117,7 +191,7 @@ export class LiveSessionManager {
       if (normalizedProjectPath && session.projectPath !== normalizedProjectPath) {
         throw new Error(`Session ${options.sessionId} project_path ${session.projectPath} does not match requested project_path ${normalizedProjectPath}.`);
       }
-      return this.toPublicRecord(session);
+      return session;
     }
 
     const candidates = Array.from(this.sessions.values())
@@ -133,7 +207,7 @@ export class LiveSessionManager {
       throw new Error('There are multiple live sessions; provide session_id or project_path to choose one.');
     }
 
-    return this.toPublicRecord(candidates[0]);
+    return candidates[0];
   }
 
   disconnectSession(sessionId?: string): LiveSessionRecord {
@@ -178,8 +252,46 @@ export class LiveSessionManager {
     for (const session of this.sessions.values()) {
       session.connection?.close?.();
     }
+    for (const [requestId, pending] of this.pendingCommands) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error(`Live command cancelled during session manager cleanup: ${requestId}`));
+    }
+    this.pendingCommands.clear();
     this.sessions.clear();
     this.activeSessionId = null;
+  }
+
+  private resolvePendingCommand(sessionId: string, message: LiveCommandResponseMessage): void {
+    const requestId = String(message.request_id);
+    const pending = this.pendingCommands.get(requestId);
+    if (!pending) return;
+
+    clearTimeout(pending.timeout);
+    this.pendingCommands.delete(requestId);
+
+    if (pending.sessionId !== sessionId) {
+      pending.reject(new Error(`Live command response session mismatch for ${requestId}: expected ${pending.sessionId}, got ${sessionId}.`));
+      return;
+    }
+
+    const status = message.status || 'success';
+    if (status !== 'success') {
+      pending.reject(new Error(formatLiveCommandError(message.error) || `Live command failed: ${requestId}`));
+      return;
+    }
+
+    const session = this.sessions.get(sessionId);
+    pending.resolve({
+      requestId,
+      status: 'success',
+      data: message.data ?? {},
+      session: session ? this.toPublicRecord(session) : null,
+    });
+  }
+
+  private nextRequestId(): string {
+    this.requestSequence += 1;
+    return `live-${this.now()}-${this.requestSequence}`;
   }
 
   private onlySessionId(): string | null {
@@ -211,4 +323,17 @@ export const liveSessionManager = new LiveSessionManager();
 
 export function normalizeProjectPath(projectPath: string): string {
   return resolve(projectPath);
+}
+
+function formatLiveCommandError(error: unknown): string {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object' && !Array.isArray(error)) {
+    const data = error as Record<string, unknown>;
+    const message = typeof data.message === 'string' ? data.message : '';
+    const code = typeof data.code === 'string' ? data.code : '';
+    if (code && message) return `${code}: ${message}`;
+    return message || code || JSON.stringify(data);
+  }
+  return String(error);
 }

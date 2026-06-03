@@ -312,30 +312,30 @@ Verification note, 2026-06-03: focused Phase 2.2 TDD added `tests/live-session-m
 
 ### 2.3 Add Live Editor State Tools And Resources
 
-- [ ] Add `editor_state`.
+- [x] Add `editor_state`.
 - [x] Add `session_list`.
 - [x] Add `session_activate`.
 - [x] Add `session_disconnect`.
-- [ ] Add `scene_current`.
-- [ ] Add `scene_open`.
-- [ ] Add `scene_save_active`.
-- [ ] Add `scene_reload_active`.
-- [ ] Add `selection_get`.
-- [ ] Add `selection_set`.
-- [ ] Add `editor_screenshot`.
-- [ ] Add `logs_read_editor`.
-- [ ] Add `logs_clear`.
-- [ ] Add `editor_monitors_get`.
-- [ ] Add `editor_quit`.
+- [x] Add `scene_current`.
+- [x] Add `scene_open`.
+- [x] Add `scene_save_active`.
+- [x] Add `scene_reload_active`.
+- [x] Add `selection_get`.
+- [x] Add `selection_set`.
+- [x] Add `editor_screenshot`.
+- [x] Add `logs_read_editor`.
+- [x] Add `logs_clear`.
+- [x] Add `editor_monitors_get`.
+- [x] Add `editor_quit`.
 
 Resources:
 
-- [ ] Add `godot-mcp://live/sessions`.
-- [ ] Add `godot-mcp://live/editor/state`.
-- [ ] Add `godot-mcp://live/scene/current`.
-- [ ] Add `godot-mcp://live/scene/hierarchy`.
-- [ ] Add `godot-mcp://live/selection/current`.
-- [ ] Add `godot-mcp://live/logs/recent`.
+- [x] Add `godot-mcp://live/sessions`.
+- [x] Add `godot-mcp://live/editor/state`.
+- [x] Add `godot-mcp://live/scene/current`.
+- [x] Add `godot-mcp://live/scene/hierarchy`.
+- [x] Add `godot-mcp://live/selection/current`.
+- [x] Add `godot-mcp://live/logs/recent`.
 
 Acceptance:
 
@@ -344,6 +344,8 @@ Acceptance:
 - [ ] Codex can set the editor selection to a known node.
 - [ ] Codex can save the active scene through the editor.
 - [ ] Codex can capture a screenshot of the editor viewport or active game viewport.
+
+Verification note, 2026-06-03: focused Phase 2.3 TDD added `tests/live-editor-state.test.mjs` covering tool registration, MCP-to-addon command request/response, scene/selection/save/screenshot command mapping, and live resource reads. RED was observed as missing `getLiveResourceDescriptors` export and missing addon dispatcher handlers. After extending `src/live/protocol.ts`, `src/live/session-manager.ts`, `src/tools/live-editor.ts`, `src/index.ts`, and the live addon scripts, `npm run build && node --test tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 16/16 focused tests and `npm test` passed 67/67 repo tests. A built MCP stdio catalog smoke with `GODOT_PATH=C:\Users\brett\Desktop\Godot\Godot.exe` listed 194 tools including `editor_state`, `scene_current`, `selection_get`, `selection_set`, `scene_save_active`, and `editor_screenshot`, and 203 resources including all six `godot-mcp://live/*` Phase 2.3 resources. The smoke also confirmed the already-running MCP process still owns `127.0.0.1:6010` (`listen EADDRINUSE`) and exposes only the older Phase 2.2 live tools, so live command acceptance against the GUI editor is pending MCP connector reload. The existing live session remained connected through that older process: `test_mcp_enhancements`, Godot `4.6.3-stable (official)`, active scene `res://test_animation_with_anim.tscn`, session `godot-mcp-1780523463261-849982`. A Godot 4.6.3 headless editor parse smoke for `test_mcp_enhancements` exited 0 with only the known nested-project warning and an ObjectDB leak warning on editor shutdown.
 
 ### 2.4 Add Live Scene Mutation Tools
 
@@ -814,9 +816,9 @@ The first milestone should be intentionally small:
 - [x] Add MCP session manager.
 - [x] Add `session_list`.
 - [x] Add `session_activate`.
-- [ ] Add `editor_state`.
-- [ ] Add `selection_get`.
-- [ ] Add `scene_current`.
+- [x] Add `editor_state`.
+- [x] Add `selection_get`.
+- [x] Add `scene_current`.
 - [ ] Add `live_scene_get_hierarchy`.
 - [ ] Verify against the currently open `test_mcp_enhancements` Godot 4.6 project.
 

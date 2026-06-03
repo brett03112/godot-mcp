@@ -57,7 +57,7 @@ test('live addon skeleton files are present and registered', async () => {
   }
 });
 
-test('live addon collaborators expose the Phase 2.1 bridge contract', async () => {
+test('live addon collaborators expose the live editor command contract', async () => {
   const sessionState = await readFile(join(addonRoot, 'session_state.gd'), 'utf8');
   assert.match(sessionState, /^class_name GodotMCPLiveSessionState/m);
   assert.match(sessionState, /func mark_connecting\(\) -> void:/);
@@ -70,6 +70,12 @@ test('live addon collaborators expose the Phase 2.1 bridge contract', async () =
   assert.match(dispatcher, /^class_name GodotMCPLiveCommandDispatcher/m);
   assert.match(dispatcher, /func configure\(editor_plugin: EditorPlugin, state: GodotMCPLiveSessionState\) -> void:/);
   assert.match(dispatcher, /func handle_message\(message: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_state\(\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_scene_current\(\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_selection_get\(\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_selection_set\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_scene_save_active\(\) -> Dictionary:/);
+  assert.match(dispatcher, /func _handle_editor_screenshot\(args: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /"unsupported_command"/);
 
   const transport = await readFile(join(addonRoot, 'transport_websocket.gd'), 'utf8');

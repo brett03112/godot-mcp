@@ -63,7 +63,11 @@ import { registerUiThemeWorkflowTools } from './tools/ui-theme-workflow.js';
 import { registerCameraWorkflowTools } from './tools/camera-workflow.js';
 import { registerAudioPlayerWorkflowTools } from './tools/audio-player-workflow.js';
 import { registerNodeRefactorWorkflowTools } from './tools/node-refactor-workflow.js';
-import { registerLiveEditorTools } from './tools/live-editor.js';
+import {
+  getLiveResourceDescriptors,
+  readLiveResource,
+  registerLiveEditorTools,
+} from './tools/live-editor.js';
 import { liveSessionManager } from './live/session-manager.js';
 import {
   getLiveSessionTransportStatus,
@@ -3245,6 +3249,7 @@ class GodotServer {
         description: 'Current captured output for the active Godot process, if one is running.',
         mimeType: 'application/json',
       },
+      ...getLiveResourceDescriptors(),
       ...toolResources,
     ];
   }
@@ -3285,6 +3290,7 @@ class GodotServer {
           'godot-mcp://server/info',
           'godot-mcp://tools/catalog',
           'godot-mcp://runtime/debug-output',
+          ...getLiveResourceDescriptors().map((resource) => resource.uri),
           'godot-mcp://tools/{name}',
         ],
         note: 'These resources expose read-only metadata for resource-oriented MCP clients. Use MCP tools/call to execute Godot operations.',
@@ -3321,6 +3327,10 @@ class GodotServer {
         output: this.activeProcess?.output || [],
         errors: this.activeProcess?.errors || [],
       };
+    }
+
+    if (parsed.hostname === 'live') {
+      return readLiveResource(uri, liveSessionManager);
     }
 
     throw new McpError(ErrorCode.InvalidParams, `Resource not found: ${uri}`);
