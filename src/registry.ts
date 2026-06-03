@@ -89,13 +89,17 @@ export class ToolRegistry {
 
     const opId = this.logger.logStart(name, args || {});
     const timeoutMs = tool.timeout ?? DEFAULT_TIMEOUT_MS;
+    let timeoutHandle: NodeJS.Timeout | undefined;
 
     try {
+      const timeoutPromise = new Promise<ToolResponse>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(createTimeoutError(name, timeoutMs)), timeoutMs);
+        timeoutHandle.unref?.();
+      });
+
       const result = await Promise.race([
         tool.handler(args),
-        new Promise<ToolResponse>((_, reject) =>
-          setTimeout(() => reject(createTimeoutError(name, timeoutMs)), timeoutMs)
-        ),
+        timeoutPromise,
       ]);
 
       const isError = result.isError === true;
@@ -113,6 +117,10 @@ export class ToolRegistry {
       }
       this.logger.logEnd(opId, 'error', { message: err?.message || 'Unknown error' });
       throw err;
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
     }
   }
 

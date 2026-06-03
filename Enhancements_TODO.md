@@ -47,9 +47,9 @@ Goal: Improve autonomous command and control immediately using the current TypeS
 
 ### 1.1 Add `batch_execute`
 
-- [ ] Create a new modular tool file, likely `src/tools/batch.ts`.
-- [ ] Register it from `src/index.ts` through the existing `ToolRegistry`.
-- [ ] Add tool schema:
+- [x] Create a new modular tool file, likely `src/tools/batch.ts`.
+- [x] Register it from `src/index.ts` through the existing `ToolRegistry`.
+- [x] Add tool schema:
   - `project_path`
   - `commands[]`
   - `rollback_on_error`
@@ -57,9 +57,9 @@ Goal: Improve autonomous command and control immediately using the current TypeS
   - `continue_on_error`
   - `max_commands`
   - `timeout_ms`
-- [ ] Dispatch each command through `ToolRegistry.dispatch()`.
-- [ ] Prevent recursive `batch_execute` calls unless explicitly allowed.
-- [ ] Snapshot touched files before mutation:
+- [x] Dispatch each command through `ToolRegistry.dispatch()`.
+- [x] Prevent recursive `batch_execute` calls unless explicitly allowed.
+- [x] Snapshot touched files before mutation:
   - `.tscn`
   - `.gd`
   - `.tres`
@@ -67,12 +67,12 @@ Goal: Improve autonomous command and control immediately using the current TypeS
   - `.import`
   - `project.godot`
   - `export_presets.cfg`
-- [ ] Add conservative touched-file detection:
+- [x] Add conservative touched-file detection:
   - Start with command argument path fields.
   - Add optional `declared_touched_paths` to batch commands.
   - Later add per-tool metadata for touched file prediction.
-- [ ] Restore snapshots when a command fails and `rollback_on_error` is true.
-- [ ] Return structured results:
+- [x] Restore snapshots when a command fails and `rollback_on_error` is true.
+- [x] Return structured results:
   - `status`
   - `executed_count`
   - `failed_command_index`
@@ -80,7 +80,7 @@ Goal: Improve autonomous command and control immediately using the current TypeS
   - `commands[]`
   - `snapshots[]`
   - `warnings[]`
-- [ ] Add tests for:
+- [x] Add tests for:
   - successful batch
   - failing batch with rollback
   - failing batch without rollback
@@ -89,9 +89,11 @@ Goal: Improve autonomous command and control immediately using the current TypeS
 
 Acceptance:
 
-- [ ] A batch can create or modify a test scene in `test_mcp_enhancements`.
-- [ ] A forced failure restores the original scene file byte-for-byte or with documented Godot formatting differences.
-- [ ] The response identifies exactly which command failed.
+- [x] A batch can create or modify a test scene in `test_mcp_enhancements`.
+- [x] A forced failure restores the original scene file byte-for-byte or with documented Godot formatting differences.
+- [x] The response identifies exactly which command failed.
+
+Verification note, 2026-06-03: `npm test` passed 7/7 batch tests. A compiled MCP stdio proof with `GODOT_PATH=C:\Users\brett\Desktop\Godot\Godot.exe` listed `batch_execute`, changed `test_mcp_enhancements/tier1_test_scene.tscn` via `modify_node_property`, forced an unknown-tool failure at command index 1, restored the scene with `rollback_status: restored`, and confirmed the before/after SHA-256 hash stayed `546d030416a8c15bf0d4e077caff0afdbf0277e8744c40cca0becfecd4b9b930`.
 
 ### 1.2 Add `script_patch`
 
@@ -789,7 +791,7 @@ These are not all first-pass requirements, but they are strong candidates for ma
 
 The first milestone should be intentionally small:
 
-- [ ] Add `batch_execute`.
+- [x] Add `batch_execute`.
 - [ ] Add a minimal live addon.
 - [ ] Add MCP session manager.
 - [ ] Add `session_list`.
@@ -807,4 +809,3 @@ Done means:
 - [ ] Codex can identify the selected node.
 - [ ] Codex can read the live scene hierarchy.
 - [ ] Codex can run a small batch file-backed edit with rollback.
-

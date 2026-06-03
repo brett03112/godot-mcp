@@ -55,6 +55,7 @@ import { registerNetworkingTools } from './tools/networking.js';
 import { registerPhysicsTools } from './tools/physics.js';
 // Tier 16 imports
 import { registerNavigationTools } from './tools/navigation.js';
+import { registerBatchTools } from './tools/batch.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -333,6 +334,13 @@ class GodotServer {
     'use_edge_connections': 'useEdgeConnections',
     'border_size': 'borderSize',
     'iteration_cost': 'iterationCost',
+    // Phase 1 enhancements
+    'rollback_on_error': 'rollbackOnError',
+    'continue_on_error': 'continueOnError',
+    'max_commands': 'maxCommands',
+    'timeout_ms': 'timeoutMs',
+    'allow_recursive_batch': 'allowRecursiveBatch',
+    'declared_touched_paths': 'declaredTouchedPaths',
   };
 
   /**
@@ -700,6 +708,8 @@ class GodotServer {
     registerPhysicsTools(this.toolRegistry, ctx);
     // Tier 16
     registerNavigationTools(this.toolRegistry, ctx);
+    // Phase 1 enhancements
+    registerBatchTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
