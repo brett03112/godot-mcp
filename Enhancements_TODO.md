@@ -204,32 +204,36 @@ Verification note, 2026-06-03: focused Phase 1.5 TDD added 5 Node tests covering
 
 ### 1.6 Add Camera Workflow Tools
 
-- [ ] Add `create_camera`.
-- [ ] Add `configure_camera`.
-- [ ] Add `setup_camera_follow_2d`.
-- [ ] Add `set_camera_limits_2d`.
-- [ ] Add `set_camera_smoothing_2d`.
-- [ ] Add `apply_camera_preset`.
-- [ ] Add `list_cameras`.
-- [ ] Add `preview_camera_bounds`.
+- [x] Add `create_camera`.
+- [x] Add `configure_camera`.
+- [x] Add `setup_camera_follow_2d`.
+- [x] Add `set_camera_limits_2d`.
+- [x] Add `set_camera_smoothing_2d`.
+- [x] Add `apply_camera_preset`.
+- [x] Add `list_cameras`.
+- [x] Add `preview_camera_bounds`.
 
 Acceptance:
 
-- [ ] Codex can add a Camera2D to a test scene, configure follow behavior, set limits, and validate the result.
+- [x] Codex can add a Camera2D to a test scene, configure follow behavior, set limits, and validate the result.
+
+Verification note, 2026-06-03: focused Phase 1.6 TDD added 4 Node tests covering registration for all 8 camera workflow tools, camera creation/configuration payload mapping, Camera2D follow/limits/smoothing/preset payload mapping, and list/preview JSON response parsing. RED was observed as `ERR_MODULE_NOT_FOUND` for `build/tools/camera-workflow.js` before implementation. After adding `src/tools/camera-workflow.ts`, registering it from `src/index.ts`, and adding Godot operations in `src/scripts/godot_operations.gd`, `npm run build && node --test tests/camera-workflow.test.mjs` passed 4/4 focused tests and final `npm test` passed 43/43 repo tests. A built-tool Godot 4.6.3 headless smoke against `test_mcp_enhancements` copied a temporary scene, created `McpPhase16Camera` as a real Camera2D, attached a generated follow script targeting `../NewParent`, set limits to left `-128`, right `2048`, top `-96`, bottom `1024`, enabled smoothed limits and editor limit drawing, configured smoothing, applied the `platformer_2d` preset, listed one enabled/current camera, previewed 960x540 bounds centered at `[128, 96]`, and removed the temporary scene plus generated follow script artifacts when they were absent before the smoke.
 
 ### 1.7 Add Audio Player Workflow Tools
 
-- [ ] Add `create_audio_player`.
-- [ ] Add `set_audio_stream`.
-- [ ] Add `configure_audio_playback`.
-- [ ] Add `play_audio_node`.
-- [ ] Add `stop_audio_node`.
-- [ ] Add `list_audio_players`.
-- [ ] Add `validate_audio_routes`.
+- [x] Add `create_audio_player`.
+- [x] Add `set_audio_stream`.
+- [x] Add `configure_audio_playback`.
+- [x] Add `play_audio_node`.
+- [x] Add `stop_audio_node`.
+- [x] Add `list_audio_players`.
+- [x] Add `validate_audio_routes`.
 
 Acceptance:
 
-- [ ] Codex can generate or import an audio asset, create an AudioStreamPlayer node, route it to a bus, and verify it is present in the scene.
+- [x] Codex can generate or import an audio asset, create an AudioStreamPlayer node, route it to a bus, and verify it is present in the scene.
+
+Verification note, 2026-06-03: focused Phase 1.7 TDD added 4 Node tests covering registration for all 7 audio player workflow tools, audio player creation/stream/configuration payload mapping, play/stop payload mapping, and list/route-validation JSON response parsing. RED was observed as `ERR_MODULE_NOT_FOUND` for `build/tools/audio-player-workflow.js` before implementation. After adding `src/tools/audio-player-workflow.ts`, registering it from `src/index.ts`, and adding Godot operations in `src/scripts/godot_operations.gd`, `npm run build && node --test tests/audio-player-workflow.test.mjs` passed 4/4 focused tests and final `npm test` passed 47/47 repo tests. A strict Godot 4.6.3 headless smoke against `test_mcp_enhancements` copied a temporary scene, created `McpPhase17Music` as a real `AudioStreamPlayer2D`, assigned `res://audio/test_music.wav`, switched the stream to `res://audio/test_sfx.wav`, routed playback to `Master`, configured volume `-4`, pitch `0.95`, max distance `1200`, and attenuation `1.25`, listed one audio player, validated the route with `valid: true` and no issues, and removed the temporary scene. During smoke debugging, direct offline `playing = true` emitted a Godot engine error because the edited node is not inside the scene tree; `play_audio_node` now defers offline playback by enabling `autoplay` and reports `playback_deferred: true`, while live/tree-attached use can still call `play()`. A compiled MCP stdio smoke with `GODOT_PATH=C:\Users\brett\Desktop\Godot\Godot.exe` listed 170 tools and confirmed all 7 Phase 1.7 tool names were present.
 
 ### 1.8 Add Scene Search And Node Refactor Helpers
 

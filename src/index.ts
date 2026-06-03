@@ -60,6 +60,8 @@ import { registerScriptPatchTools } from './tools/script-patch.js';
 import { registerProjectFilesystemTools } from './tools/project-filesystem.js';
 import { registerResourceWorkflowTools } from './tools/resource-workflow.js';
 import { registerUiThemeWorkflowTools } from './tools/ui-theme-workflow.js';
+import { registerCameraWorkflowTools } from './tools/camera-workflow.js';
+import { registerAudioPlayerWorkflowTools } from './tools/audio-player-workflow.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -391,6 +393,48 @@ class GodotServer {
     'viewport_size': 'viewportSize',
     'safe_margin': 'safeMargin',
     'min_touch_size': 'minTouchSize',
+    'camera_name': 'cameraName',
+    'camera_type': 'cameraType',
+    'camera_path': 'cameraPath',
+    'make_current': 'makeCurrent',
+    'ignore_rotation': 'ignoreRotation',
+    'drag_horizontal_enabled': 'dragHorizontalEnabled',
+    'drag_vertical_enabled': 'dragVerticalEnabled',
+    'drag_margins': 'dragMargins',
+    'keep_aspect': 'keepAspect',
+    'cull_mask': 'cullMask',
+    'h_offset': 'hOffset',
+    'v_offset': 'vOffset',
+    'target_path': 'targetPath',
+    'follow_offset': 'followOffset',
+    'update_mode': 'updateMode',
+    'overwrite_script': 'overwriteScript',
+    'limit_left': 'limitLeft',
+    'limit_right': 'limitRight',
+    'limit_top': 'limitTop',
+    'limit_bottom': 'limitBottom',
+    'limit_enabled': 'limitEnabled',
+    'limit_smoothed': 'limitSmoothed',
+    'editor_draw_limits': 'editorDrawLimits',
+    'position_smoothing_enabled': 'positionSmoothingEnabled',
+    'position_smoothing_speed': 'positionSmoothingSpeed',
+    'rotation_smoothing_enabled': 'rotationSmoothingEnabled',
+    'rotation_smoothing_speed': 'rotationSmoothingSpeed',
+    'include_bounds': 'includeBounds',
+    'player_name': 'playerName',
+    'player_type': 'playerType',
+    'player_path': 'playerPath',
+    'stream_path': 'streamPath',
+    'volume_db': 'volumeDb',
+    'pitch_scale': 'pitchScale',
+    'from_position': 'fromPosition',
+    'max_distance': 'maxDistance',
+    'area_mask': 'areaMask',
+    'panning_strength': 'panningStrength',
+    'max_polyphony': 'maxPolyphony',
+    'include_routes': 'includeRoutes',
+    'allowed_buses': 'allowedBuses',
+    'require_stream': 'requireStream',
   };
 
   /**
@@ -766,6 +810,8 @@ class GodotServer {
     registerProjectFilesystemTools(this.toolRegistry, ctx);
     registerResourceWorkflowTools(this.toolRegistry, ctx);
     registerUiThemeWorkflowTools(this.toolRegistry, ctx);
+    registerCameraWorkflowTools(this.toolRegistry, ctx);
+    registerAudioPlayerWorkflowTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
