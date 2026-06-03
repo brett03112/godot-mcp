@@ -62,6 +62,7 @@ import { registerResourceWorkflowTools } from './tools/resource-workflow.js';
 import { registerUiThemeWorkflowTools } from './tools/ui-theme-workflow.js';
 import { registerCameraWorkflowTools } from './tools/camera-workflow.js';
 import { registerAudioPlayerWorkflowTools } from './tools/audio-player-workflow.js';
+import { registerNodeRefactorWorkflowTools } from './tools/node-refactor-workflow.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -435,6 +436,18 @@ class GodotServer {
     'include_routes': 'includeRoutes',
     'allowed_buses': 'allowedBuses',
     'require_stream': 'requireStream',
+    'scene_paths': 'scenePaths',
+    'group_name': 'groupName',
+    'property_filters': 'propertyFilters',
+    'include_connections': 'includeConnections',
+    'include_dependencies': 'includeDependencies',
+    'include_scripts': 'includeScripts',
+    'new_type': 'newType',
+    'preserve_name': 'preserveName',
+    'preserve_children': 'preserveChildren',
+    'preserve_groups': 'preserveGroups',
+    'preserve_script': 'preserveScript',
+    'keep_global_transform': 'keepGlobalTransform',
   };
 
   /**
@@ -812,6 +825,7 @@ class GodotServer {
     registerUiThemeWorkflowTools(this.toolRegistry, ctx);
     registerCameraWorkflowTools(this.toolRegistry, ctx);
     registerAudioPlayerWorkflowTools(this.toolRegistry, ctx);
+    registerNodeRefactorWorkflowTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

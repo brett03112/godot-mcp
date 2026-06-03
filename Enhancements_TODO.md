@@ -237,20 +237,22 @@ Verification note, 2026-06-03: focused Phase 1.7 TDD added 4 Node tests covering
 
 ### 1.8 Add Scene Search And Node Refactor Helpers
 
-- [ ] Add `node_find`.
-- [ ] Add `node_rename`.
-- [ ] Add `node_move`.
-- [ ] Add `node_add_to_group`.
-- [ ] Add `node_remove_from_group`.
-- [ ] Add `node_replace_type`.
-- [ ] Add `node_bulk_property_set`.
-- [ ] Add `scene_find_references`.
-- [ ] Add `scene_dependency_report`.
+- [x] Add `node_find`.
+- [x] Add `node_rename`.
+- [x] Add `node_move`.
+- [x] Add `node_add_to_group`.
+- [x] Add `node_remove_from_group`.
+- [x] Add `node_replace_type`.
+- [x] Add `node_bulk_property_set`.
+- [x] Add `scene_find_references`.
+- [x] Add `scene_dependency_report`.
 
 Acceptance:
 
-- [ ] Codex can find nodes across scenes by name, type, group, script, or property.
-- [ ] Codex can safely rename or move a node and keep signal paths valid where possible.
+- [x] Codex can find nodes across scenes by name, type, group, script, or property.
+- [x] Codex can safely rename or move a node and keep signal paths valid where possible.
+
+Verification note, 2026-06-03: focused Phase 1.8 TDD added 4 Node tests covering registration for all 9 scene search/node refactor tools, search/report payload mapping, mutation payload mapping with scene-cache invalidation, type replacement, and bulk property JSON parsing. RED was observed as `ERR_MODULE_NOT_FOUND` for `build/tools/node-refactor-workflow.js` before implementation. After adding `src/tools/node-refactor-workflow.ts`, registering it from `src/index.ts`, and adding Godot operations in `src/scripts/godot_operations.gd`, `npm run build && node --test tests/node-refactor-workflow.test.mjs` passed 4/4 focused tests and final `npm test` passed 51/51 repo tests. A strict Godot 4.6.3 headless smoke against `test_mcp_enhancements` copied `tier1_test_scene.tscn` to temporary `res://scenes/mcp_phase18_smoke.tscn`, found two `Sprite2D` nodes, renamed `TestSprite` to `McpPhase18Hero`, added persistent group `phase18`, moved the node under `NewParent` while preserving global transform, bulk-set `visible=false` on two nodes, replaced `NewParent/NestedSprite` from `Sprite2D` to `Node2D`, removed the group, confirmed `scene_find_references` found the moved target with `target_exists: true`, reported the external dependency `res://materials/hologram.tres`, emitted no Godot warnings/errors after the ownership fix, and removed the temporary scene.
 
 ## Phase 2 - Add The Live Editor Plugin Bridge
 
