@@ -6,10 +6,14 @@ const CommandDispatcher = preload("res://addons/godot_mcp_live/command_dispatche
 const TransportWebSocket = preload("res://addons/godot_mcp_live/transport_websocket.gd")
 
 const DEFAULT_SERVER_URL := "ws://127.0.0.1:6010/godot-mcp-live"
+const RECONNECT_INTERVAL_SECONDS := 1.0
+const HEARTBEAT_INTERVAL_SECONDS := 1.0
 
 var _state: GodotMCPLiveSessionState
 var _dispatcher: GodotMCPLiveCommandDispatcher
 var _transport: GodotMCPLiveTransportWebSocket
+var _retry_elapsed_seconds := 0.0
+var _heartbeat_elapsed_seconds := 0.0
 var _dock: VBoxContainer
 var _status_label: Label
 var _session_label: Label
@@ -42,12 +46,14 @@ func _exit_tree() -> void:
 		_dock = null
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _state or not _transport:
 		return
 
 	_state.update_editor_snapshot(get_editor_interface())
 	_transport.poll(_dispatcher)
+	_maybe_retry_bridge(delta)
+	_maybe_send_heartbeat(delta)
 	_refresh_dock()
 
 
@@ -59,6 +65,37 @@ func _start_bridge() -> void:
 	if err != OK:
 		_state.record_error("Waiting for MCP live server at %s. Last connect error: %s." % [DEFAULT_SERVER_URL, err])
 	_refresh_dock()
+
+
+func _maybe_retry_bridge(delta: float) -> void:
+	if not _should_retry_bridge():
+		_retry_elapsed_seconds = 0.0
+		return
+
+	_retry_elapsed_seconds += delta
+	if _retry_elapsed_seconds >= RECONNECT_INTERVAL_SECONDS:
+		_retry_elapsed_seconds = 0.0
+		_start_bridge()
+
+
+func _should_retry_bridge() -> bool:
+	if not _state or not _transport:
+		return false
+	return not _transport.is_transport_connected() and _state.connection_state in ["disconnected", "error"]
+
+
+func _maybe_send_heartbeat(delta: float) -> void:
+	if not _transport.is_transport_connected():
+		_heartbeat_elapsed_seconds = 0.0
+		return
+
+	_heartbeat_elapsed_seconds += delta
+	if _heartbeat_elapsed_seconds >= HEARTBEAT_INTERVAL_SECONDS:
+		_heartbeat_elapsed_seconds = 0.0
+		_transport.send_json({
+			"kind": "heartbeat",
+			"session": _state.to_dictionary(),
+		})
 
 
 func _stop_bridge() -> void:

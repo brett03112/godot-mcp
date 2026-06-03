@@ -63,6 +63,13 @@ import { registerUiThemeWorkflowTools } from './tools/ui-theme-workflow.js';
 import { registerCameraWorkflowTools } from './tools/camera-workflow.js';
 import { registerAudioPlayerWorkflowTools } from './tools/audio-player-workflow.js';
 import { registerNodeRefactorWorkflowTools } from './tools/node-refactor-workflow.js';
+import { registerLiveEditorTools } from './tools/live-editor.js';
+import { liveSessionManager } from './live/session-manager.js';
+import {
+  getLiveSessionTransportStatus,
+  startLiveSessionTransport,
+  stopLiveSessionTransport,
+} from './live/transport.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -511,6 +518,10 @@ class GodotServer {
     // Set up tool handlers
     this.setupToolHandlers();
     this.setupResourceHandlers();
+    startLiveSessionTransport(liveSessionManager, {
+      sharedSecret: process.env.GODOT_MCP_LIVE_SECRET,
+      onError: (message) => console.error(`[LIVE] ${message}`),
+    });
 
     // Error handling
     this.server.onerror = (error) => console.error('[MCP Error]', error);
@@ -743,6 +754,8 @@ class GodotServer {
    */
   private async cleanup() {
     this.logDebug('Cleaning up resources');
+    stopLiveSessionTransport();
+    liveSessionManager.clear();
     if (this.activeProcess) {
       this.logDebug('Killing active Godot process');
       this.activeProcess.process.kill();
@@ -826,6 +839,10 @@ class GodotServer {
     registerCameraWorkflowTools(this.toolRegistry, ctx);
     registerAudioPlayerWorkflowTools(this.toolRegistry, ctx);
     registerNodeRefactorWorkflowTools(this.toolRegistry, ctx);
+    registerLiveEditorTools(this.toolRegistry, {
+      manager: liveSessionManager,
+      getTransportStatus: getLiveSessionTransportStatus,
+    });
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

@@ -18,6 +18,10 @@ func connect_to_server() -> int:
 		_state.mark_disconnected("Missing WebSocket server URL.")
 		return ERR_INVALID_PARAMETER
 
+	if _peer.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+		_peer.close()
+	_peer = WebSocketPeer.new()
+
 	_state.mark_connecting()
 	var err := _peer.connect_to_url(_server_url)
 	if err != OK:

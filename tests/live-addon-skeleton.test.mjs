@@ -40,6 +40,14 @@ test('live addon skeleton files are present and registered', async () => {
   assert.match(mainScript, /func _exit_tree\(\) -> void:/);
   assert.match(mainScript, /_start_bridge\(\)/);
   assert.match(mainScript, /_stop_bridge\(\)/);
+  assert.match(mainScript, /const RECONNECT_INTERVAL_SECONDS := 1\.0/);
+  assert.match(mainScript, /const HEARTBEAT_INTERVAL_SECONDS := 1\.0/);
+  assert.match(mainScript, /var _retry_elapsed_seconds := 0\.0/);
+  assert.match(mainScript, /var _heartbeat_elapsed_seconds := 0\.0/);
+  assert.match(mainScript, /func _should_retry_bridge\(\) -> bool:/);
+  assert.match(mainScript, /_should_retry_bridge\(\)/);
+  assert.match(mainScript, /func _maybe_send_heartbeat\(delta: float\) -> void:/);
+  assert.match(mainScript, /"kind": "heartbeat"/);
   assert.match(mainScript, /add_control_to_dock\(DOCK_SLOT_RIGHT_UL, _dock\)/);
   assert.match(mainScript, /remove_control_from_docks\(_dock\)/);
 
@@ -69,6 +77,7 @@ test('live addon collaborators expose the Phase 2.1 bridge contract', async () =
   assert.match(transport, /var _peer: WebSocketPeer = WebSocketPeer\.new\(\)/);
   assert.match(transport, /func configure\(server_url: String, state: GodotMCPLiveSessionState\) -> void:/);
   assert.match(transport, /func connect_to_server\(\) -> int:/);
+  assert.match(transport, /_peer = WebSocketPeer\.new\(\)/);
   assert.match(transport, /func disconnect_from_server\(\) -> void:/);
   assert.match(transport, /func poll\(dispatcher: GodotMCPLiveCommandDispatcher\) -> void:/);
   assert.doesNotMatch(transport, /func is_connected\(\) -> bool:/);

@@ -281,11 +281,11 @@ Verification note, 2026-06-03: Phase 2.1 added the live addon skeleton under `te
 
 ### 2.2 Add MCP-Side Live Session Manager
 
-- [ ] Add `src/live/session-manager.ts`.
-- [ ] Add `src/live/protocol.ts`.
-- [ ] Add `src/live/transport.ts`.
-- [ ] Add `src/tools/live-editor.ts`.
-- [ ] Track connected editor sessions:
+- [x] Add `src/live/session-manager.ts`.
+- [x] Add `src/live/protocol.ts`.
+- [x] Add `src/live/transport.ts`.
+- [x] Add `src/tools/live-editor.ts`.
+- [x] Track connected editor sessions:
   - session ID
   - project path
   - Godot version
@@ -294,26 +294,28 @@ Verification note, 2026-06-03: Phase 2.1 added the live addon skeleton under `te
   - play state
   - writable state
   - last heartbeat
-- [ ] Add heartbeat and stale-session cleanup.
-- [ ] Add project-path matching before allowing mutations.
-- [ ] Add a session activation model:
+- [x] Add heartbeat and stale-session cleanup.
+- [x] Add project-path matching before allowing mutations.
+- [x] Add a session activation model:
   - active session
   - explicit session target
   - error if multiple sessions exist and no active session is selected
-- [ ] Add optional shared secret or loopback-only connection guard.
+- [x] Add optional shared secret or loopback-only connection guard.
 
 Acceptance:
 
-- [ ] `session_list` shows the open `test_mcp_enhancements` editor.
-- [ ] `session_activate` selects that editor.
-- [ ] Commands reject stale or mismatched sessions.
+- [x] `session_list` shows the open `test_mcp_enhancements` editor.
+- [x] `session_activate` selects that editor.
+- [x] Commands reject stale or mismatched sessions.
+
+Verification note, 2026-06-03: focused Phase 2.2 TDD added `tests/live-session-manager.test.mjs` covering tool registration, `hello` session tracking, project-path normalization/mismatch rejection, multiple-session activation ambiguity, heartbeat snapshot refresh before stale cleanup, stale-session rejection, explicit disconnect close callbacks, and real loopback WebSocket `hello` intake. RED was observed first as `ERR_MODULE_NOT_FOUND` for `build/tools/live-editor.js`, then later as missing reconnect/heartbeat addon patterns and stale heartbeat state. After adding `src/live/protocol.ts`, `src/live/session-manager.ts`, `src/live/transport.ts`, `src/tools/live-editor.ts`, registering the tools from `src/index.ts`, and adding `ws`, `npm run build && node --test tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 10/10 focused tests and final `npm test` passed 62/62 repo tests. A built MCP stdio smoke with `GODOT_PATH=C:\Users\brett\Desktop\Godot\Godot.exe` confirmed `session_list` exposed a running listener on `127.0.0.1:6010/godot-mcp-live`; the already-open GUI editor did not hot-reload/connect during a 15-second poll. A controlled live smoke then started a fresh `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path C:\Users\brett\Desktop\godot-mcp\test_mcp_enhancements` instance while the built MCP server was running; `session_list` saw `test_mcp_enhancements` on attempt 5 with `connection_state: connected`, `godot_version: 4.6.3-stable (official)`, and `remote_address: 127.0.0.1`, and `session_activate` selected that session successfully. The headless editor emitted only the existing nested-project warning. Follow-up after reloading the GUI project: the built MCP server saw the GUI editor on `session_list` attempt 1 with `active_scene: res://exec_test.tscn`, `connection_state: connected`, `godot_version: 4.6.3-stable (official)`, `remote_address: 127.0.0.1`, and `session_activate` selected session `godot-mcp-1780523463261-849982`.
 
 ### 2.3 Add Live Editor State Tools And Resources
 
 - [ ] Add `editor_state`.
-- [ ] Add `session_list`.
-- [ ] Add `session_activate`.
-- [ ] Add `session_disconnect`.
+- [x] Add `session_list`.
+- [x] Add `session_activate`.
+- [x] Add `session_disconnect`.
 - [ ] Add `scene_current`.
 - [ ] Add `scene_open`.
 - [ ] Add `scene_save_active`.
@@ -809,9 +811,9 @@ The first milestone should be intentionally small:
 
 - [x] Add `batch_execute`.
 - [x] Add a minimal live addon.
-- [ ] Add MCP session manager.
-- [ ] Add `session_list`.
-- [ ] Add `session_activate`.
+- [x] Add MCP session manager.
+- [x] Add `session_list`.
+- [x] Add `session_activate`.
 - [ ] Add `editor_state`.
 - [ ] Add `selection_get`.
 - [ ] Add `scene_current`.
