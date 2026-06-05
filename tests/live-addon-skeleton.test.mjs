@@ -15,10 +15,15 @@ const addonFiles = [
   'session_state.gd',
   'command_dispatcher.gd',
   'transport_websocket.gd',
+  'debugger_bridge.gd',
+];
+
+const runtimeFiles = [
+  'runtime_bridge.gd',
 ];
 
 test('live addon skeleton files are present and registered', async () => {
-  for (const relativePath of addonFiles) {
+  for (const relativePath of [...addonFiles, ...runtimeFiles]) {
     assert.equal(existsSync(join(addonRoot, relativePath)), true, `${relativePath} should exist`);
   }
 
@@ -36,8 +41,11 @@ test('live addon skeleton files are present and registered', async () => {
   assert.match(mainScript, /const SessionState = preload\("res:\/\/addons\/godot_mcp_live\/session_state\.gd"\)/);
   assert.match(mainScript, /const CommandDispatcher = preload\("res:\/\/addons\/godot_mcp_live\/command_dispatcher\.gd"\)/);
   assert.match(mainScript, /const TransportWebSocket = preload\("res:\/\/addons\/godot_mcp_live\/transport_websocket\.gd"\)/);
+  assert.match(mainScript, /const DebuggerBridge = preload\("res:\/\/addons\/godot_mcp_live\/debugger_bridge\.gd"\)/);
   assert.match(mainScript, /func _enter_tree\(\) -> void:/);
   assert.match(mainScript, /func _exit_tree\(\) -> void:/);
+  assert.match(mainScript, /add_debugger_plugin\(_debugger_bridge\)/);
+  assert.match(mainScript, /remove_debugger_plugin\(_debugger_bridge\)/);
   assert.match(mainScript, /_start_bridge\(\)/);
   assert.match(mainScript, /_stop_bridge\(\)/);
   assert.match(mainScript, /const RECONNECT_INTERVAL_SECONDS := 1\.0/);
@@ -64,13 +72,23 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(sessionState, /func mark_connected\(\) -> void:/);
   assert.match(sessionState, /func mark_disconnected\(error_message: String = ""\) -> void:/);
   assert.match(sessionState, /func update_editor_snapshot\(editor_interface: EditorInterface\) -> void:/);
+  assert.match(sessionState, /func update_runtime_status\(debugger_bridge: GodotMCPLiveDebuggerBridge\) -> void:/);
   assert.match(sessionState, /func to_dictionary\(\) -> Dictionary:/);
+  assert.match(sessionState, /"runtime_status": runtime_status/);
 
   const dispatcher = await readFile(join(addonRoot, 'command_dispatcher.gd'), 'utf8');
   assert.match(dispatcher, /^class_name GodotMCPLiveCommandDispatcher/m);
-  assert.match(dispatcher, /func configure\(editor_plugin: EditorPlugin, state: GodotMCPLiveSessionState\) -> void:/);
+  assert.match(dispatcher, /func configure\(editor_plugin: EditorPlugin, state: GodotMCPLiveSessionState, debugger_bridge: GodotMCPLiveDebuggerBridge = null\) -> void:/);
   assert.match(dispatcher, /func handle_message\(message: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_editor_state\(\) -> Dictionary:/);
+  assert.match(dispatcher, /"runtime_ping"/);
+  assert.match(dispatcher, /func _handle_runtime_ping\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /"runtime_play_scene"/);
+  assert.match(dispatcher, /func _handle_runtime_play_scene\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /EditorInterface.*play_custom_scene|editor\.play_custom_scene\(scene_path\)/);
+  assert.match(dispatcher, /"runtime_stop"/);
+  assert.match(dispatcher, /func _handle_runtime_stop\(\) -> Dictionary:/);
+  assert.match(dispatcher, /editor\.stop_playing_scene\(\)/);
   assert.match(dispatcher, /func _handle_scene_current\(\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_selection_get\(\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_selection_set\(args: Dictionary\) -> Dictionary:/);
@@ -124,10 +142,29 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.doesNotMatch(transport, /func is_connected\(\) -> bool:/);
   assert.match(transport, /func is_transport_connected\(\) -> bool:/);
   assert.match(transport, /func send_json\(payload: Dictionary\) -> int:/);
+
+  const debuggerBridge = await readFile(join(addonRoot, 'debugger_bridge.gd'), 'utf8');
+  assert.match(debuggerBridge, /^@tool/m);
+  assert.match(debuggerBridge, /^class_name GodotMCPLiveDebuggerBridge/m);
+  assert.match(debuggerBridge, /^extends EditorDebuggerPlugin/m);
+  assert.match(debuggerBridge, /const MESSAGE_NAMESPACE := "godot_mcp"/);
+  assert.match(debuggerBridge, /func _has_capture\(capture: String\) -> bool:/);
+  assert.match(debuggerBridge, /func _capture\(message: String, data: Array, session_id: int\) -> bool:/);
+  assert.match(debuggerBridge, /func _setup_session\(session_id: int\) -> void:/);
+  assert.match(debuggerBridge, /func send_ping\(args: Dictionary\) -> Dictionary:/);
+  assert.match(debuggerBridge, /send_message\("godot_mcp:ping"/);
+
+  const runtimeBridge = await readFile(join(addonRoot, 'runtime_bridge.gd'), 'utf8');
+  assert.match(runtimeBridge, /^class_name GodotMCPLiveRuntimeBridge/m);
+  assert.match(runtimeBridge, /^extends Node/m);
+  assert.match(runtimeBridge, /EngineDebugger\.register_message_capture\("godot_mcp", _capture\)/);
+  assert.match(runtimeBridge, /EngineDebugger\.send_message\("godot_mcp:runtime_ready"/);
+  assert.match(runtimeBridge, /EngineDebugger\.send_message\("godot_mcp:pong"/);
 });
 
 test('test fixture enables the live addon without removing GUT', async () => {
   const projectConfig = await readFile(join(projectRoot, 'project.godot'), 'utf8');
   assert.match(projectConfig, /enabled=PackedStringArray\([^)]*"res:\/\/addons\/gut\/plugin\.cfg"[^)]*\)/);
   assert.match(projectConfig, /enabled=PackedStringArray\([^)]*"res:\/\/addons\/godot_mcp_live\/plugin\.cfg"[^)]*\)/);
+  assert.match(projectConfig, /\[autoload\][\s\S]*GodotMCPLiveRuntime="\*res:\/\/addons\/godot_mcp_live\/runtime_bridge\.gd"/);
 });

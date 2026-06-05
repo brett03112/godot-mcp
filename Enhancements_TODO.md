@@ -397,18 +397,23 @@ Goal: Let Codex inspect and control the currently running game, not only offline
 
 ### 3.1 Add Editor Debugger Plugin Bridge
 
-- [ ] Add an `EditorDebuggerPlugin` inside the live addon.
-- [ ] Register it from the editor plugin with `add_debugger_plugin()`.
-- [ ] Define message namespace, for example `godot_mcp:*`.
-- [ ] Add runtime-side helper/autoload for messages from the running game using `EngineDebugger`.
-- [ ] Track debugger session IDs.
-- [ ] Track play start/stop events.
-- [ ] Surface runtime connection status in `editor_state`.
+- [x] Add an `EditorDebuggerPlugin` inside the live addon.
+- [x] Register it from the editor plugin with `add_debugger_plugin()`.
+- [x] Define message namespace, for example `godot_mcp:*`.
+- [x] Add runtime-side helper/autoload for messages from the running game using `EngineDebugger`.
+- [x] Track debugger session IDs.
+- [x] Track play start/stop events.
+- [x] Surface runtime connection status in `editor_state`.
+- [x] Add editor-driven `runtime_play_scene` and `runtime_stop` commands for live runtime acceptance.
 
 Acceptance:
 
-- [ ] Starting the game from the editor creates a runtime debugger session visible to the MCP.
-- [ ] MCP can send a ping to the running game and receive a response.
+- [x] Starting the game from the editor creates a runtime debugger session visible to the MCP.
+- [x] MCP can send a ping to the running game and receive a response.
+
+Verification note, 2026-06-05: Phase 3.1 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-1-editor-debugger-bridge.md`, a live addon `EditorDebuggerPlugin` bridge (`debugger_bridge.gd`), a runtime `EngineDebugger` autoload helper (`runtime_bridge.gd`), project autoload registration, `runtime_status` session serialization, and the MCP `runtime_ping` live command. Context7 and the official Godot 4.6 docs were used for `EditorPlugin.add_debugger_plugin()`, `EditorDebuggerPlugin._has_capture()/_capture()/_setup_session()`, `EditorDebuggerSession.send_message()`, and `EngineDebugger.register_message_capture()/send_message()/unregister_message_capture()`. RED was observed with `npm run build && node --test tests/live-runtime-debugger.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing `debugger_bridge.gd`, missing runtime autoload, missing `runtime_ping`, and missing serialized `runtime_status`; after implementation the same focused command passed 6/6. Broader focused live regression `npm run build && node --test tests/live-runtime-debugger.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 19/19, and `npm test` passed 74/74 after the final Godot signature fix. Godot 4.6.3 editor parse smoke with `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path C:\Users\brett\Desktop\godot-mcp\test_mcp_enhancements --quit` initially exposed that `_has_capture()` must match the parent signature as `String`, not `StringName`; after fixing that, the same smoke passed an explicit `SCRIPT ERROR|\bERROR:` output guard with only the known nested-project and ObjectDB shutdown warnings. A runtime autoload smoke with `--headless --path ... --quit-after 1 res://tier1_test_scene.tscn` also passed the explicit script-error output guard. Initial live GUI runtime acceptance was blocked because the callable MCP connector reported zero sessions and `listen EADDRINUSE` on `127.0.0.1:6010`; Windows TCP inspection showed PID 21344 (`node C:\Users\brett\Desktop\godot-mcp\build\index.js`) owned the port and had one established editor connection, so the open GUI was connected to a different already-running MCP server that had to be reloaded before the new Phase 3.1 `runtime_ping` command could be exercised against it.
+
+Follow-up verification note, 2026-06-05: After cleaning duplicate Codex MCP config and reloading, a controlled MCP smoke confirmed the editor bridge reconnected on attempt 2 and `editor_state` returned the live GUI state. External `--remote-debug` runtime attachment did not create an `EditorDebuggerPlugin` session, so Phase 3.1 added `runtime_play_scene` and `runtime_stop` to start/stop the game from inside the live editor using Godot 4.6 `EditorInterface.play_custom_scene(scene_filepath)` and `EditorInterface.stop_playing_scene()`. Focused runtime/addon tests passed 7/7, broader live regression passed 20/20, `npm test` passed 75/75, Godot editor parse smoke passed the explicit `SCRIPT ERROR|\bERROR:` guard, and runtime autoload smoke passed. A controlled live proof then started a built MCP server, launched a fresh headless editor session for `test_mcp_enhancements`, called `runtime_play_scene` for `res://tier1_test_scene.tscn`, observed `runtime_status.state: running` with `runtime_active_session_id: 0`, called `runtime_ping`, verified the returned `last_ping.pong: true` from runtime PID 9796 for scene `res://tier1_test_scene.tscn`, and called `runtime_stop` successfully.
 
 ### 3.2 Add Runtime Inspection Tools
 

@@ -4,6 +4,7 @@ extends EditorPlugin
 const SessionState = preload("res://addons/godot_mcp_live/session_state.gd")
 const CommandDispatcher = preload("res://addons/godot_mcp_live/command_dispatcher.gd")
 const TransportWebSocket = preload("res://addons/godot_mcp_live/transport_websocket.gd")
+const DebuggerBridge = preload("res://addons/godot_mcp_live/debugger_bridge.gd")
 
 const DEFAULT_SERVER_URL := "ws://127.0.0.1:6010/godot-mcp-live"
 const RECONNECT_INTERVAL_SECONDS := 1.0
@@ -12,6 +13,7 @@ const HEARTBEAT_INTERVAL_SECONDS := 1.0
 var _state: GodotMCPLiveSessionState
 var _dispatcher: GodotMCPLiveCommandDispatcher
 var _transport: GodotMCPLiveTransportWebSocket
+var _debugger_bridge: GodotMCPLiveDebuggerBridge
 var _retry_elapsed_seconds := 0.0
 var _heartbeat_elapsed_seconds := 0.0
 var _dock: VBoxContainer
@@ -19,6 +21,7 @@ var _status_label: Label
 var _session_label: Label
 var _server_label: Label
 var _scene_label: Label
+var _runtime_label: Label
 var _error_label: Label
 
 
@@ -26,8 +29,11 @@ func _enter_tree() -> void:
 	_state = SessionState.new()
 	_dispatcher = CommandDispatcher.new()
 	_transport = TransportWebSocket.new()
+	_debugger_bridge = DebuggerBridge.new()
 
-	_dispatcher.configure(self, _state)
+	_debugger_bridge.configure(_state)
+	add_debugger_plugin(_debugger_bridge)
+	_dispatcher.configure(self, _state, _debugger_bridge)
 	_transport.configure(DEFAULT_SERVER_URL, _state)
 
 	_create_dock()
@@ -40,6 +46,10 @@ func _exit_tree() -> void:
 	set_process(false)
 	_stop_bridge()
 
+	if _debugger_bridge:
+		remove_debugger_plugin(_debugger_bridge)
+		_debugger_bridge = null
+
 	if _dock:
 		remove_control_from_docks(_dock)
 		_dock.queue_free()
@@ -51,6 +61,7 @@ func _process(delta: float) -> void:
 		return
 
 	_state.update_editor_snapshot(get_editor_interface())
+	_state.update_runtime_status(_debugger_bridge)
 	_transport.poll(_dispatcher)
 	_maybe_retry_bridge(delta)
 	_maybe_send_heartbeat(delta)
@@ -119,6 +130,7 @@ func _create_dock() -> void:
 	_session_label = _make_status_label()
 	_server_label = _make_status_label()
 	_scene_label = _make_status_label()
+	_runtime_label = _make_status_label()
 	_error_label = _make_status_label()
 	_error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
@@ -126,6 +138,7 @@ func _create_dock() -> void:
 	_dock.add_child(_session_label)
 	_dock.add_child(_server_label)
 	_dock.add_child(_scene_label)
+	_dock.add_child(_runtime_label)
 	_dock.add_child(_error_label)
 	_refresh_dock()
 
@@ -144,4 +157,5 @@ func _refresh_dock() -> void:
 	_session_label.text = "Session: %s" % _state.session_id
 	_server_label.text = "Server: %s" % _state.server_url
 	_scene_label.text = "Active scene: %s" % (_state.active_scene if _state.active_scene != "" else "(none)")
+	_runtime_label.text = "Runtime: %s" % str(_state.runtime_status.get("state", "unknown"))
 	_error_label.text = "Last error: %s" % (_state.last_error if _state.last_error != "" else "(none)")

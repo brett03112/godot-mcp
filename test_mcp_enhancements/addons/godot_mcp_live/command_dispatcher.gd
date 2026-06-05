@@ -7,12 +7,14 @@ const MAX_LOG_RECORDS := 200
 
 var _editor_plugin: EditorPlugin
 var _state: GodotMCPLiveSessionState
+var _debugger_bridge: GodotMCPLiveDebuggerBridge
 var _logs: Array[Dictionary] = []
 
 
-func configure(editor_plugin: EditorPlugin, state: GodotMCPLiveSessionState) -> void:
+func configure(editor_plugin: EditorPlugin, state: GodotMCPLiveSessionState, debugger_bridge: GodotMCPLiveDebuggerBridge = null) -> void:
 	_editor_plugin = editor_plugin
 	_state = state
+	_debugger_bridge = debugger_bridge
 
 
 func handle_message(message: Dictionary) -> Dictionary:
@@ -29,6 +31,12 @@ func handle_message(message: Dictionary) -> Dictionary:
 	match command:
 		"editor_state":
 			result = _handle_editor_state()
+		"runtime_ping":
+			result = _handle_runtime_ping(args)
+		"runtime_play_scene":
+			result = _handle_runtime_play_scene(args)
+		"runtime_stop":
+			result = _handle_runtime_stop()
 		"scene_current":
 			result = _handle_scene_current()
 		"scene_open":
@@ -121,7 +129,53 @@ func _handle_editor_state() -> Dictionary:
 		"writable": _state.writable,
 		"editor_pid": _state.editor_pid,
 		"connection_state": _state.connection_state,
+		"runtime_status": _state.runtime_status,
 		"monitors": _collect_monitors([]),
+	})
+
+
+func _handle_runtime_ping(args: Dictionary) -> Dictionary:
+	if not _debugger_bridge:
+		return _error("debugger_bridge_unavailable", "The Godot MCP debugger bridge is not registered.")
+	return _debugger_bridge.send_ping(args)
+
+
+func _handle_runtime_play_scene(args: Dictionary) -> Dictionary:
+	var scene_path := str(args.get("scene_path", ""))
+	if scene_path == "":
+		return _error("missing_scene_path", "scene_path is required.")
+	if not scene_path.begins_with("res://"):
+		return _error("invalid_scene_path", "scene_path must be a res:// path.", {
+			"scene_path": scene_path,
+		})
+	if not ResourceLoader.exists(scene_path):
+		return _error("scene_not_found", "The requested scene does not exist.", {
+			"scene_path": scene_path,
+		})
+
+	var editor := _get_editor_interface()
+	if not editor:
+		return _error("editor_unavailable", "EditorInterface is not available.")
+
+	editor.play_custom_scene(scene_path)
+	_refresh_state()
+	return _ok({
+		"play_requested": true,
+		"scene_path": scene_path,
+		"runtime_status": _state.runtime_status,
+	})
+
+
+func _handle_runtime_stop() -> Dictionary:
+	var editor := _get_editor_interface()
+	if not editor:
+		return _error("editor_unavailable", "EditorInterface is not available.")
+
+	editor.stop_playing_scene()
+	_refresh_state()
+	return _ok({
+		"stop_requested": true,
+		"runtime_status": _state.runtime_status,
 	})
 
 

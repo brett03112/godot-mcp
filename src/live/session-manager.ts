@@ -101,6 +101,9 @@ export class LiveSessionManager {
       record.connectionState = snapshot.connectionState;
       record.lastHeartbeatUnix = snapshot.lastHeartbeatUnix;
       record.lastError = snapshot.lastError;
+      if (snapshot.runtimeStatus !== undefined) {
+        record.runtimeStatus = snapshot.runtimeStatus;
+      }
     }
     if (isLiveCommandResponseMessage(message)) {
       this.resolvePendingCommand(sessionId, message);
@@ -311,6 +314,7 @@ export class LiveSessionManager {
       connectionState: session.connectionState,
       lastHeartbeatUnix: session.lastHeartbeatUnix,
       lastError: session.lastError,
+      runtimeStatus: session.runtimeStatus,
       remoteAddress: session.remoteAddress,
       connectedAtMs: session.connectedAtMs,
       lastSeenMs: session.lastSeenMs,

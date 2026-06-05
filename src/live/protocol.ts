@@ -9,6 +9,7 @@ export type LiveSessionSnapshot = {
   connectionState: string;
   lastHeartbeatUnix: number | null;
   lastError: string;
+  runtimeStatus?: Record<string, unknown>;
 };
 
 export type LiveHelloMessage = {
@@ -75,6 +76,7 @@ export function normalizeLiveSessionSnapshot(session: Record<string, unknown>): 
     connectionState: optionalString(session.connection_state) || 'connected',
     lastHeartbeatUnix: optionalNumber(session.last_heartbeat_unix),
     lastError: optionalString(session.last_error) || '',
+    runtimeStatus: optionalObject(session.runtime_status) || optionalObject(session.runtimeStatus) || undefined,
   };
 }
 
@@ -107,4 +109,8 @@ function optionalNumber(value: unknown): number | null {
 
 function optionalBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function optionalObject(value: unknown): Record<string, unknown> | null {
+  return isObject(value) ? value : null;
 }

@@ -15,6 +15,13 @@ var play_state: String = "stopped"
 var writable: bool = true
 var last_heartbeat_unix: float = 0.0
 var last_error: String = ""
+var runtime_status: Dictionary = {
+	"state": "stopped",
+	"active_session_id": null,
+	"sessions": [],
+	"last_ping": {},
+	"message_namespace": "godot_mcp",
+}
 
 
 func _init() -> void:
@@ -85,6 +92,27 @@ func update_editor_snapshot(editor_interface: EditorInterface) -> void:
 	touch_heartbeat()
 
 
+func update_runtime_status(debugger_bridge: GodotMCPLiveDebuggerBridge) -> void:
+	if debugger_bridge:
+		runtime_status = debugger_bridge.status()
+	elif play_state == "playing":
+		runtime_status = {
+			"state": "unknown",
+			"active_session_id": null,
+			"sessions": [],
+			"last_ping": {},
+			"message_namespace": "godot_mcp",
+		}
+	else:
+		runtime_status = {
+			"state": "stopped",
+			"active_session_id": null,
+			"sessions": [],
+			"last_ping": {},
+			"message_namespace": "godot_mcp",
+		}
+
+
 func to_dictionary() -> Dictionary:
 	return {
 		"session_id": session_id,
@@ -100,6 +128,7 @@ func to_dictionary() -> Dictionary:
 		"writable": writable,
 		"last_heartbeat_unix": last_heartbeat_unix,
 		"last_error": last_error,
+		"runtime_status": runtime_status,
 	}
 
 

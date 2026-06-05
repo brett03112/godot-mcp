@@ -69,6 +69,32 @@ export function registerLiveEditorTools(registry: ToolRegistry, options: LiveEdi
     sessionActivate(manager),
     sessionDisconnect(manager),
     liveCommandTool(manager, {
+      name: 'runtime_ping',
+      command: 'runtime_ping',
+      description: 'Send a debugger-bridge ping to the running Godot game and return the runtime pong metadata.',
+      properties: {
+        runtime_session_id: { type: 'number', description: 'Specific Godot debugger session ID to target. Defaults to the active runtime session.' },
+        payload: { type: 'object', description: 'Optional JSON payload echoed by the runtime bridge.' },
+      },
+      timeout: 10000,
+    }),
+    liveCommandTool(manager, {
+      name: 'runtime_play_scene',
+      command: 'runtime_play_scene',
+      description: 'Start a Godot runtime from the live editor by playing a specific scene through EditorInterface.',
+      properties: {
+        scene_path: { type: 'string', description: 'Scene path to play, for example res://scenes/main.tscn.' },
+      },
+      required: ['scene_path'],
+      timeout: 10000,
+    }),
+    liveCommandTool(manager, {
+      name: 'runtime_stop',
+      command: 'runtime_stop',
+      description: 'Stop the currently playing Godot runtime through the live editor.',
+      timeout: 10000,
+    }),
+    liveCommandTool(manager, {
       name: 'scene_current',
       command: 'scene_current',
       description: 'Read the active scene path, root metadata, and compact hierarchy from the live Godot editor.',
@@ -564,6 +590,7 @@ function serializeSession(session: LiveSessionRecord): Record<string, unknown> {
     connected_at_ms: session.connectedAtMs,
     stale: session.stale,
     remote_address: session.remoteAddress,
+    runtime_status: session.runtimeStatus ?? null,
   };
 }
 
