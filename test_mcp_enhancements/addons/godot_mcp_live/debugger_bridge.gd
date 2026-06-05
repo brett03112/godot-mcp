@@ -8,6 +8,7 @@ var _state: GodotMCPLiveSessionState
 var _sessions: Dictionary = {}
 var _active_session_id: int = -1
 var _last_ping: Dictionary = {}
+var _inspection_results: Dictionary = {}
 
 
 func configure(state: GodotMCPLiveSessionState) -> void:
@@ -33,6 +34,7 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
 	match runtime_message:
 		"runtime_ready":
 			record["runtime"] = _first_dictionary(data)
+			record["runtime_ready_unix"] = record["last_message_unix"]
 		"pong":
 			var pong := _first_dictionary(data)
 			if not pong.has("roundtrip_id") and not data.is_empty():
@@ -42,6 +44,13 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
 			pong["received_unix"] = Time.get_unix_time_from_system()
 			_last_ping = pong.duplicate(true)
 			record["last_ping"] = _last_ping.duplicate(true)
+		"inspection_result":
+			var inspection_result := _first_dictionary(data)
+			var request_id := str(inspection_result.get("request_id", ""))
+			if request_id != "":
+				inspection_result["runtime_session_id"] = session_id
+				inspection_result["received_unix"] = Time.get_unix_time_from_system()
+				_inspection_results[request_id] = inspection_result.duplicate(true)
 		_:
 			pass
 
@@ -142,6 +151,79 @@ func send_ping(args: Dictionary) -> Dictionary:
 	return _ok(_last_ping.duplicate(true))
 
 
+func send_inspection_request(args: Dictionary) -> Dictionary:
+	_refresh_sessions()
+
+	var command := str(args.get("command", ""))
+	if command == "":
+		return _error("missing_runtime_command", "Runtime inspection command is required.")
+
+	var runtime_session_id := int(args.get("runtime_session_id", _active_session_id))
+	if runtime_session_id < 0:
+		return _error("no_runtime_session", "There is no active Godot debugger runtime session.")
+	if not _sessions.has(runtime_session_id):
+		return _error("runtime_session_not_found", "The requested runtime debugger session is not tracked.", {
+			"runtime_session_id": runtime_session_id,
+		})
+
+	var session := get_session(runtime_session_id)
+	if not session:
+		return _error("runtime_session_unavailable", "The requested runtime debugger session is no longer available.", {
+			"runtime_session_id": runtime_session_id,
+		})
+	if not session.is_active():
+		return _error("runtime_session_inactive", "The requested runtime debugger session is not active.", {
+			"runtime_session_id": runtime_session_id,
+		})
+
+	var record: Dictionary = _sessions[runtime_session_id]
+	if not _runtime_ready_after_start(record):
+		return _error("runtime_not_ready", "The requested runtime debugger session is active, but the Godot MCP runtime bridge has not sent runtime_ready for the current play session.", {
+			"runtime_session_id": runtime_session_id,
+			"started_unix": record.get("started_unix", 0.0),
+			"last_message": record.get("last_message", ""),
+			"last_message_unix": record.get("last_message_unix", 0.0),
+		})
+
+	var request_id := str(args.get("request_id", ""))
+	if request_id == "":
+		request_id = "godot-mcp-inspect-%s" % str(Time.get_ticks_msec())
+
+	_inspection_results.erase(request_id)
+	session.send_message("godot_mcp:inspection_request", [{
+		"request_id": request_id,
+		"command": command,
+		"args": args.get("args", {}),
+	}])
+
+	var tree := Engine.get_main_loop() as SceneTree
+	if not tree:
+		return _error("runtime_inspection_unavailable", "SceneTree is not available for awaiting runtime inspection responses.", {
+			"request_id": request_id,
+			"runtime_session_id": runtime_session_id,
+			"command": command,
+		})
+
+	var deadline := Time.get_ticks_msec() + int(args.get("timeout_ms", 2000))
+	while Time.get_ticks_msec() < deadline:
+		if _inspection_results.has(request_id):
+			var result: Dictionary = _inspection_results[request_id]
+			_inspection_results.erase(request_id)
+			if not bool(result.get("ok", false)):
+				return _error(str(result.get("error_code", "runtime_inspection_failed")), str(result.get("message", "Runtime inspection failed.")), result)
+			var data = result.get("data", {})
+			if typeof(data) == TYPE_DICTIONARY:
+				return _ok(data)
+			return _ok({"value": data})
+		await tree.process_frame
+
+	return _error("runtime_inspection_timeout", "Timed out waiting for runtime inspection response.", {
+		"request_id": request_id,
+		"runtime_session_id": runtime_session_id,
+		"command": command,
+	})
+
+
 func _on_session_started(session_id: int) -> void:
 	var record := _ensure_session(session_id)
 	record["state"] = "running"
@@ -193,16 +275,15 @@ func _find_active_session_id() -> int:
 
 
 func _runtime_ready_after_start(record: Dictionary) -> bool:
-	if str(record.get("last_message", "")) != "%s:runtime_ready" % MESSAGE_NAMESPACE:
-		return false
 	if typeof(record.get("runtime", {})) != TYPE_DICTIONARY:
 		return false
 	var runtime: Dictionary = record.get("runtime", {})
 	if runtime.is_empty():
 		return false
-	if float(record.get("last_message_unix", 0.0)) <= 0.0:
+	var runtime_ready_unix := float(record.get("runtime_ready_unix", 0.0))
+	if runtime_ready_unix <= 0.0:
 		return false
-	if float(record.get("started_unix", 0.0)) > 0.0 and record["last_message_unix"] < record["started_unix"]:
+	if float(record.get("started_unix", 0.0)) > 0.0 and runtime_ready_unix < record["started_unix"]:
 		return false
 	return true
 
@@ -213,6 +294,7 @@ func _clear_runtime_record(record: Dictionary) -> void:
 	record["last_message_unix"] = 0.0
 	record["last_ping"] = {}
 	record["runtime"] = {}
+	record["runtime_ready_unix"] = 0.0
 	_last_ping = {}
 
 
@@ -231,6 +313,7 @@ func _ensure_session(session_id: int) -> Dictionary:
 			"last_message_unix": 0.0,
 			"last_ping": {},
 			"runtime": {},
+			"runtime_ready_unix": 0.0,
 		}
 	return _sessions[session_id]
 

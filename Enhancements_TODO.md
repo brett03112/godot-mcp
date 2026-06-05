@@ -423,21 +423,23 @@ Callable-process verification note, 2026-06-05: After another Codex/editor reloa
 
 ### 3.2 Add Runtime Inspection Tools
 
-- [ ] Add `runtime_get_scene_tree`.
-- [ ] Add `runtime_get_node_info`.
-- [ ] Add `runtime_get_node_property`.
-- [ ] Add `runtime_watch_node`.
-- [ ] Add `runtime_get_ui_elements`.
-- [ ] Add `runtime_get_focus_owner`.
-- [ ] Add `runtime_get_viewport_info`.
-- [ ] Add `runtime_get_performance_metrics`.
-- [ ] Add `runtime_get_input_map`.
-- [ ] Add `runtime_get_groups`.
+- [x] Add `runtime_get_scene_tree`.
+- [x] Add `runtime_get_node_info`.
+- [x] Add `runtime_get_node_property`.
+- [x] Add `runtime_watch_node`.
+- [x] Add `runtime_get_ui_elements`.
+- [x] Add `runtime_get_focus_owner`.
+- [x] Add `runtime_get_viewport_info`.
+- [x] Add `runtime_get_performance_metrics`.
+- [x] Add `runtime_get_input_map`.
+- [x] Add `runtime_get_groups`.
 
 Acceptance:
 
-- [ ] Codex can inspect the live running scene tree while the project is playing.
-- [ ] Codex can list visible UI controls with text, bounds, disabled/visible state, and focus information.
+- [x] Codex can inspect the live running scene tree while the project is playing.
+- [x] Codex can list visible UI controls with text, bounds, disabled/visible state, and focus information.
+
+Verification note, 2026-06-05: Phase 3.2 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-2-runtime-inspection-tools.md`, focused RED tests in `tests/live-runtime-inspection.test.mjs`, expanded addon contract assertions in `tests/live-addon-skeleton.test.mjs`, ten new live MCP tool registrations in `src/tools/live-editor.ts`, editor dispatcher forwarding in `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, async debugger request/result handling in `debugger_bridge.gd`, and runtime `SceneTree`/node/UI/viewport/performance/input/group serializers in `runtime_bridge.gd`. Context7/Godot 4.6 docs were used for `EngineDebugger` message capture and GDScript coroutine/`await` behavior. RED was observed with `npm run build && node --test tests/live-runtime-inspection.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing `runtime_get_scene_tree` registration and missing addon/runtime handler names. An initial Godot editor smoke caught `Variant.get_type_name(...)` parser errors, which were fixed with explicit type strings. Initial live proof showed blocking `OS.delay_msec()` starved `EditorDebuggerPlugin._capture()` until after timeout; `transport_websocket.gd`, `command_dispatcher.gd`, and `debugger_bridge.gd` now await frame-yielded inspection responses, and `runtime_ready_unix` keeps runtime readiness valid after later `inspection_result` messages. Final focused live regression `npm run build && node --test tests/live-runtime-inspection.test.mjs tests/live-runtime-debugger.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 25/25, `npm test` passed 80/80, Godot 4.6.3 editor parse smoke passed the explicit `SCRIPT ERROR|\bERROR:` guard with only the known nested-project and ObjectDB shutdown warnings, and runtime autoload smoke with `--headless --path ... --quit-after 1 res://tier1_test_scene.tscn` exited 0. Live acceptance used the `.mcp.json` stdio command `node C:/Users/brett/Desktop/godot-mcp/build/index.js` with `GODOT_PATH=C:/Users/brett/Desktop/Godot/Godot.exe`; a stale non-callable listener PID 21036 owned `127.0.0.1:6010` and was stopped so the `.mcp.json` process could own the bridge. A fresh headless editor session `godot-mcp-1780687800899-474470` (editor PID 15272) started `res://tier1_test_scene.tscn`, observed runtime session `0`, and proved `runtime_get_scene_tree` root `root`, `runtime_get_node_info` class `Node2D`, `runtime_get_node_property name = root`, `runtime_watch_node` keys `name` and `process_mode`, `runtime_get_ui_elements` count `1`, `runtime_get_focus_owner` structured null focus, `runtime_get_viewport_info` size `1152x648`, `runtime_get_performance_metrics` including `TIME_FPS`, `runtime_get_input_map` count `92`, `runtime_get_groups` count `1`, and `runtime_stop`.
 
 ### 3.3 Add Runtime Input Tools
 

@@ -89,6 +89,21 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(dispatcher, /"runtime_stop"/);
   assert.match(dispatcher, /func _handle_runtime_stop\(\) -> Dictionary:/);
   assert.match(dispatcher, /editor\.stop_playing_scene\(\)/);
+  for (const commandName of [
+    'runtime_get_scene_tree',
+    'runtime_get_node_info',
+    'runtime_get_node_property',
+    'runtime_watch_node',
+    'runtime_get_ui_elements',
+    'runtime_get_focus_owner',
+    'runtime_get_viewport_info',
+    'runtime_get_performance_metrics',
+    'runtime_get_input_map',
+    'runtime_get_groups',
+  ]) {
+    assert.match(dispatcher, new RegExp(`"${commandName}"`));
+  }
+  assert.match(dispatcher, /func _handle_runtime_inspection\(command: String, args: Dictionary\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_scene_current\(\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_selection_get\(\) -> Dictionary:/);
   assert.match(dispatcher, /func _handle_selection_set\(args: Dictionary\) -> Dictionary:/);
@@ -154,9 +169,13 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(debuggerBridge, /func send_ping\(args: Dictionary\) -> Dictionary:/);
   assert.match(debuggerBridge, /func _runtime_ready_after_start\(record: Dictionary\) -> bool:/);
   assert.match(debuggerBridge, /return _error\("runtime_not_ready"/);
-  assert.match(debuggerBridge, /record\["last_message_unix"\] < record\["started_unix"\]/);
+  assert.match(debuggerBridge, /record\["runtime_ready_unix"\] = record\["last_message_unix"\]/);
+  assert.match(debuggerBridge, /runtime_ready_unix < record\["started_unix"\]/);
   assert.match(debuggerBridge, /record\["runtime"\] = {}/);
   assert.match(debuggerBridge, /send_message\("godot_mcp:ping"/);
+  assert.match(debuggerBridge, /func send_inspection_request\(args: Dictionary\) -> Dictionary:/);
+  assert.match(debuggerBridge, /"inspection_result"/);
+  assert.match(debuggerBridge, /send_message\("godot_mcp:inspection_request"/);
 
   const runtimeBridge = await readFile(join(addonRoot, 'runtime_bridge.gd'), 'utf8');
   assert.match(runtimeBridge, /^class_name GodotMCPLiveRuntimeBridge/m);
@@ -164,6 +183,11 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(runtimeBridge, /EngineDebugger\.register_message_capture\("godot_mcp", _capture\)/);
   assert.match(runtimeBridge, /EngineDebugger\.send_message\("godot_mcp:runtime_ready"/);
   assert.match(runtimeBridge, /EngineDebugger\.send_message\("godot_mcp:pong"/);
+  assert.match(runtimeBridge, /EngineDebugger\.send_message\("godot_mcp:inspection_result"/);
+  assert.match(runtimeBridge, /func _handle_inspection_request\(request: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_scene_tree\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_node_info\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_ui_elements\(args: Dictionary\) -> Dictionary:/);
 });
 
 test('test fixture enables the live addon without removing GUT', async () => {

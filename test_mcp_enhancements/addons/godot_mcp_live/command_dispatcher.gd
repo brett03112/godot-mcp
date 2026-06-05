@@ -37,6 +37,8 @@ func handle_message(message: Dictionary) -> Dictionary:
 			result = _handle_runtime_play_scene(args)
 		"runtime_stop":
 			result = _handle_runtime_stop()
+		"runtime_get_scene_tree", "runtime_get_node_info", "runtime_get_node_property", "runtime_watch_node", "runtime_get_ui_elements", "runtime_get_focus_owner", "runtime_get_viewport_info", "runtime_get_performance_metrics", "runtime_get_input_map", "runtime_get_groups":
+			result = await _handle_runtime_inspection(command, args)
 		"scene_current":
 			result = _handle_scene_current()
 		"scene_open":
@@ -176,6 +178,15 @@ func _handle_runtime_stop() -> Dictionary:
 	return _ok({
 		"stop_requested": true,
 		"runtime_status": _state.runtime_status,
+	})
+
+
+func _handle_runtime_inspection(command: String, args: Dictionary) -> Dictionary:
+	if not _debugger_bridge:
+		return _error("debugger_bridge_unavailable", "The Godot MCP debugger bridge is not registered.")
+	return await _debugger_bridge.send_inspection_request({
+		"command": command,
+		"args": args,
 	})
 
 
