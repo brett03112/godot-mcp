@@ -97,6 +97,24 @@ func _handle_inspection_request(request: Dictionary) -> Dictionary:
 			data = _runtime_input_map()
 		"runtime_get_groups":
 			data = _runtime_groups()
+		"runtime_input_key":
+			data = _runtime_input_key(args)
+		"runtime_input_mouse":
+			data = _runtime_input_mouse(args)
+		"runtime_input_gamepad":
+			data = _runtime_input_gamepad(args)
+		"runtime_input_action":
+			data = _runtime_input_action(args)
+		"runtime_input_text":
+			data = _runtime_input_text(args)
+		"runtime_input_state":
+			data = _runtime_input_state(args)
+		"runtime_wait_for_condition":
+			data = _runtime_wait_for_condition(args)
+		"runtime_click_ui_text":
+			data = _runtime_click_ui_text(args)
+		"runtime_click_ui_path":
+			data = _runtime_click_ui_path(args)
 		_:
 			return {
 				"ok": false,
@@ -285,6 +303,234 @@ func _runtime_groups() -> Dictionary:
 	}
 
 
+func _runtime_input_key(args: Dictionary) -> Dictionary:
+	var event := _make_key_event(args)
+	if event.keycode == KEY_NONE and event.unicode == 0:
+		return _runtime_error_data("invalid_key", "key must be a valid key name, single character, or numeric keycode.", {
+			"key": args.get("key", null),
+		})
+	Input.parse_input_event(event)
+	return {
+		"event_type": "key",
+		"key": str(args.get("key", "")),
+		"keycode": event.keycode,
+		"keycode_string": OS.get_keycode_string(event.keycode),
+		"unicode": event.unicode,
+		"pressed": event.pressed,
+		"echo": event.echo,
+	}
+
+
+func _runtime_input_mouse(args: Dictionary) -> Dictionary:
+	var event_type := str(args.get("event_type", "button")).to_lower()
+	if event_type == "motion":
+		var motion := _make_mouse_motion_event(args)
+		Input.parse_input_event(motion)
+		return {
+			"event_type": "mouse_motion",
+			"position": _serialize_variant(motion.position),
+			"relative": _serialize_variant(motion.relative),
+		}
+
+	var button := _make_mouse_button_event(args)
+	Input.parse_input_event(button)
+	return {
+		"event_type": "mouse_button",
+		"position": _serialize_variant(button.position),
+		"button_index": button.button_index,
+		"pressed": button.pressed,
+		"factor": button.factor,
+	}
+
+
+func _runtime_input_gamepad(args: Dictionary) -> Dictionary:
+	var control := str(args.get("control", "button")).to_lower()
+	if control == "axis":
+		var motion := _make_gamepad_motion_event(args)
+		Input.parse_input_event(motion)
+		return {
+			"event_type": "joypad_motion",
+			"device": motion.device,
+			"axis": motion.axis,
+			"axis_value": motion.axis_value,
+		}
+
+	var button := _make_gamepad_button_event(args)
+	Input.parse_input_event(button)
+	return {
+		"event_type": "joypad_button",
+		"device": button.device,
+		"button_index": button.button_index,
+		"pressed": button.pressed,
+		"pressure": button.pressure,
+	}
+
+
+func _runtime_input_action(args: Dictionary) -> Dictionary:
+	var action := str(args.get("action", ""))
+	if action == "":
+		return _runtime_error_data("missing_action", "action is required.")
+	var event := _make_action_event(args)
+	Input.parse_input_event(event)
+	return {
+		"event_type": "action",
+		"action": action,
+		"pressed": event.pressed,
+		"strength": event.strength,
+	}
+
+
+func _runtime_input_text(args: Dictionary) -> Dictionary:
+	var text := str(args.get("text", ""))
+	var key_events_sent := 0
+	for index in text.length():
+		var character := text.substr(index, 1)
+		var key_args := {
+			"key": character,
+			"pressed": true,
+			"unicode": character.unicode_at(0),
+		}
+		var press_event := _make_key_event(key_args)
+		Input.parse_input_event(press_event)
+		key_events_sent += 1
+
+		key_args["pressed"] = false
+		var release_event := _make_key_event(key_args)
+		Input.parse_input_event(release_event)
+		key_events_sent += 1
+
+	return {
+		"inserted_text": text,
+		"character_count": text.length(),
+		"events_sent": text.length(),
+		"key_events_sent": key_events_sent,
+	}
+
+
+func _runtime_input_state(args: Dictionary) -> Dictionary:
+	var actions_state := {}
+	var actions = args.get("actions", [])
+	if typeof(actions) == TYPE_ARRAY:
+		for action in actions:
+			var action_name := str(action)
+			actions_state[action_name] = {
+				"pressed": Input.is_action_pressed(action_name),
+				"just_pressed": Input.is_action_just_pressed(action_name),
+				"just_released": Input.is_action_just_released(action_name),
+				"strength": Input.get_action_strength(action_name),
+			}
+
+	var keys_state := {}
+	var keys = args.get("keys", [])
+	if typeof(keys) == TYPE_ARRAY:
+		for key in keys:
+			var keycode := _keycode_from_value(key)
+			keys_state[str(key)] = {
+				"keycode": keycode,
+				"keycode_string": OS.get_keycode_string(keycode),
+				"pressed": Input.is_key_pressed(keycode) if keycode != KEY_NONE else false,
+			}
+
+	var mouse_state := {}
+	var mouse_buttons = args.get("mouse_buttons", [])
+	if typeof(mouse_buttons) == TYPE_ARRAY:
+		for button in mouse_buttons:
+			var button_index := int(button)
+			mouse_state[str(button_index)] = {
+				"button_index": button_index,
+				"pressed": Input.is_mouse_button_pressed(button_index),
+			}
+
+	var device := int(args.get("device", 0))
+	var gamepad_state := {}
+	var gamepad_buttons = args.get("gamepad_buttons", [])
+	if typeof(gamepad_buttons) == TYPE_ARRAY:
+		for button in gamepad_buttons:
+			var button_index := int(button)
+			gamepad_state[str(button_index)] = {
+				"device": device,
+				"button_index": button_index,
+				"pressed": Input.is_joy_button_pressed(device, button_index),
+			}
+
+	return {
+		"actions": actions_state,
+		"keys": keys_state,
+		"mouse_buttons": mouse_state,
+		"gamepad_buttons": gamepad_state,
+		"mouse_position": _serialize_variant(get_viewport().get_mouse_position()) if get_viewport() else null,
+	}
+
+
+func _runtime_wait_for_condition(args: Dictionary) -> Dictionary:
+	var timeout_ms := clampi(int(args.get("wait_timeout_ms", args.get("timeout_ms", 1000))), 0, 10000)
+	var poll_interval_ms := clampi(int(args.get("poll_interval_ms", 50)), 1, 1000)
+	var started := Time.get_ticks_msec()
+	var deadline := started + timeout_ms
+	var observed = null
+
+	while true:
+		var evaluation := _evaluate_runtime_condition(args)
+		observed = evaluation.get("observed", null)
+		if bool(evaluation.get("matched", false)):
+			return {
+				"matched": true,
+				"timed_out": false,
+				"kind": str(args.get("kind", "")),
+				"observed": observed,
+				"elapsed_ms": int(Time.get_ticks_msec() - started),
+			}
+
+		var now := Time.get_ticks_msec()
+		if now >= deadline:
+			return {
+				"matched": false,
+				"timed_out": true,
+				"kind": str(args.get("kind", "")),
+				"observed": observed,
+				"elapsed_ms": int(now - started),
+			}
+
+		OS.delay_msec(mini(poll_interval_ms, int(deadline - now)))
+
+	return {
+		"matched": false,
+		"timed_out": true,
+		"kind": str(args.get("kind", "")),
+		"observed": observed,
+		"elapsed_ms": int(Time.get_ticks_msec() - started),
+	}
+
+
+func _runtime_click_ui_text(args: Dictionary) -> Dictionary:
+	var text := str(args.get("text", ""))
+	if text == "":
+		return _runtime_error_data("missing_text", "text is required.")
+	var control := _find_ui_by_text(text, bool(args.get("exact", true)))
+	if not control:
+		return _runtime_error_data("ui_text_not_found", "No visible Control with matching text was found.", {
+			"text": text,
+		})
+	return _click_control(control, int(args.get("button_index", MOUSE_BUTTON_LEFT)))
+
+
+func _runtime_click_ui_path(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	if node_path == "":
+		return _runtime_error_data("missing_node_path", "node_path is required.")
+	var node := _find_runtime_node(node_path)
+	if not node:
+		return _runtime_error_data("node_not_found", "Runtime node not found: %s." % node_path, {
+			"node_path": node_path,
+		})
+	if not node is Control:
+		return _runtime_error_data("node_not_control", "Runtime node is not a Control: %s." % node_path, {
+			"node_path": node_path,
+			"class": node.get_class(),
+		})
+	return _click_control(node as Control, int(args.get("button_index", MOUSE_BUTTON_LEFT)))
+
+
 func _current_scene_root() -> Node:
 	var tree := get_tree()
 	if not tree:
@@ -369,6 +615,56 @@ func _collect_ui_controls(node: Node, controls: Array[Dictionary], depth: int, m
 			_collect_ui_controls(child, controls, depth + 1, max_depth, include_hidden, include_disabled)
 
 
+func _find_ui_by_text(text: String, exact: bool) -> Control:
+	var root := _current_scene_root()
+	if not root:
+		return null
+	return _find_ui_by_text_recursive(root, text, exact)
+
+
+func _find_ui_by_text_recursive(node: Node, text: String, exact: bool) -> Control:
+	if node is Control:
+		var control := node as Control
+		var control_text := str(_safe_get(control, "text")) if _has_property(control, "text") else ""
+		var matches := control_text == text if exact else control_text.to_lower().contains(text.to_lower())
+		if matches and control.is_visible_in_tree():
+			return control
+	for child in node.get_children():
+		if child is Node:
+			var found := _find_ui_by_text_recursive(child, text, exact)
+			if found:
+				return found
+	return null
+
+
+func _click_control(control: Control, button_index: int) -> Dictionary:
+	var rect := control.get_global_rect()
+	var center := rect.position + rect.size / 2.0
+	var motion := _make_mouse_motion_event({
+		"position": center,
+		"relative": Vector2.ZERO,
+	})
+	Input.parse_input_event(motion)
+	var press := _make_mouse_button_event({
+		"position": center,
+		"button_index": button_index,
+		"pressed": true,
+	})
+	Input.parse_input_event(press)
+	var release := _make_mouse_button_event({
+		"position": center,
+		"button_index": button_index,
+		"pressed": false,
+	})
+	Input.parse_input_event(release)
+	return {
+		"clicked": true,
+		"target": _control_summary(control),
+		"position": _serialize_variant(center),
+		"button_index": button_index,
+	}
+
+
 func _collect_groups(node: Node, groups: Dictionary) -> void:
 	for group in node.get_groups():
 		var group_name := str(group)
@@ -378,6 +674,170 @@ func _collect_groups(node: Node, groups: Dictionary) -> void:
 	for child in node.get_children():
 		if child is Node:
 			_collect_groups(child, groups)
+
+
+func _evaluate_runtime_condition(args: Dictionary) -> Dictionary:
+	var kind := str(args.get("kind", ""))
+	match kind:
+		"node_property":
+			var node_path := str(args.get("node_path", "."))
+			var property := str(args.get("property", ""))
+			var node := _find_runtime_node(node_path)
+			var observed = null
+			if node and property != "":
+				observed = _safe_get(node, property)
+			return {
+				"matched": _condition_value_matches(observed, args),
+				"observed": observed,
+			}
+		"ui_text":
+			var text := str(args.get("text", ""))
+			var control := _find_ui_by_text(text, bool(args.get("exact", true)))
+			var observed = _control_summary(control) if control else null
+			return {
+				"matched": control != null,
+				"observed": observed,
+			}
+		"action":
+			var action := str(args.get("action", ""))
+			var pressed := Input.is_action_pressed(action) if action != "" else false
+			var expected_pressed := bool(args.get("pressed", true))
+			return {
+				"matched": pressed == expected_pressed,
+				"observed": {
+					"action": action,
+					"pressed": pressed,
+					"strength": Input.get_action_strength(action) if action != "" else 0.0,
+				},
+			}
+		_:
+			return {
+				"matched": false,
+				"observed": {
+					"error": "unsupported_condition_kind",
+					"kind": kind,
+				},
+			}
+
+
+func _condition_value_matches(observed, args: Dictionary) -> bool:
+	if args.has("equals"):
+		return observed == _serialize_variant(args.get("equals"))
+	if args.has("contains"):
+		return _value_contains(observed, str(args.get("contains", "")))
+	return bool(observed)
+
+
+func _value_contains(observed, expected: String) -> bool:
+	if observed == null:
+		return false
+	if typeof(observed) == TYPE_STRING:
+		return str(observed).contains(expected)
+	if typeof(observed) == TYPE_ARRAY:
+		for item in observed:
+			if str(item).contains(expected):
+				return true
+		return false
+	if typeof(observed) == TYPE_DICTIONARY:
+		return JSON.stringify(observed).contains(expected)
+	return str(observed).contains(expected)
+
+
+func _make_key_event(args: Dictionary) -> InputEventKey:
+	var event := InputEventKey.new()
+	var keycode := _keycode_from_value(args.get("key", KEY_NONE))
+	event.keycode = keycode
+	event.physical_keycode = keycode
+	event.unicode = int(args.get("unicode", 0))
+	if event.unicode == 0 and typeof(args.get("key", null)) == TYPE_STRING:
+		var key_text := str(args.get("key", ""))
+		if key_text.length() == 1:
+			event.unicode = key_text.unicode_at(0)
+	event.pressed = bool(args.get("pressed", true))
+	event.echo = bool(args.get("echo", false))
+	return event
+
+
+func _make_mouse_button_event(args: Dictionary) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	var position := _vector2_from_value(args.get("position", get_viewport().get_mouse_position() if get_viewport() else Vector2.ZERO))
+	event.position = position
+	event.global_position = position
+	event.button_index = int(args.get("button_index", MOUSE_BUTTON_LEFT))
+	event.pressed = bool(args.get("pressed", true))
+	event.factor = float(args.get("factor", 1.0))
+	return event
+
+
+func _make_mouse_motion_event(args: Dictionary) -> InputEventMouseMotion:
+	var event := InputEventMouseMotion.new()
+	var position := _vector2_from_value(args.get("position", get_viewport().get_mouse_position() if get_viewport() else Vector2.ZERO))
+	event.position = position
+	event.global_position = position
+	event.relative = _vector2_from_value(args.get("relative", Vector2.ZERO))
+	return event
+
+
+func _make_action_event(args: Dictionary) -> InputEventAction:
+	var event := InputEventAction.new()
+	event.action = str(args.get("action", ""))
+	event.pressed = bool(args.get("pressed", true))
+	event.strength = float(args.get("strength", 1.0 if event.pressed else 0.0))
+	return event
+
+
+func _make_gamepad_button_event(args: Dictionary) -> InputEventJoypadButton:
+	var event := InputEventJoypadButton.new()
+	event.device = int(args.get("device", 0))
+	event.button_index = int(args.get("index", args.get("button_index", 0)))
+	event.pressed = bool(args.get("pressed", true))
+	event.pressure = float(args.get("value", 1.0 if event.pressed else 0.0))
+	return event
+
+
+func _make_gamepad_motion_event(args: Dictionary) -> InputEventJoypadMotion:
+	var event := InputEventJoypadMotion.new()
+	event.device = int(args.get("device", 0))
+	event.axis = int(args.get("index", args.get("axis", 0)))
+	event.axis_value = float(args.get("value", 0.0))
+	return event
+
+
+func _keycode_from_value(value) -> int:
+	match typeof(value):
+		TYPE_INT:
+			return int(value)
+		TYPE_FLOAT:
+			return int(value)
+		TYPE_STRING:
+			var text := str(value).strip_edges()
+			if text == "":
+				return KEY_NONE
+			var keycode := OS.find_keycode_from_string(text)
+			if keycode != KEY_NONE:
+				return keycode
+			if text.length() == 1:
+				return OS.find_keycode_from_string(text.to_upper())
+			return KEY_NONE
+		_:
+			return KEY_NONE
+
+
+func _vector2_from_value(value) -> Vector2:
+	match typeof(value):
+		TYPE_VECTOR2:
+			return value
+		TYPE_VECTOR2I:
+			return Vector2(value)
+		TYPE_ARRAY:
+			if value.size() >= 2:
+				return Vector2(float(value[0]), float(value[1]))
+		TYPE_DICTIONARY:
+			if value.has("x") and value.has("y"):
+				return Vector2(float(value["x"]), float(value["y"]))
+			if value.has("value") and typeof(value["value"]) == TYPE_ARRAY and value["value"].size() >= 2:
+				return Vector2(float(value["value"][0]), float(value["value"][1]))
+	return Vector2.ZERO
 
 
 func _node_path(node: Node) -> String:

@@ -443,21 +443,23 @@ Verification note, 2026-06-05: Phase 3.2 added an implementation plan at `docs/s
 
 ### 3.3 Add Runtime Input Tools
 
-- [ ] Add `runtime_input_key`.
-- [ ] Add `runtime_input_mouse`.
-- [ ] Add `runtime_input_gamepad`.
-- [ ] Add `runtime_input_action`.
-- [ ] Add `runtime_input_text`.
-- [ ] Add `runtime_input_state`.
-- [ ] Add `runtime_wait_for_condition`.
-- [ ] Add `runtime_click_ui_text`.
-- [ ] Add `runtime_click_ui_path`.
+- [x] Add `runtime_input_key`.
+- [x] Add `runtime_input_mouse`.
+- [x] Add `runtime_input_gamepad`.
+- [x] Add `runtime_input_action`.
+- [x] Add `runtime_input_text`.
+- [x] Add `runtime_input_state`.
+- [x] Add `runtime_wait_for_condition`.
+- [x] Add `runtime_click_ui_text`.
+- [x] Add `runtime_click_ui_path`.
 
 Acceptance:
 
-- [ ] Codex can press a project input action.
-- [ ] Codex can click a visible UI button by text or node path.
-- [ ] Codex can wait for a UI/state condition and report timeout vs success.
+- [x] Codex can press a project input action.
+- [x] Codex can click a visible UI button by text or node path.
+- [x] Codex can wait for a UI/state condition and report timeout vs success.
+
+Verification note, 2026-06-05: Phase 3.3 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-3-runtime-input-tools.md`, focused RED tests in `tests/live-runtime-input.test.mjs`, addon contract assertions in `tests/live-addon-skeleton.test.mjs`, nine new live MCP tool registrations in `src/tools/live-editor.ts`, dispatcher forwarding in `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, and runtime input/event/UI-click/state/wait handlers in `test_mcp_enhancements/addons/godot_mcp_live/runtime_bridge.gd`. Context7/Godot docs were used for `Input.parse_input_event()`, `InputEventAction`, `InputEventKey`, mouse/joypad input events, `OS.find_keycode_from_string()`, and timer/frame waiting behavior. RED was observed with `npm run build && node --test tests/live-runtime-input.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing `runtime_input_key` registration, unknown-tool dispatch, and missing addon command names. GREEN focused runtime-input/addon tests passed 5/5, broader live runtime regression passed 27/27, and `npm test` passed 82/82. Godot 4.6.3 headless editor parse smoke exited 0 after fixing a typed `Dictionary` return analyzer issue in `_runtime_wait_for_condition`; final editor/runtime smokes exited 0 with only the known nested-project and ObjectDB shutdown warnings. Live acceptance used `.mcp.json` exactly (`node C:/Users/brett/Desktop/godot-mcp/build/index.js` with `GODOT_PATH=C:/Users/brett/Desktop/Godot/Godot.exe`), a fresh headless editor session `godot-mcp-1780689073858-892208` (editor PID 22164), and `res://test_connect.tscn`: `runtime_input_action` pressed and released `ui_accept`, `runtime_wait_for_condition` matched action pressed with `elapsed_ms: 0`, `runtime_input_state` showed `ui_accept.pressed` true then false, `runtime_wait_for_condition` matched visible UI text `Test Button`, `runtime_click_ui_text` and `runtime_click_ui_path` clicked the `Button` at `[275, 225]`, and a false node-property wait returned `matched: false`, `timed_out: true`, `observed: "TestConnect"` after 101 ms. A second `.mcp.json` live probe with headless editor session `godot-mcp-1780689203684-271500` (editor PID 23128) proved the remaining direct input constructors: `runtime_input_key` sent Space press/release, `runtime_input_mouse` sent motion plus left press/release at `[275, 225]`, `runtime_input_gamepad` sent joypad button 0 and axis 0 value `0.5`, `runtime_input_text` inserted `Hi` with four key events, and `runtime_input_state` read back key/mouse/gamepad state. The stale listener on `127.0.0.1:6010` was stopped for the `.mcp.json` proofs; afterward a hidden `.mcp.json` keeper restored a fresh listener at PID 21008 with the open GUI editor PID 24116 reconnected on an established loopback socket.
 
 ### 3.4 Add Lightweight Runtime Assertions
 

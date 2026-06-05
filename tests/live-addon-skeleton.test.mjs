@@ -100,6 +100,15 @@ test('live addon collaborators expose the live editor command contract', async (
     'runtime_get_performance_metrics',
     'runtime_get_input_map',
     'runtime_get_groups',
+    'runtime_input_key',
+    'runtime_input_mouse',
+    'runtime_input_gamepad',
+    'runtime_input_action',
+    'runtime_input_text',
+    'runtime_input_state',
+    'runtime_wait_for_condition',
+    'runtime_click_ui_text',
+    'runtime_click_ui_path',
   ]) {
     assert.match(dispatcher, new RegExp(`"${commandName}"`));
   }
@@ -188,6 +197,21 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(runtimeBridge, /func _runtime_scene_tree\(args: Dictionary\) -> Dictionary:/);
   assert.match(runtimeBridge, /func _runtime_node_info\(args: Dictionary\) -> Dictionary:/);
   assert.match(runtimeBridge, /func _runtime_ui_elements\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_input_key\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_input_mouse\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_input_gamepad\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_input_action\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_input_text\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_input_state\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_wait_for_condition\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_click_ui_text\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_click_ui_path\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _make_key_event\(args: Dictionary\) -> InputEventKey:/);
+  assert.match(runtimeBridge, /func _make_mouse_button_event\(args: Dictionary\) -> InputEventMouseButton:/);
+  assert.match(runtimeBridge, /func _make_mouse_motion_event\(args: Dictionary\) -> InputEventMouseMotion:/);
+  assert.match(runtimeBridge, /func _make_action_event\(args: Dictionary\) -> InputEventAction:/);
+  assert.match(runtimeBridge, /func _make_gamepad_button_event\(args: Dictionary\) -> InputEventJoypadButton:/);
+  assert.match(runtimeBridge, /func _make_gamepad_motion_event\(args: Dictionary\) -> InputEventJoypadMotion:/);
 });
 
 test('test fixture enables the live addon without removing GUT', async () => {
