@@ -463,17 +463,19 @@ Verification note, 2026-06-05: Phase 3.3 added an implementation plan at `docs/s
 
 ### 3.4 Add Lightweight Runtime Assertions
 
-- [ ] Add `runtime_assert_node_exists`.
-- [ ] Add `runtime_assert_property_equals`.
-- [ ] Add `runtime_assert_signal_emitted`.
-- [ ] Add `runtime_assert_ui_text_visible`.
-- [ ] Add `runtime_assert_no_errors`.
-- [ ] Add `runtime_snapshot_assertion_report`.
+- [x] Add `runtime_assert_node_exists`.
+- [x] Add `runtime_assert_property_equals`.
+- [x] Add `runtime_assert_signal_emitted`.
+- [x] Add `runtime_assert_ui_text_visible`.
+- [x] Add `runtime_assert_no_errors`.
+- [x] Add `runtime_snapshot_assertion_report`.
 
 Acceptance:
 
-- [ ] Codex can perform a short live smoke test without writing a full GUT test.
-- [ ] Failures include the observed value and suggested next probe.
+- [x] Codex can perform a short live smoke test without writing a full GUT test.
+- [x] Failures include the observed value and suggested next probe.
+
+Verification note, 2026-06-05: Phase 3.4 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-4-runtime-assertions.md`, focused RED tests in `tests/live-runtime-assertions.test.mjs`, addon contract assertions in `tests/live-addon-skeleton.test.mjs`, six new live MCP tool registrations in `src/tools/live-editor.ts`, dispatcher forwarding in `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, and runtime assertion/report/signal-tracking handlers in `test_mcp_enhancements/addons/godot_mcp_live/runtime_bridge.gd`. Context7/Godot 4.6 docs were used for signal connection and callable behavior. RED was observed with `npm run build && node --test tests/live-runtime-assertions.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing tool registration and addon command names. GREEN focused assertion/addon tests passed 5/5, broader live runtime regression passed 29/29, and `npm test` passed 84/84. `validate_script` passed for `runtime_bridge.gd` and `command_dispatcher.gd`; Godot 4.6.3 headless editor and runtime smokes exited 0 with no `SCRIPT ERROR` or `ERROR:` matches, only the known nested-project/ObjectDB warnings. Live acceptance used `.mcp.json` exactly (`node C:/Users/brett/Desktop/godot-mcp/build/index.js` with `GODOT_PATH=C:/Users/brett/Desktop/Godot/Godot.exe`), stopped stale listener PID 22932, and proved all six new tools were present. Against live session `godot-mcp-1780690353054-740449` / editor PID 8948 running `res://test_connect.tscn`, `runtime_assert_node_exists` passed for `.`, `runtime_assert_property_equals` passed for root `name == TestConnect`, `runtime_assert_ui_text_visible` passed for `Test Button`, `runtime_assert_signal_emitted` failed before clicking then passed after `runtime_click_ui_path TestButton` with count `1`, `runtime_assert_no_errors` passed with count `0`, and `runtime_snapshot_assertion_report` returned total `3`, passed `2`, failed `1`; the intentional false property assertion observed `TestConnect` and suggested `runtime_get_node_property`. A fresh hidden `.mcp.json` keeper restored a listener on `127.0.0.1:6010/godot-mcp-live` at PID 21796.
 
 ### 3.5 Add Safe Eval, Gated And Disabled By Default
 

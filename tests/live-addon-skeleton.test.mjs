@@ -109,6 +109,12 @@ test('live addon collaborators expose the live editor command contract', async (
     'runtime_wait_for_condition',
     'runtime_click_ui_text',
     'runtime_click_ui_path',
+    'runtime_assert_node_exists',
+    'runtime_assert_property_equals',
+    'runtime_assert_signal_emitted',
+    'runtime_assert_ui_text_visible',
+    'runtime_assert_no_errors',
+    'runtime_snapshot_assertion_report',
   ]) {
     assert.match(dispatcher, new RegExp(`"${commandName}"`));
   }
@@ -206,6 +212,14 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(runtimeBridge, /func _runtime_wait_for_condition\(args: Dictionary\) -> Dictionary:/);
   assert.match(runtimeBridge, /func _runtime_click_ui_text\(args: Dictionary\) -> Dictionary:/);
   assert.match(runtimeBridge, /func _runtime_click_ui_path\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_assert_node_exists\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_assert_property_equals\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_assert_signal_emitted\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_assert_ui_text_visible\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_assert_no_errors\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _runtime_snapshot_assertion_report\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _assertion_record\(assertion: String, passed: bool, observed, args: Dictionary, suggested_next_probe: String\) -> Dictionary:/);
+  assert.match(runtimeBridge, /func _track_signal\(node: Node, signal_name: String\) -> Dictionary:/);
   assert.match(runtimeBridge, /func _make_key_event\(args: Dictionary\) -> InputEventKey:/);
   assert.match(runtimeBridge, /func _make_mouse_button_event\(args: Dictionary\) -> InputEventMouseButton:/);
   assert.match(runtimeBridge, /func _make_mouse_motion_event\(args: Dictionary\) -> InputEventMouseMotion:/);

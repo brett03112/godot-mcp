@@ -37,7 +37,7 @@ func handle_message(message: Dictionary) -> Dictionary:
 			result = _handle_runtime_play_scene(args)
 		"runtime_stop":
 			result = _handle_runtime_stop()
-		"runtime_get_scene_tree", "runtime_get_node_info", "runtime_get_node_property", "runtime_watch_node", "runtime_get_ui_elements", "runtime_get_focus_owner", "runtime_get_viewport_info", "runtime_get_performance_metrics", "runtime_get_input_map", "runtime_get_groups", "runtime_input_key", "runtime_input_mouse", "runtime_input_gamepad", "runtime_input_action", "runtime_input_text", "runtime_input_state", "runtime_wait_for_condition", "runtime_click_ui_text", "runtime_click_ui_path":
+		"runtime_get_scene_tree", "runtime_get_node_info", "runtime_get_node_property", "runtime_watch_node", "runtime_get_ui_elements", "runtime_get_focus_owner", "runtime_get_viewport_info", "runtime_get_performance_metrics", "runtime_get_input_map", "runtime_get_groups", "runtime_input_key", "runtime_input_mouse", "runtime_input_gamepad", "runtime_input_action", "runtime_input_text", "runtime_input_state", "runtime_wait_for_condition", "runtime_click_ui_text", "runtime_click_ui_path", "runtime_assert_node_exists", "runtime_assert_property_equals", "runtime_assert_signal_emitted", "runtime_assert_ui_text_visible", "runtime_assert_no_errors", "runtime_snapshot_assertion_report":
 			result = await _handle_runtime_inspection(command, args)
 		"scene_current":
 			result = _handle_scene_current()

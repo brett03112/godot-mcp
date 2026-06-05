@@ -2,8 +2,14 @@ class_name GodotMCPLiveRuntimeBridge
 extends Node
 
 const MESSAGE_NAMESPACE := "godot_mcp"
+const MAX_ASSERTION_RECORDS := 100
+const MAX_RUNTIME_ERRORS := 100
 
 var _capture_registered := false
+var _assertion_records: Array[Dictionary] = []
+var _recent_runtime_errors: Array[Dictionary] = []
+var _signal_emissions := {}
+var _signal_watchers := {}
 
 
 func _ready() -> void:
@@ -115,6 +121,18 @@ func _handle_inspection_request(request: Dictionary) -> Dictionary:
 			data = _runtime_click_ui_text(args)
 		"runtime_click_ui_path":
 			data = _runtime_click_ui_path(args)
+		"runtime_assert_node_exists":
+			data = _runtime_assert_node_exists(args)
+		"runtime_assert_property_equals":
+			data = _runtime_assert_property_equals(args)
+		"runtime_assert_signal_emitted":
+			data = _runtime_assert_signal_emitted(args)
+		"runtime_assert_ui_text_visible":
+			data = _runtime_assert_ui_text_visible(args)
+		"runtime_assert_no_errors":
+			data = _runtime_assert_no_errors(args)
+		"runtime_snapshot_assertion_report":
+			data = _runtime_snapshot_assertion_report(args)
 		_:
 			return {
 				"ok": false,
@@ -531,6 +549,131 @@ func _runtime_click_ui_path(args: Dictionary) -> Dictionary:
 	return _click_control(node as Control, int(args.get("button_index", MOUSE_BUTTON_LEFT)))
 
 
+func _runtime_assert_node_exists(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", "."))
+	var node := _find_runtime_node(node_path)
+	var observed := {
+		"node_path": node_path,
+		"exists": node != null,
+	}
+	if node:
+		observed["resolved_path"] = _node_path(node)
+		observed["class"] = node.get_class()
+	return _assertion_record(
+		"node_exists",
+		node != null,
+		observed,
+		args,
+		"runtime_get_scene_tree" if not node else ""
+	)
+
+
+func _runtime_assert_property_equals(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", "."))
+	var property := str(args.get("property", ""))
+	var node := _find_runtime_node(node_path)
+	var observed = null
+	var passed := false
+	var suggestion := ""
+	if not node:
+		suggestion = "runtime_assert_node_exists"
+	elif property == "":
+		suggestion = "runtime_get_node_info"
+	else:
+		observed = _safe_get(node, property)
+		passed = observed == _serialize_variant(args.get("expected", null))
+		if not passed:
+			suggestion = "runtime_get_node_property"
+	return _assertion_record("property_equals", passed, observed, args, suggestion)
+
+
+func _runtime_assert_signal_emitted(args: Dictionary) -> Dictionary:
+	var node_path := str(args.get("node_path", ""))
+	var signal_name := str(args.get("signal_name", ""))
+	var min_count := maxi(1, int(args.get("min_count", 1)))
+	var node := _find_runtime_node(node_path)
+	if not node:
+		return _assertion_record("signal_emitted", false, {
+			"node_path": node_path,
+			"exists": false,
+		}, args, "runtime_assert_node_exists")
+	if signal_name == "" or not node.has_signal(StringName(signal_name)):
+		return _assertion_record("signal_emitted", false, {
+			"node_path": _node_path(node),
+			"signal_name": signal_name,
+			"signal_exists": false,
+		}, args, "runtime_get_node_info")
+
+	var track_result := _track_signal(node, signal_name)
+	var key := str(track_result.get("key", _signal_key(node, signal_name)))
+	var emissions: Array = _signal_emissions.get(key, [])
+	var since_unix := float(args.get("since_unix", 0.0))
+	var matching := []
+	for emission in emissions:
+		if typeof(emission) == TYPE_DICTIONARY and float(emission.get("unix", 0.0)) >= since_unix:
+			matching.append(emission)
+
+	var observed := {
+		"node_path": _node_path(node),
+		"signal_name": signal_name,
+		"count": matching.size(),
+		"min_count": min_count,
+		"tracking": track_result,
+		"emissions": matching,
+	}
+	return _assertion_record("signal_emitted", matching.size() >= min_count, observed, args, "runtime_click_ui_path")
+
+
+func _runtime_assert_ui_text_visible(args: Dictionary) -> Dictionary:
+	var text := str(args.get("text", ""))
+	var control := _find_ui_by_text(text, bool(args.get("exact", true)))
+	var observed = _control_summary(control) if control else {
+		"text": text,
+		"visible": false,
+	}
+	return _assertion_record("ui_text_visible", control != null, observed, args, "runtime_get_ui_elements")
+
+
+func _runtime_assert_no_errors(args: Dictionary) -> Dictionary:
+	var since_unix := float(args.get("since_unix", 0.0))
+	var include_warnings := bool(args.get("include_warnings", false))
+	var matching := []
+	for item in _recent_runtime_errors:
+		var level := str(item.get("level", "error"))
+		if float(item.get("unix", 0.0)) >= since_unix and (include_warnings or level != "warning"):
+			matching.append(item)
+	var observed := {
+		"count": matching.size(),
+		"errors": matching,
+	}
+	return _assertion_record("no_errors", matching.is_empty(), observed, args, "runtime_snapshot_assertion_report")
+
+
+func _runtime_snapshot_assertion_report(args: Dictionary) -> Dictionary:
+	var include_passed := bool(args.get("include_passed", true))
+	var limit := clampi(int(args.get("limit", 50)), 1, MAX_ASSERTION_RECORDS)
+	var filtered: Array[Dictionary] = []
+	var passed_count := 0
+	var failed_count := 0
+	for record in _assertion_records:
+		if bool(record.get("passed", false)):
+			passed_count += 1
+		else:
+			failed_count += 1
+		if include_passed or not bool(record.get("passed", false)):
+			filtered.append(record)
+	var start_index = maxi(0, filtered.size() - limit)
+	return {
+		"assertions": filtered.slice(start_index, filtered.size()),
+		"summary": {
+			"total": _assertion_records.size(),
+			"passed": passed_count,
+			"failed": failed_count,
+		},
+		"recent_errors": _recent_runtime_errors,
+	}
+
+
 func _current_scene_root() -> Node:
 	var tree := get_tree()
 	if not tree:
@@ -663,6 +806,59 @@ func _click_control(control: Control, button_index: int) -> Dictionary:
 		"position": _serialize_variant(center),
 		"button_index": button_index,
 	}
+
+
+func _assertion_record(assertion: String, passed: bool, observed, args: Dictionary, suggested_next_probe: String) -> Dictionary:
+	var record := {
+		"assertion": assertion,
+		"assertion_id": str(args.get("assertion_id", "")),
+		"passed": passed,
+		"observed": observed,
+		"suggested_next_probe": suggested_next_probe,
+		"unix": Time.get_unix_time_from_system(),
+	}
+	if args.has("expected"):
+		record["expected"] = _serialize_variant(args.get("expected"))
+	_assertion_records.append(record)
+	while _assertion_records.size() > MAX_ASSERTION_RECORDS:
+		_assertion_records.pop_front()
+	return record
+
+
+func _track_signal(node: Node, signal_name: String) -> Dictionary:
+	var key := _signal_key(node, signal_name)
+	if not _signal_emissions.has(key):
+		_signal_emissions[key] = []
+	if _signal_watchers.has(key):
+		return {
+			"key": key,
+			"connected": true,
+			"already_tracking": true,
+		}
+	var callable := Callable(self, "_record_signal_emitted").bind(key)
+	var error := node.connect(StringName(signal_name), callable)
+	var connected := error == OK or error == ERR_INVALID_PARAMETER
+	if connected:
+		_signal_watchers[key] = true
+	return {
+		"key": key,
+		"connected": connected,
+		"already_tracking": error == ERR_INVALID_PARAMETER,
+		"error_code": error,
+	}
+
+
+func _record_signal_emitted(key: String) -> void:
+	if not _signal_emissions.has(key):
+		_signal_emissions[key] = []
+	_signal_emissions[key].append({
+		"unix": Time.get_unix_time_from_system(),
+		"ticks_msec": Time.get_ticks_msec(),
+	})
+
+
+func _signal_key(node: Node, signal_name: String) -> String:
+	return "%s::%s" % [_node_path(node), signal_name]
 
 
 func _collect_groups(node: Node, groups: Dictionary) -> void:
@@ -916,4 +1112,13 @@ func _runtime_error_data(code: String, message: String, details: Dictionary = {}
 	}
 	for key in details.keys():
 		result["error"][key] = details[key]
+	_recent_runtime_errors.append({
+		"unix": Time.get_unix_time_from_system(),
+		"level": "error",
+		"code": code,
+		"message": message,
+		"details": details,
+	})
+	while _recent_runtime_errors.size() > MAX_RUNTIME_ERRORS:
+		_recent_runtime_errors.pop_front()
 	return result
