@@ -4,7 +4,7 @@
 
 **Goal:** Add the first runtime/debugger bridge slice so the live editor addon can see Godot play sessions and exchange a ping/pong message with the running game through Godot's debugger channel.
 
-**Status, 2026-06-05:** Completed with `runtime_ping`, `runtime_play_scene`, and `runtime_stop`; focused tests, full tests, Godot parse/runtime smokes, and a controlled live editor/runtime ping proof passed.
+**Status, 2026-06-05:** Completed with `runtime_ping`, `runtime_play_scene`, and `runtime_stop`; focused tests, full tests, Godot parse/runtime smokes, a controlled headless editor/runtime ping proof, and a GUI editor runtime ping proof after reload passed. Follow-up restart debugging added transport retry after port conflicts, status-triggered retry for recovered bind failures, lazy listener startup so the callable MCP process owns the live bridge, and stale runtime metadata guards; live runtime commands now require a fresh `godot_mcp:runtime_ready` before pinging.
 
 **Architecture:** Keep the existing WebSocket live bridge as the MCP-to-editor transport. Add a Godot `EditorDebuggerPlugin` script inside the live addon to track debugger sessions and capture `godot_mcp:*` runtime messages, plus a runtime autoload script that registers an `EngineDebugger` message capture and responds to pings. Expose the runtime/debugger status through `editor_state` and add narrow `runtime_ping`, `runtime_play_scene`, and `runtime_stop` MCP tools that forward through the existing live command envelope.
 

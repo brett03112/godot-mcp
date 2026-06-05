@@ -152,6 +152,10 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(debuggerBridge, /func _capture\(message: String, data: Array, session_id: int\) -> bool:/);
   assert.match(debuggerBridge, /func _setup_session\(session_id: int\) -> void:/);
   assert.match(debuggerBridge, /func send_ping\(args: Dictionary\) -> Dictionary:/);
+  assert.match(debuggerBridge, /func _runtime_ready_after_start\(record: Dictionary\) -> bool:/);
+  assert.match(debuggerBridge, /return _error\("runtime_not_ready"/);
+  assert.match(debuggerBridge, /record\["last_message_unix"\] < record\["started_unix"\]/);
+  assert.match(debuggerBridge, /record\["runtime"\] = {}/);
   assert.match(debuggerBridge, /send_message\("godot_mcp:ping"/);
 
   const runtimeBridge = await readFile(join(addonRoot, 'runtime_bridge.gd'), 'utf8');

@@ -70,8 +70,7 @@ import {
 } from './tools/live-editor.js';
 import { liveSessionManager } from './live/session-manager.js';
 import {
-  getLiveSessionTransportStatus,
-  startLiveSessionTransport,
+  ensureLiveSessionTransportStatus,
   stopLiveSessionTransport,
 } from './live/transport.js';
 
@@ -522,11 +521,6 @@ class GodotServer {
     // Set up tool handlers
     this.setupToolHandlers();
     this.setupResourceHandlers();
-    startLiveSessionTransport(liveSessionManager, {
-      sharedSecret: process.env.GODOT_MCP_LIVE_SECRET,
-      onError: (message) => console.error(`[LIVE] ${message}`),
-    });
-
     // Error handling
     this.server.onerror = (error) => console.error('[MCP Error]', error);
 
@@ -845,7 +839,10 @@ class GodotServer {
     registerNodeRefactorWorkflowTools(this.toolRegistry, ctx);
     registerLiveEditorTools(this.toolRegistry, {
       manager: liveSessionManager,
-      getTransportStatus: getLiveSessionTransportStatus,
+      getTransportStatus: () => ensureLiveSessionTransportStatus(liveSessionManager, {
+        sharedSecret: process.env.GODOT_MCP_LIVE_SECRET,
+        onError: (message) => console.error(`[LIVE] ${message}`),
+      }),
     });
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }

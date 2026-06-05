@@ -111,6 +111,15 @@ func send_ping(args: Dictionary) -> Dictionary:
 			"runtime_session_id": runtime_session_id,
 		})
 
+	var record: Dictionary = _sessions[runtime_session_id]
+	if not _runtime_ready_after_start(record):
+		return _error("runtime_not_ready", "The requested runtime debugger session is active, but the Godot MCP runtime bridge has not sent runtime_ready for the current play session.", {
+			"runtime_session_id": runtime_session_id,
+			"started_unix": record.get("started_unix", 0.0),
+			"last_message": record.get("last_message", ""),
+			"last_message_unix": record.get("last_message_unix", 0.0),
+		})
+
 	var roundtrip_id := str(args.get("roundtrip_id", ""))
 	if roundtrip_id == "":
 		roundtrip_id = "godot-mcp-ping-%s" % str(Time.get_ticks_msec())
@@ -124,7 +133,6 @@ func send_ping(args: Dictionary) -> Dictionary:
 		"pong": false,
 	}
 
-	var record: Dictionary = _sessions[runtime_session_id]
 	record["last_ping"] = _last_ping.duplicate(true)
 	session.send_message("godot_mcp:ping", [{
 		"roundtrip_id": roundtrip_id,
@@ -139,6 +147,7 @@ func _on_session_started(session_id: int) -> void:
 	record["state"] = "running"
 	record["active"] = true
 	record["started_unix"] = Time.get_unix_time_from_system()
+	_clear_runtime_record(record)
 	_active_session_id = session_id
 
 
@@ -150,6 +159,7 @@ func _on_session_stopped(session_id: int) -> void:
 	record["state"] = "stopped"
 	record["active"] = false
 	record["stopped_unix"] = Time.get_unix_time_from_system()
+	_clear_runtime_record(record)
 	if _active_session_id == session_id:
 		_active_session_id = _find_active_session_id()
 
@@ -180,6 +190,30 @@ func _find_active_session_id() -> int:
 		if session and session.is_active():
 			return int(session_id)
 	return -1
+
+
+func _runtime_ready_after_start(record: Dictionary) -> bool:
+	if str(record.get("last_message", "")) != "%s:runtime_ready" % MESSAGE_NAMESPACE:
+		return false
+	if typeof(record.get("runtime", {})) != TYPE_DICTIONARY:
+		return false
+	var runtime: Dictionary = record.get("runtime", {})
+	if runtime.is_empty():
+		return false
+	if float(record.get("last_message_unix", 0.0)) <= 0.0:
+		return false
+	if float(record.get("started_unix", 0.0)) > 0.0 and record["last_message_unix"] < record["started_unix"]:
+		return false
+	return true
+
+
+func _clear_runtime_record(record: Dictionary) -> void:
+	record["last_message"] = ""
+	record["last_message_data"] = []
+	record["last_message_unix"] = 0.0
+	record["last_ping"] = {}
+	record["runtime"] = {}
+	_last_ping = {}
 
 
 func _ensure_session(session_id: int) -> Dictionary:

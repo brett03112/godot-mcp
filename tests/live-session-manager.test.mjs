@@ -9,7 +9,13 @@ import WebSocket from 'ws';
 import { ToolRegistry } from '../build/registry.js';
 import { registerLiveEditorTools } from '../build/tools/live-editor.js';
 import { LiveSessionManager } from '../build/live/session-manager.js';
-import { LiveSessionTransport } from '../build/live/transport.js';
+import {
+  ensureLiveSessionTransportStatus,
+  getLiveSessionTransportStatus,
+  LiveSessionTransport,
+  startLiveSessionTransport,
+  stopLiveSessionTransport,
+} from '../build/live/transport.js';
 
 function parseResponse(response) {
   assert.equal(response.content.length, 1);
@@ -195,6 +201,106 @@ test('live transport accepts a loopback websocket hello payload', async () => {
   });
 });
 
+test('live transport retries after an address-in-use startup failure', async () => {
+  await withProject(async (projectPath) => {
+    const port = await getFreePort();
+    const blocker = createServer();
+    await listenOnPort(blocker, port);
+
+    const manager = new LiveSessionManager({ now: () => 6000 });
+    const transport = new LiveSessionTransport(manager, { port });
+    transport.start();
+
+    try {
+      await waitForCondition(() => {
+        const status = transport.getStatus();
+        return status.running === false && status.lastError?.includes('EADDRINUSE');
+      });
+
+      await closeServer(blocker);
+
+      transport.start();
+      const client = new WebSocket(`ws://127.0.0.1:${port}/godot-mcp-live`);
+      try {
+        await waitForEvent(client, 'open');
+        client.send(JSON.stringify(hello(projectPath, { session_id: 'retry-session' })));
+        await waitForCondition(() => manager.listSessions().length === 1);
+
+        const sessions = manager.listSessions();
+        assert.equal(sessions[0].sessionId, 'retry-session');
+        assert.equal(transport.getStatus().running, true);
+        assert.equal(transport.getStatus().lastError, null);
+      } finally {
+        client.close();
+      }
+    } finally {
+      await closeServer(blocker);
+      transport.stop();
+    }
+  });
+});
+
+test('live transport singleton status retries after a cleared startup bind failure', async () => {
+  await withProject(async (projectPath) => {
+    stopLiveSessionTransport();
+    const port = await getFreePort();
+    const blocker = createServer();
+    await listenOnPort(blocker, port);
+    const manager = new LiveSessionManager({ now: () => 7000 });
+
+    try {
+      startLiveSessionTransport(manager, { port });
+      await waitForCondition(() => {
+        const status = getLiveSessionTransportStatus();
+        return status.running === false && status.lastError?.includes('EADDRINUSE');
+      });
+
+      await closeServer(blocker);
+      await waitForCondition(() => getLiveSessionTransportStatus().running === true);
+
+      const client = new WebSocket(`ws://127.0.0.1:${port}/godot-mcp-live`);
+      try {
+        await waitForEvent(client, 'open');
+        client.send(JSON.stringify(hello(projectPath, { session_id: 'singleton-retry-session' })));
+        await waitForCondition(() => manager.listSessions().length === 1);
+
+        assert.equal(manager.listSessions()[0].sessionId, 'singleton-retry-session');
+        assert.equal(getLiveSessionTransportStatus().lastError, null);
+      } finally {
+        client.close();
+      }
+    } finally {
+      await closeServer(blocker);
+      stopLiveSessionTransport();
+    }
+  });
+});
+
+test('live transport singleton can start lazily from status helper', async () => {
+  await withProject(async (projectPath) => {
+    stopLiveSessionTransport();
+    const port = await getFreePort();
+    const manager = new LiveSessionManager({ now: () => 8000 });
+
+    try {
+      await waitForCondition(() => ensureLiveSessionTransportStatus(manager, { port }).running === true);
+
+      const client = new WebSocket(`ws://127.0.0.1:${port}/godot-mcp-live`);
+      try {
+        await waitForEvent(client, 'open');
+        client.send(JSON.stringify(hello(projectPath, { session_id: 'lazy-status-session' })));
+        await waitForCondition(() => manager.listSessions().length === 1);
+
+        assert.equal(manager.listSessions()[0].sessionId, 'lazy-status-session');
+      } finally {
+        client.close();
+      }
+    } finally {
+      stopLiveSessionTransport();
+    }
+  });
+});
+
 function getFreePort() {
   return new Promise((resolvePort, reject) => {
     const server = createServer();
@@ -208,6 +314,23 @@ function getFreePort() {
       server.close(() => resolvePort(port));
     });
     server.on('error', reject);
+  });
+}
+
+function listenOnPort(server, port) {
+  return new Promise((resolveListen, reject) => {
+    server.listen(port, '127.0.0.1', resolveListen);
+    server.on('error', reject);
+  });
+}
+
+function closeServer(server) {
+  return new Promise((resolveClose) => {
+    if (!server.listening) {
+      resolveClose();
+      return;
+    }
+    server.close(resolveClose);
   });
 }
 
