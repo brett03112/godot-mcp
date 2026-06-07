@@ -133,6 +133,8 @@ func _handle_inspection_request(request: Dictionary) -> Dictionary:
 			data = _runtime_assert_no_errors(args)
 		"runtime_snapshot_assertion_report":
 			data = _runtime_snapshot_assertion_report(args)
+		"game_eval":
+			data = _game_eval(args)
 		_:
 			return {
 				"ok": false,
@@ -146,6 +148,39 @@ func _handle_inspection_request(request: Dictionary) -> Dictionary:
 		"request_id": request_id,
 		"command": command,
 		"data": data,
+	}
+
+
+func _game_eval(args: Dictionary) -> Dictionary:
+	var code := str(args.get("code", ""))
+	if code.strip_edges() == "":
+		return _runtime_error_data("eval_code_required", "code is required.")
+	if code.length() > 2000:
+		return _runtime_error_data("eval_code_too_long", "Eval code must be 2000 characters or fewer.", {
+			"code_length": code.length(),
+		})
+
+	var expression := Expression.new()
+	var parse_error := expression.parse(code, [])
+	if parse_error != OK:
+		return _runtime_error_data("eval_parse_error", expression.get_error_text(), {
+			"error_code": parse_error,
+		})
+
+	var started := Time.get_ticks_msec()
+	var result = expression.execute([], null, false)
+	var elapsed_ms := int(Time.get_ticks_msec() - started)
+	if expression.has_execute_failed():
+		return _runtime_error_data("eval_execute_error", "Expression execution failed.", {
+			"elapsed_ms": elapsed_ms,
+		})
+
+	return {
+		"result": _serialize_variant(result),
+		"result_type": _variant_type_name(result),
+		"elapsed_ms": elapsed_ms,
+		"context": "game",
+		"scene": _current_scene_path(),
 	}
 
 
@@ -1101,6 +1136,32 @@ func _serialize_variant(value):
 			return {"type": value.get_class(), "value": str(value)}
 		_:
 			return str(value)
+
+
+func _variant_type_name(value) -> String:
+	match typeof(value):
+		TYPE_NIL:
+			return "nil"
+		TYPE_BOOL:
+			return "bool"
+		TYPE_INT:
+			return "int"
+		TYPE_FLOAT:
+			return "float"
+		TYPE_STRING:
+			return "String"
+		TYPE_STRING_NAME:
+			return "StringName"
+		TYPE_NODE_PATH:
+			return "NodePath"
+		TYPE_ARRAY:
+			return "Array"
+		TYPE_DICTIONARY:
+			return "Dictionary"
+		TYPE_OBJECT:
+			return value.get_class() if value else "Object"
+		_:
+			return str(typeof(value))
 
 
 func _runtime_error_data(code: String, message: String, details: Dictionary = {}) -> Dictionary:

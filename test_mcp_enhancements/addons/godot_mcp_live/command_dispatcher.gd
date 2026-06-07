@@ -37,7 +37,9 @@ func handle_message(message: Dictionary) -> Dictionary:
 			result = _handle_runtime_play_scene(args)
 		"runtime_stop":
 			result = _handle_runtime_stop()
-		"runtime_get_scene_tree", "runtime_get_node_info", "runtime_get_node_property", "runtime_watch_node", "runtime_get_ui_elements", "runtime_get_focus_owner", "runtime_get_viewport_info", "runtime_get_performance_metrics", "runtime_get_input_map", "runtime_get_groups", "runtime_input_key", "runtime_input_mouse", "runtime_input_gamepad", "runtime_input_action", "runtime_input_text", "runtime_input_state", "runtime_wait_for_condition", "runtime_click_ui_text", "runtime_click_ui_path", "runtime_assert_node_exists", "runtime_assert_property_equals", "runtime_assert_signal_emitted", "runtime_assert_ui_text_visible", "runtime_assert_no_errors", "runtime_snapshot_assertion_report":
+		"editor_eval":
+			result = _handle_editor_eval(args)
+		"game_eval", "runtime_get_scene_tree", "runtime_get_node_info", "runtime_get_node_property", "runtime_watch_node", "runtime_get_ui_elements", "runtime_get_focus_owner", "runtime_get_viewport_info", "runtime_get_performance_metrics", "runtime_get_input_map", "runtime_get_groups", "runtime_input_key", "runtime_input_mouse", "runtime_input_gamepad", "runtime_input_action", "runtime_input_text", "runtime_input_state", "runtime_wait_for_condition", "runtime_click_ui_text", "runtime_click_ui_path", "runtime_assert_node_exists", "runtime_assert_property_equals", "runtime_assert_signal_emitted", "runtime_assert_ui_text_visible", "runtime_assert_no_errors", "runtime_snapshot_assertion_report":
 			result = await _handle_runtime_inspection(command, args)
 		"scene_current":
 			result = _handle_scene_current()
@@ -187,6 +189,38 @@ func _handle_runtime_inspection(command: String, args: Dictionary) -> Dictionary
 	return await _debugger_bridge.send_inspection_request({
 		"command": command,
 		"args": args,
+	})
+
+
+func _handle_editor_eval(args: Dictionary) -> Dictionary:
+	var code := str(args.get("code", ""))
+	if code.strip_edges() == "":
+		return _error("eval_code_required", "code is required.")
+	if code.length() > 2000:
+		return _error("eval_code_too_long", "Eval code must be 2000 characters or fewer.", {
+			"code_length": code.length(),
+		})
+
+	var expression := Expression.new()
+	var parse_error := expression.parse(code, [])
+	if parse_error != OK:
+		return _error("eval_parse_error", expression.get_error_text(), {
+			"error_code": parse_error,
+		})
+
+	var started := Time.get_ticks_msec()
+	var result = expression.execute([], null, false)
+	var elapsed_ms := int(Time.get_ticks_msec() - started)
+	if expression.has_execute_failed():
+		return _error("eval_execute_error", "Expression execution failed.", {
+			"elapsed_ms": elapsed_ms,
+		})
+
+	return _ok({
+		"result": _serialize_variant(result),
+		"result_type": _variant_type_name(result),
+		"elapsed_ms": elapsed_ms,
+		"context": "editor",
 	})
 
 
@@ -1262,6 +1296,32 @@ func _serialize_variant(value):
 			}
 		_:
 			return str(value)
+
+
+func _variant_type_name(value) -> String:
+	match typeof(value):
+		TYPE_NIL:
+			return "nil"
+		TYPE_BOOL:
+			return "bool"
+		TYPE_INT:
+			return "int"
+		TYPE_FLOAT:
+			return "float"
+		TYPE_STRING:
+			return "String"
+		TYPE_STRING_NAME:
+			return "StringName"
+		TYPE_NODE_PATH:
+			return "NodePath"
+		TYPE_ARRAY:
+			return "Array"
+		TYPE_DICTIONARY:
+			return "Dictionary"
+		TYPE_OBJECT:
+			return value.get_class() if value else "Object"
+		_:
+			return str(typeof(value))
 
 
 func _mark_scene_dirty(root: Node = null) -> void:

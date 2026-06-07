@@ -1,5 +1,8 @@
 import { ToolRegistry } from '../registry.js';
 import { ToolDefinition, ToolResponse } from '../types.js';
+import { createHash } from 'crypto';
+import { appendFile, mkdir } from 'fs/promises';
+import { dirname, join } from 'path';
 import {
   LiveCommandResult,
   LiveSessionManager,
@@ -11,6 +14,7 @@ import {
 export type LiveEditorToolOptions = {
   manager?: LiveSessionManager;
   getTransportStatus?: () => Record<string, unknown>;
+  evalConfig?: Partial<LiveEvalConfig>;
 };
 
 type LiveToolConfig = {
@@ -20,6 +24,13 @@ type LiveToolConfig = {
   properties?: Record<string, unknown>;
   required?: string[];
   timeout?: number;
+};
+
+type LiveEvalConfig = {
+  enabled: boolean;
+  approvalToken?: string;
+  projectPath?: string;
+  auditLogPath: string;
 };
 
 const LIVE_RESOURCE_DESCRIPTORS = [
@@ -63,6 +74,15 @@ const LIVE_RESOURCE_DESCRIPTORS = [
 
 export function registerLiveEditorTools(registry: ToolRegistry, options: LiveEditorToolOptions = {}): void {
   const manager = options.manager || liveSessionManager;
+  const evalConfig = resolveEvalConfig(options.evalConfig);
+  const tools: ToolDefinition[] = [
+    liveEvalStatus(manager, evalConfig),
+  ];
+  if (evalConfig.enabled) {
+    tools.push(evalTool(manager, evalConfig, 'editor_eval', 'Evaluate a harmless Godot Expression in the live editor after explicit MCP eval approval.'));
+    tools.push(evalTool(manager, evalConfig, 'game_eval', 'Evaluate a harmless Godot Expression in the running game after explicit MCP eval approval.'));
+  }
+  registry.registerAll(tools);
   registry.registerAll([
     editorState(manager),
     sessionList(manager, options.getTransportStatus),
@@ -724,6 +744,123 @@ export async function readLiveResource(uri: string, manager: LiveSessionManager 
   return serializeCommandResult(result);
 }
 
+function liveEvalStatus(manager: LiveSessionManager, evalConfig: LiveEvalConfig): ToolDefinition {
+  return {
+    name: 'live_eval_status',
+    description: 'Report whether live editor/game eval is enabled and what safety gates are required.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_path: { type: 'string', description: 'Optional project path to check against connected live sessions.' },
+      },
+    },
+    handler: async (rawArgs: any) => {
+      const args = normalizeArgs(rawArgs || {});
+      const sessions = manager.listSessions(args.projectPath);
+      return jsonResponse({
+        status: 'success',
+        eval: {
+          enabled: evalConfig.enabled,
+          reason: evalConfig.enabled ? 'Eval is explicitly enabled by MCP config.' : 'Eval is disabled by default. Set GODOT_MCP_ENABLE_EVAL=true in MCP config to expose eval tools.',
+          tools_registered: evalConfig.enabled ? ['game_eval', 'editor_eval'] : [],
+          loopback_required: true,
+          approval_token_required: Boolean(evalConfig.approvalToken),
+          configured_project_path: evalConfig.projectPath ? normalizeProjectPath(evalConfig.projectPath) : null,
+          audit_log_path: evalConfig.auditLogPath,
+        },
+        sessions: sessions.map(serializeSession),
+      });
+    },
+  };
+}
+
+function evalTool(manager: LiveSessionManager, evalConfig: LiveEvalConfig, toolName: 'game_eval' | 'editor_eval', description: string): ToolDefinition {
+  return {
+    name: toolName,
+    description,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        session_id: { type: 'string', description: 'Specific live editor session ID to target.' },
+        project_path: { type: 'string', description: 'Required project path gate for the target live session.' },
+        timeout_ms: { type: 'number', description: 'Command timeout in milliseconds.' },
+        code: { type: 'string', description: 'Godot Expression text to evaluate.' },
+        reason: { type: 'string', description: 'Caller-visible reason for this eval request. Written to the audit log.' },
+        approval_token: { type: 'string', description: 'Optional per-session approval token when MCP config requires one.' },
+      },
+      required: ['code', 'reason'],
+    },
+    timeout: 10000,
+    handler: async (rawArgs: any) => {
+      const args = normalizeArgs(rawArgs || {});
+      const code = String(args.code ?? '');
+      const callerReason = String(args.reason ?? '');
+      const auditBase = {
+        tool: toolName,
+        session_id: args.sessionId ?? null,
+        project_path: args.projectPath ? normalizeProjectPath(args.projectPath) : null,
+        code_hash: hashCode(code),
+        code_length: code.length,
+        caller_reason: callerReason,
+      };
+
+      if (!evalConfig.enabled) {
+        await writeEvalAudit(evalConfig, { ...auditBase, decision: 'refused', reason: 'eval_disabled' });
+        return failure('eval_disabled');
+      }
+      if (code.trim() === '') {
+        await writeEvalAudit(evalConfig, { ...auditBase, decision: 'refused', reason: 'eval_code_required' });
+        return failure('eval_code_required');
+      }
+      if (callerReason.trim() === '') {
+        await writeEvalAudit(evalConfig, { ...auditBase, decision: 'refused', reason: 'eval_reason_required' });
+        return failure('eval_reason_required');
+      }
+      if (evalConfig.approvalToken && String(args.approvalToken ?? args.approval_token ?? '') !== evalConfig.approvalToken) {
+        await writeEvalAudit(evalConfig, { ...auditBase, decision: 'refused', reason: 'eval_approval_token_mismatch' });
+        return failure('eval_approval_token_mismatch');
+      }
+
+      let session: LiveSessionRecord;
+      try {
+        session = manager.resolveTargetSession({
+          sessionId: args.sessionId,
+          projectPath: args.projectPath,
+        });
+      } catch (error: any) {
+        await writeEvalAudit(evalConfig, { ...auditBase, decision: 'refused', reason: 'eval_session_unavailable', detail: error?.message || String(error) });
+        return failure('eval_session_unavailable');
+      }
+
+      if (!isLoopbackAddress(session.remoteAddress)) {
+        await writeEvalAudit(evalConfig, { ...auditBase, session_id: session.sessionId, decision: 'refused', reason: 'eval_requires_loopback', remote_address: session.remoteAddress });
+        return failure('eval_requires_loopback');
+      }
+
+      if (evalConfig.projectPath && session.projectPath !== normalizeProjectPath(evalConfig.projectPath)) {
+        await writeEvalAudit(evalConfig, { ...auditBase, session_id: session.sessionId, decision: 'refused', reason: 'eval_project_path_not_allowed', session_project_path: session.projectPath });
+        return failure('eval_project_path_not_allowed');
+      }
+
+      await writeEvalAudit(evalConfig, { ...auditBase, session_id: session.sessionId, decision: 'accepted', reason: 'accepted' });
+      try {
+        const outboundArgs = commandArgs(args);
+        delete outboundArgs.approval_token;
+        delete outboundArgs.approvalToken;
+        const result = await manager.sendCommand(toolName, outboundArgs, {
+          sessionId: session.sessionId,
+          projectPath: session.projectPath,
+          timeoutMs: args.timeoutMs || 10000,
+        });
+        return jsonResponse(serializeCommandResult(result));
+      } catch (error: any) {
+        await writeEvalAudit(evalConfig, { ...auditBase, session_id: session.sessionId, decision: 'failed', reason: 'eval_command_failed', detail: error?.message || String(error) });
+        return failure(error?.message || String(error));
+      }
+    },
+  };
+}
+
 function editorState(manager: LiveSessionManager): ToolDefinition {
   return liveCommandTool(manager, {
     name: 'editor_state',
@@ -896,6 +1033,38 @@ function commandArgs(args: any): Record<string, unknown> {
     result.project_path = args.normalizedProjectPath;
   }
   return result;
+}
+
+function resolveEvalConfig(overrides: Partial<LiveEvalConfig> = {}): LiveEvalConfig {
+  const enabled = overrides.enabled ?? ['1', 'true', 'yes', 'on'].includes(String(process.env.GODOT_MCP_ENABLE_EVAL || '').toLowerCase());
+  const approvalToken = overrides.approvalToken ?? process.env.GODOT_MCP_EVAL_APPROVAL_TOKEN;
+  const projectPath = overrides.projectPath ?? process.env.GODOT_MCP_EVAL_PROJECT_PATH;
+  const auditLogPath = overrides.auditLogPath ?? process.env.GODOT_MCP_EVAL_AUDIT_LOG ?? join(process.cwd(), '.mcp_logs', 'live_eval_audit.jsonl');
+  return {
+    enabled,
+    approvalToken: approvalToken || undefined,
+    projectPath: projectPath || undefined,
+    auditLogPath,
+  };
+}
+
+function hashCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
+function isLoopbackAddress(remoteAddress: string | null | undefined): boolean {
+  if (!remoteAddress) return false;
+  const normalized = remoteAddress.toLowerCase();
+  return normalized === '127.0.0.1' || normalized === '::1' || normalized === '::ffff:127.0.0.1' || normalized === 'localhost';
+}
+
+async function writeEvalAudit(evalConfig: LiveEvalConfig, entry: Record<string, unknown>): Promise<void> {
+  const payload = {
+    timestamp_unix_ms: Date.now(),
+    ...entry,
+  };
+  await mkdir(dirname(evalConfig.auditLogPath), { recursive: true });
+  await appendFile(evalConfig.auditLogPath, `${JSON.stringify(payload)}\n`, 'utf8');
 }
 
 function failure(reason: string): ToolResponse {

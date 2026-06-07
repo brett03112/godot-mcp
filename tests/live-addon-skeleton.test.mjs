@@ -89,7 +89,11 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(dispatcher, /"runtime_stop"/);
   assert.match(dispatcher, /func _handle_runtime_stop\(\) -> Dictionary:/);
   assert.match(dispatcher, /editor\.stop_playing_scene\(\)/);
+  assert.match(dispatcher, /"editor_eval"/);
+  assert.match(dispatcher, /func _handle_editor_eval\(args: Dictionary\) -> Dictionary:/);
+  assert.match(dispatcher, /Expression\.new\(\)/);
   for (const commandName of [
+    'game_eval',
     'runtime_get_scene_tree',
     'runtime_get_node_info',
     'runtime_get_node_property',
@@ -200,6 +204,9 @@ test('live addon collaborators expose the live editor command contract', async (
   assert.match(runtimeBridge, /EngineDebugger\.send_message\("godot_mcp:pong"/);
   assert.match(runtimeBridge, /EngineDebugger\.send_message\("godot_mcp:inspection_result"/);
   assert.match(runtimeBridge, /func _handle_inspection_request\(request: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /"game_eval"/);
+  assert.match(runtimeBridge, /func _game_eval\(args: Dictionary\) -> Dictionary:/);
+  assert.match(runtimeBridge, /Expression\.new\(\)/);
   assert.match(runtimeBridge, /func _runtime_scene_tree\(args: Dictionary\) -> Dictionary:/);
   assert.match(runtimeBridge, /func _runtime_node_info\(args: Dictionary\) -> Dictionary:/);
   assert.match(runtimeBridge, /func _runtime_ui_elements\(args: Dictionary\) -> Dictionary:/);

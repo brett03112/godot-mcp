@@ -479,22 +479,24 @@ Verification note, 2026-06-05: Phase 3.4 added an implementation plan at `docs/s
 
 ### 3.5 Add Safe Eval, Gated And Disabled By Default
 
-- [ ] Add `live_eval_status`.
-- [ ] Add `game_eval` only if explicitly enabled in MCP config.
-- [ ] Add `editor_eval` only if explicitly enabled in MCP config.
-- [ ] Require:
+- [x] Add `live_eval_status`.
+- [x] Add `game_eval` only if explicitly enabled in MCP config.
+- [x] Add `editor_eval` only if explicitly enabled in MCP config.
+- [x] Require:
   - local loopback connection
   - matching project path
   - explicit config flag
   - optional per-session approval token
-- [ ] Return clear refusal when eval is disabled.
-- [ ] Log all eval calls with timestamp, session, code hash, and caller-visible reason.
+- [x] Return clear refusal when eval is disabled.
+- [x] Log all eval calls with timestamp, session, code hash, and caller-visible reason.
 
 Acceptance:
 
-- [ ] Eval is disabled by default.
-- [ ] Disabled eval returns a safe error.
-- [ ] Enabled eval can run a harmless expression in a disposable test project.
+- [x] Eval is disabled by default.
+- [x] Disabled eval returns a safe error.
+- [x] Enabled eval can run a harmless expression in a disposable test project.
+
+Verification note, 2026-06-07: Phase 3.5 added `docs/superpowers/plans/2026-06-07-phase-3-5-safe-eval.md`, focused RED tests in `tests/live-safe-eval.test.mjs`, `live_eval_status`, and gated `editor_eval`/`game_eval` registration in `src/tools/live-editor.ts`. Eval tools are absent unless `GODOT_MCP_ENABLE_EVAL=true` is present in MCP env/config; enabled calls require loopback, project-path match, optional `GODOT_MCP_EVAL_APPROVAL_TOKEN`, caller `reason`, and write JSONL audit records with timestamp, session, SHA-256 code hash, decision, and reason. Context7/Godot 4.6 docs were used for `Expression.parse()` and `Expression.execute()`. RED failed for missing `live_eval_status`, `editor_eval`, and `game_eval`; GREEN focused `npm run build && node --test tests/live-safe-eval.test.mjs tests/live-addon-skeleton.test.mjs` passed 7/7, broader live runtime regression passed 33/33, and `npm test` passed 88/88. Godot 4.6.3 headless editor and runtime smokes exited 0 with no `SCRIPT ERROR` or `ERROR:` matches. `.mcp.json` live proof confirmed default eval state listed 241 tools with `live_eval_status` present and both eval tools absent; enabled proof listed 243 tools, used approval token `phase35-live-proof`, connected fresh headless editor session `godot-mcp-1780859465720-855073` PID 17008, ran `editor_eval` result `2`, started `res://tier1_test_scene.tscn`, waited for `runtime_ready`, ran `game_eval` result `5`, stopped runtime, and verified accepted audit entries with 64-character code hashes. The already-open GUI editor PID 14012 still had the old addon loaded during the first enabled proof, so reload Godot before using Phase 3.5 eval from that GUI session.
 
 ## Phase 4 - Autonomous Development Tooling Beyond The Live Bridge
 
