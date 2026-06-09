@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **116 tools** across 30 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **271 tools** across 30 categories plus **118 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (116 tools)
+## Tool Reference (271 tools)
 
 ### Project Management (7 tools)
 
@@ -243,12 +243,23 @@ create_material_from_texture(
 )
 ```
 
-### Testing & QA (2 tools)
+### Testing & QA (13 tools)
 
 | Tool | Description |
 | ------ | ------------- |
 | `create_test_suite` | Create GUT test files with test cases, assertions, and setup/teardown hooks |
 | `run_tests` | Execute GUT tests headlessly and return structured pass/fail results |
+| `gut_install_or_update` | Detect, install, or update the GUT addon while preserving existing installations by default |
+| `gut_discover_tests` | Discover GUT test scripts and `test_*` methods |
+| `gut_run_test_file` | Run a single GUT test file or return the exact command in dry-run mode |
+| `gut_run_changed_tests` | Select and run GUT tests related to changed project files |
+| `gut_run_with_coverage` | Report coverage-tool availability and return a GUT/JUnit fallback command when no coverage tool is present |
+| `gdunit4_install_or_update` | Detect, install, or update the gdUnit4 addon while preserving existing installations by default |
+| `gdunit4_run_tests` | Run gdUnit4 tests or return the planned command in dry-run mode |
+| `gdunit4_discover_tests` | Discover gdUnit4-style test scripts and methods |
+| `gdunit4_generate_test` | Generate a gdUnit4 `GdUnitTestSuite` template for a source script |
+| `test_watch_plan` | Recommend which Godot and Node tests to run for changed files |
+| `failure_to_patch_plan` | Map failure output to likely source files, test files, and next commands |
 
 ### Asset Import & Configuration (4 tools)
 
@@ -709,6 +720,17 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/create_shader_material` - Create shader code and material resources from custom code or templates.
 - `godot-mcp://tools/create_test_suite` - Generate a GUT test script with test methods.
 - `godot-mcp://tools/run_tests` - Execute GUT tests headlessly and parse pass/fail/error details.
+- `godot-mcp://tools/gut_install_or_update` - Detect, install, or update the GUT addon while preserving existing installations by default.
+- `godot-mcp://tools/gut_discover_tests` - Discover GUT test files and test methods.
+- `godot-mcp://tools/gut_run_test_file` - Run one GUT test file or return the command in dry-run mode.
+- `godot-mcp://tools/gut_run_changed_tests` - Select and run GUT tests related to changed files.
+- `godot-mcp://tools/gut_run_with_coverage` - Report GUT coverage availability and return a JUnit fallback command when no coverage tool is present.
+- `godot-mcp://tools/gdunit4_install_or_update` - Detect, install, or update the gdUnit4 addon while preserving existing installations by default.
+- `godot-mcp://tools/gdunit4_run_tests` - Run gdUnit4 tests or return the planned command in dry-run mode.
+- `godot-mcp://tools/gdunit4_discover_tests` - Discover gdUnit4-style test files and methods.
+- `godot-mcp://tools/gdunit4_generate_test` - Generate a gdUnit4 `GdUnitTestSuite` template for a source script.
+- `godot-mcp://tools/test_watch_plan` - Recommend which tests to run after changed files.
+- `godot-mcp://tools/failure_to_patch_plan` - Map failure output to likely source files, test files, and next commands.
 - `godot-mcp://tools/import_texture` - Configure texture import settings such as filtering, mipmaps, and compression.
 - `godot-mcp://tools/import_audio` - Configure audio import settings such as looping, BPM, and compression.
 - `godot-mcp://tools/import_3d_model` - Configure 3D model import settings for collision, materials, animation, and scale.

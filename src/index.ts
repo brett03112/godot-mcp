@@ -65,6 +65,7 @@ import { registerAudioPlayerWorkflowTools } from './tools/audio-player-workflow.
 import { registerNodeRefactorWorkflowTools } from './tools/node-refactor-workflow.js';
 import { registerDesignToSceneTools } from './tools/design-to-scene.js';
 import { registerGameplaySystemTools } from './tools/gameplay-systems.js';
+import { registerTestToolingTools } from './tools/test-tooling.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -213,6 +214,15 @@ class GodotServer {
     'setup_code': 'setupCode',
     'teardown_code': 'teardownCode',
     'test_dir': 'testDir',
+    'test_file': 'testFile',
+    'changed_files': 'changedFiles',
+    'failure_output': 'failureOutput',
+    'source_path': 'sourcePath',
+    'test_name': 'testName',
+    'include_junit': 'includeJunit',
+    'junit_output_path': 'junitOutputPath',
+    'exit_on_finish': 'exitOnFinish',
+    'allow_network_install': 'allowNetworkInstall',
     'exclude_virtual': 'excludeVirtual',
     'base_class': 'baseClass',
     'methods_to_mock': 'methodsToMock',
@@ -841,6 +851,7 @@ class GodotServer {
     registerNodeRefactorWorkflowTools(this.toolRegistry, ctx);
     registerDesignToSceneTools(this.toolRegistry, ctx);
     registerGameplaySystemTools(this.toolRegistry, ctx);
+    registerTestToolingTools(this.toolRegistry, ctx);
     registerLiveEditorTools(this.toolRegistry, {
       manager: liveSessionManager,
       getTransportStatus: () => ensureLiveSessionTransportStatus(liveSessionManager, {

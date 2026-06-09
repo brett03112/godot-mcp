@@ -547,24 +547,26 @@ Verification note, 2026-06-09: Phase 4.2 added `docs/superpowers/plans/2026-06-0
 
 ### 4.3 Add Test Tooling Expansion
 
-- [ ] Keep existing GUT support.
-- [ ] Add `gut_install_or_update`.
-- [ ] Add `gut_discover_tests`.
-- [ ] Add `gut_run_test_file`.
-- [ ] Add `gut_run_changed_tests`.
-- [ ] Add `gut_run_with_coverage` if coverage tooling is available.
-- [ ] Research and optionally add gdUnit4 support:
+- [x] Keep existing GUT support.
+- [x] Add `gut_install_or_update`.
+- [x] Add `gut_discover_tests`.
+- [x] Add `gut_run_test_file`.
+- [x] Add `gut_run_changed_tests`.
+- [x] Add `gut_run_with_coverage` if coverage tooling is available.
+- [x] Research and optionally add gdUnit4 support:
   - `gdunit4_install_or_update`
   - `gdunit4_run_tests`
   - `gdunit4_discover_tests`
   - `gdunit4_generate_test`
-- [ ] Add `test_watch_plan` to recommend which tests to run after changed files.
-- [ ] Add `failure_to_patch_plan` to map failing tests to likely files/nodes.
+- [x] Add `test_watch_plan` to recommend which tests to run after changed files.
+- [x] Add `failure_to_patch_plan` to map failing tests to likely files/nodes.
 
 Research basis:
 
 - GUT command-line testing is already supported in this repo.
 - gdUnit4 is a mature alternative with modern Godot 4 support and could be useful for users who prefer that ecosystem.
+
+Verification note, 2026-06-09: Phase 4.3 added `docs/superpowers/plans/2026-06-09-phase-4-3-test-tooling.md`, focused RED/GREEN tests in `tests/test-tooling.test.mjs`, modular tooling in `src/tools/test-tooling.ts`, registration and parameter mappings in `src/index.ts`, README tool-surface updates, and `test_mcp_enhancements/phase43_live_proof.mjs`. Context7 docs were used for current GUT CLI flags (`addons/gut/gut_cmdln.gd`, `-gdir`, `-gtest`, `-gexit`, JUnit XML output) and gdUnit4 runner/install conventions. RED first failed with missing `build/tools/test-tooling.js`; a live GUT proof then found a false failure where GUT reported `1/1 passed` but emitted a runner-side GUT loader `SCRIPT ERROR`, so `parseTestRunnerOutput` now records runner warnings without turning an all-passing exit-0 run into a failed test result. Focused `npm run build; node --test tests/test-tooling.test.mjs` passed 5/5, final `npm test` passed 107/107, Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches, and `node test_mcp_enhancements/phase43_live_proof.mjs` listed 271 tools, found all 11 Phase 4.3 tools, detected GUT 9.5.0, discovered 8 GUT test files / 11 tests, executed `test/unit/test_example.gd` through real GUT with exit 0, dry-ran changed-test selection and gdUnit4 helpers, and mapped sample failure output back to `coin.gd`. Startup/live checks left exactly one `build/index.js` listener on `127.0.0.1:6010`, with the open Godot editor PID established to it; callable `session_list` still returned `Transport closed`, so live state was proven through OS facts per `CODEX_STARTUP_WITH_GODOT_MCP.md`.
 
 Acceptance:
 
