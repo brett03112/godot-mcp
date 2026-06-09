@@ -14,14 +14,29 @@ const PROJECT_PATH = 'C:/Users/brett/Desktop/godot-mcp/test_mcp_enhancements';
 const MCP_COMMAND = process.execPath;
 const MCP_ARGS = ['C:/Users/brett/Desktop/godot-mcp/build/index.js'];
 const GODOT_PATH = 'C:/Users/brett/Desktop/Godot/Godot.exe';
+let activeChild = null;
 
 function send(child, message) {
   child.stdin.write(JSON.stringify(message) + '\n');
 }
 
+function request(child, message) {
+  const response = waitForId(child, message.id);
+  send(child, message);
+  return response;
+}
+
 function waitForId(child, id) {
   return new Promise((resolve, reject) => {
     let buffer = '';
+    const cleanup = () => {
+      child.stdout.off('data', onData);
+      child.off('error', onError);
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
     const onData = (chunk) => {
       buffer += chunk.toString('utf8');
       const lines = buffer.split(/\r?\n/);
@@ -30,7 +45,7 @@ function waitForId(child, id) {
         if (!line.trim()) continue;
         const message = JSON.parse(line);
         if (message.id === id) {
-          child.stdout.off('data', onData);
+          cleanup();
           resolve(message);
           return;
         }
@@ -40,23 +55,21 @@ function waitForId(child, id) {
       }
     };
     child.stdout.on('data', onData);
-    child.on('error', reject);
+    child.once('error', onError);
   });
 }
 
 function callTool(child, id, name, args) {
-  send(child, {
+  return request(child, {
     jsonrpc: '2.0',
     id,
     method: 'tools/call',
     params: { name, arguments: args },
   });
-  return waitForId(child, id);
 }
 
 function listTools(child, id) {
-  send(child, { jsonrpc: '2.0', id, method: 'tools/list' });
-  return waitForId(child, id);
+  return request(child, { jsonrpc: '2.0', id, method: 'tools/list' });
 }
 
 function parseToolContent(result) {
@@ -96,7 +109,8 @@ function startChild(extraEnv = {}) {
 
 async function main() {
   const child = startChild();
-  send(child, {
+  activeChild = child;
+  await request(child, {
     jsonrpc: '2.0',
     id: 1,
     method: 'initialize',
@@ -106,7 +120,6 @@ async function main() {
       clientInfo: { name: 'phase41-proof', version: '1.0.0' },
     },
   });
-  await waitForId(child, 1);
   send(child, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
 
   // Confirm Phase 4.1 tools are present.
@@ -177,7 +190,7 @@ async function main() {
   // Validate the HUD scene through the same MCP child server.
   const validateHudScene = await callTool(child, 201, 'validate_scene', {
     project_path: PROJECT_PATH,
-    scene_path: 'res://scenes/mcp_phase41_hud.tscn',
+    scene_path: 'scenes/mcp_phase41_hud.tscn',
   });
   const validateHudParsed = parseToolContent(validateHudScene);
   console.log('validate_scene(mcp_phase41_hud.tscn) -> status=' + validateHudParsed.status);
@@ -241,10 +254,14 @@ async function main() {
   console.log('All manifest validation commands returned success.');
 
   child.kill();
+  activeChild = null;
   console.log('Phase 4.1 live proof PASSED');
 }
 
 main().catch((error) => {
+  if (activeChild) {
+    activeChild.kill();
+  }
   console.error('Phase 4.1 live proof FAILED:', error);
   process.exitCode = 1;
 });

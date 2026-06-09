@@ -271,25 +271,25 @@ func _init():
             setup_navigation_server(params)
         # Phase 4.1: Design-to-scene workflow
         "design_generate_scene_from_brief":
-            design_generate_scene_from_brief(params)
+            _design_generate_scene_from_brief(params)
         "design_generate_level_blockout":
-            design_generate_level_blockout(params)
+            _design_generate_level_blockout(params)
         "design_generate_menu_flow":
-            design_generate_menu_flow(params)
+            _design_generate_menu_flow(params)
         "design_generate_hud":
-            design_generate_hud(params)
+            _design_generate_hud(params)
         "design_generate_dialogue_scene":
-            design_generate_dialogue_scene(params)
+            _design_generate_dialogue_scene(params)
         "design_generate_settings_screen":
-            design_generate_settings_screen(params)
+            _design_generate_settings_screen(params)
         "design_generate_mobile_controls":
-            design_generate_mobile_controls(params)
+            _design_generate_mobile_controls(params)
         "design_generate_gameplay_prefab":
-            design_generate_gameplay_prefab(params)
+            _design_generate_gameplay_prefab(params)
         "design_generate_enemy_archetype":
-            design_generate_enemy_archetype(params)
+            _design_generate_enemy_archetype(params)
         "design_generate_pickup_archetype":
-            design_generate_pickup_archetype(params)
+            _design_generate_pickup_archetype(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -10536,12 +10536,13 @@ func _design_validation_commands(entries: Array) -> Array:
         var res_path: String = str(entry.get("path", ""))
         if res_path.is_empty():
             continue
+        var tool_path: String = res_path.substr(6) if res_path.begins_with("res://") else res_path
         if kind == "script":
             commands.append({
                 "tool": "validate_script",
                 "args": {
                     "projectPath": "<self>",
-                    "scriptPath": res_path.substr(5) if res_path.begins_with("res://") else res_path,
+                    "scriptPath": tool_path,
                 },
             })
         else:
@@ -10549,7 +10550,7 @@ func _design_validation_commands(entries: Array) -> Array:
                 "tool": "validate_scene",
                 "args": {
                     "project_path": "<self>",
-                    "scene_path": res_path,
+                    "scene_path": tool_path,
                 },
             })
     return commands
@@ -10695,24 +10696,51 @@ func _design_build_hud_scene(root_size: Vector2) -> Node:
 
 
 func _design_apply_full_rect(control: Control) -> void:
-    control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_OPERATION_KEEP_SIZE)
+    control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE)
 
 
-func _design_menu_panel_spec(title: String, subtitle: String, buttons: Array) -> Dictionary:
+func _design_menu_panel_spec(
+    title: String, subtitle: String, buttons: Array
+) -> Dictionary:
+    var button_specs: Array = []
+    for idx in range(buttons.size()):
+        button_specs.append({
+            "type": "Button",
+            "name": "Button" + str(idx + 1),
+            "text": buttons[idx],
+            "custom_minimum_size": [240, 48]
+        })
+
     return {
         "type": "PanelContainer",
         "name": "MenuPanel",
         "anchor_preset": "center",
         "offsets": {"left": -200, "top": -180, "right": 200, "bottom": 180},
         "children": [
-            {"type": "VBoxContainer", "name": "MenuStack", "anchor_preset": "full_rect", "offsets": {"left": 24, "top": 24, "right": -24, "bottom": -24}, "separation": 16, "children": [
-                {"type": "Label", "name": "TitleLabel", "text": title, "horizontal_alignment": 1, "custom_minimum_size": [320, 48]},
-                {"type": "Label", "name": "SubtitleLabel", "text": subtitle, "horizontal_alignment": 1, "custom_minimum_size": [320, 28]},
-            ] + [
-                {"type": "Button", "name": "Button" + str(idx + 1), "text": label, "custom_minimum_size": [240, 48]}
-                for idx, label in enumerate(buttons)
-            ] if not buttons.is_empty() else []
-        ]}
+            {
+                "type": "VBoxContainer",
+                "name": "MenuStack",
+                "anchor_preset": "full_rect",
+                "offsets": {"left": 24, "top": 24, "right": -24, "bottom": -24},
+                "separation": 16,
+                "children": [
+                    {
+                        "type": "Label",
+                        "name": "TitleLabel",
+                        "text": title,
+                        "horizontal_alignment": 1,
+                        "custom_minimum_size": [320, 48]
+                    },
+                    {
+                        "type": "Label",
+                        "name": "SubtitleLabel",
+                        "text": subtitle,
+                        "horizontal_alignment": 1,
+                        "custom_minimum_size": [320, 28]
+                    }
+                ] + button_specs
+            }
+        ]
     }
 
 
@@ -10779,7 +10807,7 @@ func _design_apply_anchor(control: Control, preset: String) -> void:
         "vcenter_wide": preset_id = Control.PRESET_VCENTER_WIDE
         "hcenter_wide": preset_id = Control.PRESET_HCENTER_WIDE
     if preset_id >= 0:
-        control.set_anchors_and_offsets_preset(preset_id, Control.PRESET_OPERATION_KEEP_SIZE)
+        control.set_anchors_and_offsets_preset(preset_id, Control.PRESET_MODE_KEEP_SIZE)
 
 
 func _design_apply_offsets(control: Control, offsets: Dictionary) -> void:
@@ -10795,11 +10823,11 @@ func _design_save_scene(scene: Node, full_path: String) -> bool:
     return _save_scene_root(scene, full_path)
 
 
-func _design_persist_script(path: String, class_name: String, body: String) -> bool:
-    var header := ""
-    if not class_name.is_empty():
-        header = "class_name " + class_name + "\n\nextends Node\n\n"
-    return _design_write_text_file(path, header + body)
+func _design_persist_script(path: String, script_class_name: String, body: String) -> bool:
+    var content := body
+    if not script_class_name.is_empty() and not content.contains("\nclass_name ") and not content.begins_with("class_name "):
+        content = "class_name " + script_class_name + "\n\n" + content
+    return _design_write_text_file(path, content)
 
 
 func _design_script_path_for(scene_path: String) -> String:
@@ -11077,9 +11105,9 @@ func _design_generate_hud(params: Dictionary) -> void:
             log_error("Failed to save HUD scene")
             return
         hud.free()
-        var class_name := "McpHudController"
-        var body := "@export var follow_path: NodePath\n@export var follows_player: bool = " + str(follows_player).to_lower() + "\n\nfunc _ready() -> void:\n    pass\n\nfunc set_score(value: int) -> void:\n    var label := get_node_or_null(\"Hud/ScoreLabel\") as Label\n    if label:\n        label.text = \"Score: %d\" % value\n"
-        if not _design_persist_script(script_path, class_name, body):
+        var script_class_name := "McpHudController"
+        var body := "extends Node\n\n@export var follow_path: NodePath\n@export var follows_player: bool = " + str(follows_player).to_lower() + "\n\nfunc _ready() -> void:\n    pass\n\nfunc set_score(value: int) -> void:\n    var label := get_node_or_null(\"Hud/ScoreLabel\") as Label\n    if label:\n        label.text = \"Score: %d\" % value\n"
+        if not _design_persist_script(script_path, script_class_name, body):
             return
     _design_print_success("design_generate_hud", manifest)
     log_info("design_generate_hud completed successfully")
@@ -11232,7 +11260,7 @@ func _design_generate_gameplay_prefab(params: Dictionary) -> void:
     var speed := float(params.get("speed", 240.0))
     var damage := int(params.get("damage", 0))
     var health := int(params.get("health", 100))
-    var class_name := str(params.get("class_name", "")).strip_edges()
+    var script_class_name := str(params.get("class_name", "")).strip_edges()
     var dry_run := _design_dry_run(params)
     var script_path := _design_script_path_for(output_path)
     var files: Array = [
@@ -11255,7 +11283,7 @@ func _design_generate_gameplay_prefab(params: Dictionary) -> void:
             "speed": speed,
             "damage": damage,
             "health": health,
-            "script_class": class_name,
+            "script_class": script_class_name,
         },
         "dry_run": bool(params.get("dry_run", false)),
         "recipe_only": bool(params.get("recipe_only", false)),
@@ -11267,8 +11295,8 @@ func _design_generate_gameplay_prefab(params: Dictionary) -> void:
         root.free()
         var body := "extends Node2D\n\n@export var speed: float = " + str(speed) + "\n@export var damage: int = " + str(damage) + "\n@export var health: int = " + str(health) + "\n\nfunc _ready() -> void:\n    pass\n"
         var class_declaration := "McpPrefab_" + _design_pascal(kind)
-        if not class_name.is_empty():
-            class_declaration = class_name
+        if not script_class_name.is_empty():
+            class_declaration = script_class_name
         if not _design_persist_script(script_path, class_declaration, body):
             return
     _design_print_success("design_generate_gameplay_prefab", manifest)
@@ -11334,7 +11362,7 @@ func _design_generate_enemy_archetype(params: Dictionary) -> void:
     var speed := float(params.get("speed", 80.0))
     var damage := int(params.get("damage", 5))
     var include_ai := bool(params.get("include_ai", true))
-    var class_name := str(params.get("class_name", "")).strip_edges()
+    var script_class_name := str(params.get("class_name", "")).strip_edges()
     var dry_run := _design_dry_run(params)
     var script_path := _design_script_path_for(output_path)
     var files: Array = [
@@ -11351,7 +11379,7 @@ func _design_generate_enemy_archetype(params: Dictionary) -> void:
             "speed": speed,
             "damage": damage,
             "include_ai": include_ai,
-            "script_class": class_name,
+            "script_class": script_class_name,
         },
         "dry_run": bool(params.get("dry_run", false)),
         "recipe_only": bool(params.get("recipe_only", false)),
@@ -11365,8 +11393,8 @@ func _design_generate_enemy_archetype(params: Dictionary) -> void:
         if include_ai:
             body += "\nfunc patrol(targets: Array) -> void:\n    pass\n\nfunc chase(player: Node2D) -> void:\n    pass\n\nfunc idle() -> void:\n    pass\n"
         var class_declaration := "McpEnemy_" + _design_pascal(archetype)
-        if not class_name.is_empty():
-            class_declaration = class_name
+        if not script_class_name.is_empty():
+            class_declaration = script_class_name
         if not _design_persist_script(script_path, class_declaration, body):
             return
     _design_print_success("design_generate_enemy_archetype", manifest)
@@ -11405,7 +11433,7 @@ func _design_generate_pickup_archetype(params: Dictionary) -> void:
     var pickup_value := int(params.get("pickup_value", 1))
     var respawn_time := float(params.get("respawn_time", 0.0))
     var include_physics := bool(params.get("include_physics", true))
-    var class_name := str(params.get("class_name", "")).strip_edges()
+    var script_class_name := str(params.get("class_name", "")).strip_edges()
     var dry_run := _design_dry_run(params)
     var script_path := _design_script_path_for(output_path)
     var files: Array = [
@@ -11421,7 +11449,7 @@ func _design_generate_pickup_archetype(params: Dictionary) -> void:
             "pickup_value": pickup_value,
             "respawn_time": respawn_time,
             "include_physics": include_physics,
-            "script_class": class_name,
+            "script_class": script_class_name,
         },
         "dry_run": bool(params.get("dry_run", false)),
         "recipe_only": bool(params.get("recipe_only", false)),
@@ -11433,8 +11461,8 @@ func _design_generate_pickup_archetype(params: Dictionary) -> void:
         root.free()
         var body := "extends Area2D\n\n@export var pickup_value: int = " + str(pickup_value) + "\n@export var respawn_time: float = " + str(respawn_time) + "\n\nsignal collected(by: Node2D)\n\nfunc _ready() -> void:\n    pass\n\nfunc collect(by: Node2D) -> void:\n    emit_signal(\"collected\", by)\n    if respawn_time > 0.0:\n        set_deferred(\"monitoring\", false)\n        visible = false\n        await get_tree().create_timer(respawn_time).timeout\n        set_deferred(\"monitoring\", true)\n        visible = true\n"
         var class_declaration := "McpPickup_" + _design_pascal(archetype)
-        if not class_name.is_empty():
-            class_declaration = class_name
+        if not script_class_name.is_empty():
+            class_declaration = script_class_name
         if not _design_persist_script(script_path, class_declaration, body):
             return
     _design_print_success("design_generate_pickup_archetype", manifest)

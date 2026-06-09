@@ -256,10 +256,11 @@ function designTool(ctx: ServerContext, config: {
         if (parsed.success === false) {
           return jsonResponse({ status: 'failed', ...parsed }, true);
         }
+        const hydrated = hydrateManifestValidationCommands(parsed, target.projectRoot);
         if (params.output_path) {
           invalidateSceneCache(ctx, target.projectRoot, params.output_path);
         }
-        return jsonResponse({ status: 'success', ...parsed });
+        return jsonResponse({ status: 'success', ...hydrated });
       } catch (error: any) {
         return failure(error?.message || String(error));
       }
@@ -320,6 +321,29 @@ function parseGodotJson(stdout: string): any | null {
     }
   }
   return null;
+}
+
+function hydrateManifestValidationCommands(parsed: any, projectRoot: string): any {
+  if (!parsed || typeof parsed !== 'object' || !parsed.manifest || typeof parsed.manifest !== 'object') {
+    return parsed;
+  }
+  const commands = parsed.manifest.validation_commands;
+  if (!Array.isArray(commands)) return parsed;
+  return {
+    ...parsed,
+    manifest: {
+      ...parsed.manifest,
+      validation_commands: commands.map((command: any) => {
+        if (!command || typeof command !== 'object' || !command.args || typeof command.args !== 'object') {
+          return command;
+        }
+        const args = { ...command.args };
+        if (args.project_path === '<self>') args.project_path = projectRoot;
+        if (args.projectPath === '<self>') args.projectPath = projectRoot;
+        return { ...command, args };
+      }),
+    },
+  };
 }
 
 function normalizeArgs(args: any): any {

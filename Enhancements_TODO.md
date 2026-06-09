@@ -504,16 +504,16 @@ Goal: Add higher-level tools that make Codex a better game-development operator,
 
 ### 4.1 Add Design-To-Scene Generators
 
-- [ ] Add `generate_scene_from_brief`.
-- [ ] Add `generate_level_blockout`.
-- [ ] Add `generate_menu_flow`.
-- [ ] Add `generate_hud`.
-- [ ] Add `generate_dialogue_scene`.
-- [ ] Add `generate_settings_screen`.
-- [ ] Add `generate_mobile_controls`.
-- [ ] Add `generate_gameplay_prefab`.
-- [ ] Add `generate_enemy_archetype`.
-- [ ] Add `generate_pickup_archetype`.
+- [x] Add `generate_scene_from_brief`.
+- [x] Add `generate_level_blockout`.
+- [x] Add `generate_menu_flow`.
+- [x] Add `generate_hud`.
+- [x] Add `generate_dialogue_scene`.
+- [x] Add `generate_settings_screen`.
+- [x] Add `generate_mobile_controls`.
+- [x] Add `generate_gameplay_prefab`.
+- [x] Add `generate_enemy_archetype`.
+- [x] Add `generate_pickup_archetype`.
 
 Implementation notes:
 
@@ -523,7 +523,9 @@ Implementation notes:
 
 Acceptance:
 
-- [ ] Codex can create a playable mini-feature from a short brief and then validate the created files.
+- [x] Codex can create a playable mini-feature from a short brief and then validate the created files.
+
+Verification note, 2026-06-09: Phase 4.1 tooling was recovered after a partial implementation state. Fixes covered the Godot dispatcher calling the underscored Phase 4.1 handlers, GDScript keyword/parser issues, the Godot 4.6 `Control.PRESET_MODE_KEEP_SIZE` constant, generated validation command path hydration, and a race in `test_mcp_enhancements/phase41_live_proof.mjs`. Focused `npm run build; node --test tests/design-to-scene.test.mjs` passed 7/7, final `npm test` passed 95/95, Godot 4.6.3 editor smoke against `test_mcp_enhancements` exited 0 with no repo script errors, and `node test_mcp_enhancements/phase41_live_proof.mjs` listed 251 tools, found all 10 Phase 4.1 tools, dry-ran all 10, generated HUD/enemy/brief proof files, and validated the returned manifest commands successfully. Temporary `mcp_phase41_*` and `mcp_design_*` proof artifacts were removed afterward.
 
 ### 4.2 Add Gameplay Loop And State-Machine Helpers
 

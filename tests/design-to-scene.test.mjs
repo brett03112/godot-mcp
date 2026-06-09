@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -137,6 +137,31 @@ test('design-to-scene workflow tools register with the tool registry', () => {
   ]) {
     assert.equal(registry.has(toolName), true, toolName);
   }
+});
+
+test('design-to-scene GDScript dispatcher targets implemented Phase 4.1 handlers', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+  for (const operation of [
+    'design_generate_scene_from_brief',
+    'design_generate_level_blockout',
+    'design_generate_menu_flow',
+    'design_generate_hud',
+    'design_generate_dialogue_scene',
+    'design_generate_settings_screen',
+    'design_generate_mobile_controls',
+    'design_generate_gameplay_prefab',
+    'design_generate_enemy_archetype',
+    'design_generate_pickup_archetype',
+  ]) {
+    assert.match(source, new RegExp(`"${operation}":\\r?\\n\\s+_${operation}\\(params\\)`));
+    assert.match(source, new RegExp(`func _${operation}\\(params: Dictionary\\) -> void:`));
+  }
+  assert.doesNotMatch(source, /func _design_persist_script\(path: String, class_name:/);
+  assert.doesNotMatch(source, /var class_name :=/);
+  assert.doesNotMatch(source, /Control\.PRESET_OPERATION_KEEP_SIZE/);
+  assert.match(source, /var tool_path: String = res_path\.substr\(6\) if res_path\.begins_with\("res:\/\/"\) else res_path/);
+  assert.match(source, /"scene_path": tool_path/);
+  assert.match(source, /"scriptPath": tool_path/);
 });
 
 test('generate_scene_from_brief forwards brief, options, and dry_run flags', async () => {
@@ -358,8 +383,8 @@ test('successful generator responses preserve manifest, validation_commands, and
               { path: 'res://scripts/probe.gd', kind: 'script' },
             ],
             validation_commands: [
-              { tool: 'validate_scene', args: { project_path: params.project_path, scene_path: 'res://scenes/probe.tscn' } },
-              { tool: 'validate_script', args: { projectPath: params.project_path, scriptPath: 'scripts/probe.gd' } },
+              { tool: 'validate_scene', args: { project_path: '<self>', scene_path: 'res://scenes/probe.tscn' } },
+              { tool: 'validate_script', args: { projectPath: '<self>', scriptPath: 'scripts/probe.gd' } },
             ],
             preview_summary: { control_count: 3, script_classes: ['McpProbe'] },
             dry_run: false,
@@ -384,5 +409,7 @@ test('successful generator responses preserve manifest, validation_commands, and
     assert.equal(response.manifest.created_files.length, 2);
     assert.equal(response.manifest.validation_commands[0].tool, 'validate_scene');
     assert.equal(response.manifest.validation_commands[1].tool, 'validate_script');
+    assert.equal(response.manifest.validation_commands[0].args.project_path, projectPath);
+    assert.equal(response.manifest.validation_commands[1].args.projectPath, projectPath);
   });
 });

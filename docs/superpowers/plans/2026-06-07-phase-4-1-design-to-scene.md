@@ -104,3 +104,12 @@ The blockout/prefab/archetype helpers write both a `.tscn` and a small `.gd` scr
 - Godot 4.6.3 headless editor parse smoke against `test_mcp_enhancements`.
 - Headless live proof: start a fresh `Godot.exe --headless --editor --path test_mcp_enhancements` and use the GUI MCP server to call `generate_hud`, `generate_enemy_archetype`, and `generate_scene_from_brief` against it, then run the returned `validation_commands` and confirm pass results.
 - Update `Enhancements_TODO.md` Phase 4.1 checkboxes and a verification note dated 2026-06-07.
+
+## Verification Update, 2026-06-09
+
+- Recovered the partial Phase 4.1 state by fixing `godot_operations.gd` parser/runtime issues, validation command paths, and the response-listener race in `test_mcp_enhancements/phase41_live_proof.mjs`.
+- `npm run build; node --test tests/design-to-scene.test.mjs` passed 7/7.
+- `npm test` passed 95/95.
+- Godot 4.6.3 editor smoke against `test_mcp_enhancements` exited 0 with no repo script errors.
+- `node test_mcp_enhancements/phase41_live_proof.mjs` passed: the built MCP listed 251 tools, all 10 Phase 4.1 tools were present, all 10 dry runs returned manifests, real HUD/enemy/brief generation succeeded, and returned manifest validation commands succeeded.
+- Temporary `mcp_phase41_*` and `mcp_design_*` proof artifacts were removed after verification.
