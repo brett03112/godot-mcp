@@ -309,6 +309,11 @@ func _init():
             _gameplay_generate_save_load_system(params)
         "gameplay_generate_settings_persistence":
             _gameplay_generate_settings_persistence(params)
+        # Phase 4.4: Visual QA and screenshot diff helpers
+        "visual_sprite_bounds_check":
+            visual_sprite_bounds_check(params)
+        "visual_camera_framing_check":
+            visual_camera_framing_check(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -7377,6 +7382,216 @@ func _camera_is_current(camera: Node) -> bool:
     if _has_property(camera, "enabled"):
         return bool(camera.get("enabled"))
     return false
+
+
+# --- Phase 4.4: Visual QA helpers ---
+
+func visual_sprite_bounds_check(params: Dictionary) -> void:
+    log_info("Starting visual_sprite_bounds_check operation")
+    var scene_path: String = params.get("scene_path", "")
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var viewport_size = _parse_vector2(params.get("viewport_size", [1152, 648]), Vector2(1152, 648))
+    var margin = float(params.get("margin", 0.0))
+    var include_hidden = bool(params.get("include_hidden", false))
+    var viewport_rect = _visual_grow_rect(Rect2(Vector2.ZERO, viewport_size), margin)
+    var sprites = []
+    var issues = []
+    _visual_collect_sprite_bounds(scene_root, scene_root, viewport_rect, include_hidden, sprites, issues)
+    scene_root.free()
+    print(JSON.stringify({
+        "success": true,
+        "scene_path": _to_res_path(scene_path),
+        "viewport_size": [viewport_size.x, viewport_size.y],
+        "margin": margin,
+        "valid": issues.is_empty(),
+        "sprite_count": sprites.size(),
+        "sprites": sprites,
+        "issue_count": issues.size(),
+        "issues": issues
+    }))
+    log_info("visual_sprite_bounds_check completed successfully")
+
+
+func visual_camera_framing_check(params: Dictionary) -> void:
+    log_info("Starting visual_camera_framing_check operation")
+    var loaded = _camera_load_scene_with_camera(params)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var camera: Node = loaded["camera"]
+    if not (camera is Camera2D):
+        log_error("camera_path must point to a Camera2D")
+        scene_root.free()
+        return
+    var viewport_size = _parse_vector2(params.get("viewport_size", [1152, 648]), Vector2(1152, 648))
+    var margin = float(params.get("margin", 0.0))
+    var bounds = _camera_2d_bounds_dict(camera, viewport_size)
+    var bounds_rect = Rect2(
+        Vector2(float(bounds.get("x", 0.0)), float(bounds.get("y", 0.0))),
+        Vector2(float(bounds.get("width", 0.0)), float(bounds.get("height", 0.0)))
+    )
+    var framing_rect = _visual_inset_rect(bounds_rect, margin)
+    var target_paths_param = params.get("target_paths", [])
+    var target_paths: Array = target_paths_param if target_paths_param is Array else []
+    var targets = []
+    var issues = []
+    for target_path_value in target_paths:
+        var target_path := str(target_path_value)
+        var target = _get_edit_parent(scene_root, target_path)
+        if target == null:
+            issues.append({
+                "kind": "target_missing",
+                "path": target_path,
+                "message": "Target node was not found."
+            })
+            continue
+        if not (target is Node2D):
+            issues.append({
+                "kind": "target_not_node2d",
+                "path": target_path,
+                "type": target.get_class(),
+                "message": "Camera framing check currently supports Node2D targets."
+            })
+            continue
+        var target_2d: Node2D = target
+        var point = target_2d.global_position
+        var inside = framing_rect.has_point(point)
+        targets.append({
+            "path": target_path,
+            "type": target.get_class(),
+            "position": [point.x, point.y],
+            "inside": inside
+        })
+        if not inside:
+            issues.append({
+                "kind": "target_outside_camera",
+                "path": target_path,
+                "type": target.get_class(),
+                "position": [point.x, point.y],
+                "camera_bounds": _visual_rect_dict(bounds_rect),
+                "framing_bounds": _visual_rect_dict(framing_rect),
+                "message": "Target position is outside the Camera2D framing bounds."
+            })
+    scene_root.free()
+    print(JSON.stringify({
+        "success": true,
+        "scene_path": _to_res_path(params.get("scene_path", "")),
+        "camera_path": params.get("camera_path", ""),
+        "viewport_size": [viewport_size.x, viewport_size.y],
+        "margin": margin,
+        "camera_bounds": bounds,
+        "framing_bounds": _visual_rect_dict(framing_rect),
+        "valid": issues.is_empty(),
+        "target_count": targets.size(),
+        "targets": targets,
+        "issue_count": issues.size(),
+        "issues": issues
+    }))
+    log_info("visual_camera_framing_check completed successfully")
+
+
+func _visual_collect_sprite_bounds(scene_root: Node, node: Node, viewport_rect: Rect2, include_hidden: bool, sprites: Array, issues: Array) -> void:
+    if node is Sprite2D:
+        var sprite: Sprite2D = node
+        if include_hidden or sprite.visible:
+            var sprite_info = _visual_sprite_summary(scene_root, sprite, viewport_rect)
+            sprites.append(sprite_info)
+            for issue in sprite_info.get("issues", []):
+                issues.append(issue)
+    for child in node.get_children():
+        if child is Node:
+            _visual_collect_sprite_bounds(scene_root, child, viewport_rect, include_hidden, sprites, issues)
+
+
+func _visual_sprite_summary(scene_root: Node, sprite: Sprite2D, viewport_rect: Rect2) -> Dictionary:
+    var path = "." if sprite == scene_root else str(scene_root.get_path_to(sprite))
+    var rect = _visual_sprite_global_rect(sprite)
+    var issues = []
+    if sprite.texture == null:
+        issues.append({
+            "kind": "sprite_missing_texture",
+            "path": path,
+            "type": sprite.get_class(),
+            "message": "Sprite2D has no texture assigned."
+        })
+    elif rect.size.x <= 0.0 or rect.size.y <= 0.0:
+        issues.append({
+            "kind": "sprite_empty_bounds",
+            "path": path,
+            "type": sprite.get_class(),
+            "rect": _visual_rect_dict(rect),
+            "message": "Sprite2D texture bounds are empty."
+        })
+    elif not _visual_rects_intersect(viewport_rect, rect):
+        issues.append({
+            "kind": "sprite_outside_viewport",
+            "path": path,
+            "type": sprite.get_class(),
+            "rect": _visual_rect_dict(rect),
+            "message": "Sprite2D bounds are outside the viewport plus margin."
+        })
+    return {
+        "path": path,
+        "name": sprite.name,
+        "type": sprite.get_class(),
+        "visible": sprite.visible,
+        "texture_path": sprite.texture.resource_path if sprite.texture != null else "",
+        "rect": _visual_rect_dict(rect),
+        "issues": issues
+    }
+
+
+func _visual_sprite_global_rect(sprite: Sprite2D) -> Rect2:
+    var local_rect = sprite.get_rect()
+    var corners = [
+        local_rect.position,
+        local_rect.position + Vector2(local_rect.size.x, 0),
+        local_rect.position + Vector2(0, local_rect.size.y),
+        local_rect.position + local_rect.size
+    ]
+    var min_x = INF
+    var min_y = INF
+    var max_x = -INF
+    var max_y = -INF
+    for corner in corners:
+        var point = sprite.to_global(corner)
+        min_x = min(min_x, point.x)
+        min_y = min(min_y, point.y)
+        max_x = max(max_x, point.x)
+        max_y = max(max_y, point.y)
+    return Rect2(Vector2(min_x, min_y), Vector2(max_x - min_x, max_y - min_y))
+
+
+func _visual_rects_intersect(a: Rect2, b: Rect2) -> bool:
+    return a.position.x < b.position.x + b.size.x and a.position.x + a.size.x > b.position.x and a.position.y < b.position.y + b.size.y and a.position.y + a.size.y > b.position.y
+
+
+func _visual_grow_rect(rect: Rect2, margin: float) -> Rect2:
+    return Rect2(rect.position - Vector2(margin, margin), rect.size + Vector2(margin * 2.0, margin * 2.0))
+
+
+func _visual_inset_rect(rect: Rect2, margin: float) -> Rect2:
+    var inset_size = rect.size - Vector2(margin * 2.0, margin * 2.0)
+    if inset_size.x < 0.0:
+        inset_size.x = 0.0
+    if inset_size.y < 0.0:
+        inset_size.y = 0.0
+    return Rect2(rect.position + Vector2(margin, margin), inset_size)
+
+
+func _visual_rect_dict(rect: Rect2) -> Dictionary:
+    return {
+        "x": rect.position.x,
+        "y": rect.position.y,
+        "width": rect.size.x,
+        "height": rect.size.y
+    }
 
 
 func _camera_position_array(camera: Node) -> Array:

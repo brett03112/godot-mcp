@@ -574,15 +574,15 @@ Acceptance:
 
 ### 4.4 Add Visual QA And Screenshot Diff Tools
 
-- [ ] Add `screenshot_compare`.
-- [ ] Add `capture_editor_viewport`.
-- [ ] Add `capture_runtime_viewport`.
-- [ ] Add `visual_regression_baseline_create`.
-- [ ] Add `visual_regression_check`.
-- [ ] Add `ui_overlap_check`.
-- [ ] Add `ui_contrast_check`.
-- [ ] Add `sprite_bounds_check`.
-- [ ] Add `camera_framing_check`.
+- [x] Add `screenshot_compare`.
+- [x] Add `capture_editor_viewport`.
+- [x] Add `capture_runtime_viewport`.
+- [x] Add `visual_regression_baseline_create`.
+- [x] Add `visual_regression_check`.
+- [x] Add `ui_overlap_check`.
+- [x] Add `ui_contrast_check`.
+- [x] Add `sprite_bounds_check`.
+- [x] Add `camera_framing_check`.
 
 Implementation notes:
 
@@ -592,8 +592,10 @@ Implementation notes:
 
 Acceptance:
 
-- [ ] Codex can compare a before/after screenshot and report changed regions.
-- [ ] Codex can detect obvious UI overlap or offscreen controls.
+- [x] Codex can compare a before/after screenshot and report changed regions.
+- [x] Codex can detect obvious UI overlap or offscreen controls.
+
+Verification note, 2026-06-09: Phase 4.4 added `docs/superpowers/plans/2026-06-09-phase-4-4-visual-qa.md`, focused RED/GREEN tests in `tests/visual-qa.test.mjs`, modular tooling in `src/tools/visual-qa.ts`, registration and parameter mappings in `src/index.ts`, Godot operation handlers `visual_sprite_bounds_check` and `visual_camera_framing_check` in `src/scripts/godot_operations.gd`, and `test_mcp_enhancements/phase44_live_proof.mjs`. Context7 Godot 4.6 docs were used for viewport capture timing and viewport size APIs. RED first failed with missing `build/tools/visual-qa.js`; focused `npm run build; node --test tests/visual-qa.test.mjs` passed 7/7, final `npm test` passed 114/114, and Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.4 proof script listed 280 tools including all 9 new tools, compared PNG screenshots with a changed-region bounding box, created and checked `.mcp_visual` baselines, ran UI overlap and contrast checks, ran sprite bounds and camera framing checks through real Godot operations, captured a runtime viewport, waited for one live editor session, captured the editor viewport through the live bridge, and cleaned temporary `phase44` artifacts. After connector reload, `mcp__godot_mcp.session_list` reported one connected `test_mcp_enhancements` editor session on `127.0.0.1:6010`, tool discovery exposed all 9 Phase 4.4 tools, and direct calls through the Codex MCP namespace succeeded for screenshot comparison, baseline creation/checking, UI overlap/contrast, sprite bounds, camera framing, runtime capture, and editor capture; temporary `.mcp_visual` artifacts were removed and `project.godot` had no diff afterward.
 
 ### 4.5 Add Asset Pipeline Control Tools
 

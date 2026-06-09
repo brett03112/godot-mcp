@@ -66,6 +66,7 @@ import { registerNodeRefactorWorkflowTools } from './tools/node-refactor-workflo
 import { registerDesignToSceneTools } from './tools/design-to-scene.js';
 import { registerGameplaySystemTools } from './tools/gameplay-systems.js';
 import { registerTestToolingTools } from './tools/test-tooling.js';
+import { registerVisualQaTools } from './tools/visual-qa.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -470,6 +471,19 @@ class GodotServer {
     'preserve_groups': 'preserveGroups',
     'preserve_script': 'preserveScript',
     'keep_global_transform': 'keepGlobalTransform',
+    'before_path': 'beforePath',
+    'after_path': 'afterPath',
+    'diff_output_path': 'diffOutputPath',
+    'current_path': 'currentPath',
+    'baseline_name': 'baselineName',
+    'baseline_path': 'baselinePath',
+    'threshold_ratio': 'thresholdRatio',
+    'pixel_threshold': 'pixelThreshold',
+    'min_overlap_area': 'minOverlapArea',
+    'min_ratio': 'minRatio',
+    'target_paths': 'targetPaths',
+    'include_hidden': 'includeHidden',
+    'viewport_index': 'viewportIndex',
   };
 
   /**
@@ -859,6 +873,7 @@ class GodotServer {
         onError: (message) => console.error(`[LIVE] ${message}`),
       }),
     });
+    registerVisualQaTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

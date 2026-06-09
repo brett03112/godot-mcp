@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **271 tools** across 30 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **280 tools** across 31 categories plus **118 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (271 tools)
+## Tool Reference (280 tools)
 
 ### Project Management (7 tools)
 
@@ -260,6 +260,20 @@ create_material_from_texture(
 | `gdunit4_generate_test` | Generate a gdUnit4 `GdUnitTestSuite` template for a source script |
 | `test_watch_plan` | Recommend which Godot and Node tests to run for changed files |
 | `failure_to_patch_plan` | Map failure output to likely source files, test files, and next commands |
+
+### Visual QA & Screenshot Diff (9 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `screenshot_compare` | Compare two PNG screenshots and report changed pixels, ratio, and changed bounds |
+| `capture_editor_viewport` | Capture a live editor viewport through the existing live editor screenshot bridge |
+| `capture_runtime_viewport` | Capture a runtime scene viewport by delegating to `capture_viewport` |
+| `visual_regression_baseline_create` | Create a project-local `.mcp_visual` PNG baseline from an existing screenshot |
+| `visual_regression_check` | Compare a current screenshot against a stored visual baseline |
+| `ui_overlap_check` | Inspect UI Control rectangles and report obvious overlaps |
+| `ui_contrast_check` | Check foreground/background color samples against a contrast ratio threshold |
+| `sprite_bounds_check` | Inspect Sprite2D bounds for missing textures and off-viewport sprites |
+| `camera_framing_check` | Check Camera2D framing for target Node2D positions |
 
 ### Asset Import & Configuration (4 tools)
 
@@ -731,6 +745,15 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/gdunit4_generate_test` - Generate a gdUnit4 `GdUnitTestSuite` template for a source script.
 - `godot-mcp://tools/test_watch_plan` - Recommend which tests to run after changed files.
 - `godot-mcp://tools/failure_to_patch_plan` - Map failure output to likely source files, test files, and next commands.
+- `godot-mcp://tools/screenshot_compare` - Compare two PNG screenshots and report changed pixels, ratio, and bounds.
+- `godot-mcp://tools/capture_editor_viewport` - Capture a live editor viewport screenshot through the live bridge.
+- `godot-mcp://tools/capture_runtime_viewport` - Capture a runtime scene viewport screenshot through `capture_viewport`.
+- `godot-mcp://tools/visual_regression_baseline_create` - Create a `.mcp_visual` PNG baseline from an existing screenshot.
+- `godot-mcp://tools/visual_regression_check` - Compare a screenshot against a stored visual regression baseline.
+- `godot-mcp://tools/ui_overlap_check` - Inspect UI Control rectangles and report obvious overlaps.
+- `godot-mcp://tools/ui_contrast_check` - Check UI foreground/background samples against a contrast ratio threshold.
+- `godot-mcp://tools/sprite_bounds_check` - Inspect Sprite2D bounds for missing textures and off-viewport sprites.
+- `godot-mcp://tools/camera_framing_check` - Check Camera2D framing for target Node2D positions.
 - `godot-mcp://tools/import_texture` - Configure texture import settings such as filtering, mipmaps, and compression.
 - `godot-mcp://tools/import_audio` - Configure audio import settings such as looping, BPM, and compression.
 - `godot-mcp://tools/import_3d_model` - Configure 3D model import settings for collision, materials, animation, and scale.
@@ -929,6 +952,7 @@ src/
 │   ├── introspection.ts            # Class & engine introspection (2 tools)
 │   ├── audio.ts                    # Audio bus configuration (1 tool)
 │   ├── viewport.ts                 # Viewport screenshot capture (1 tool)
+│   ├── visual-qa.ts                # Visual QA and screenshot diff tools (9 tools)
 │   ├── playtest.ts                 # Automated playtesting harness (6 tools)
 │   ├── fun-metrics.ts              # Fun metrics framework (5 tools)
 │   ├── asset-generation.ts         # Asset generation bridge (5 tools)
@@ -936,13 +960,13 @@ src/
 │   ├── physics.ts                  # Physics materials, bodies, shapes, and joints (5 tools)
 │   └── navigation.ts               # Navigation agents, links, obstacles, navmesh, and AStar grid (6 tools)
 └── scripts/
-    └── godot_operations.gd         # GDScript operation handlers (~7,200 lines)
+    └── godot_operations.gd         # GDScript operation handlers for Godot-backed tools
 ```
 
 The server uses a **hybrid dispatch** pattern:
 
-1. **Modular tools** (58 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
-2. **Legacy tools** (57 tools) continue working via the existing switch statement in `src/index.ts`
+1. **Modular tools** register via `ToolRegistry` in domain-specific modules under `src/tools/`
+2. **Legacy tools** continue working via the existing switch statement in `src/index.ts`
 3. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch
 
 **Infrastructure:**
