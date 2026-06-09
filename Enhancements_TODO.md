@@ -529,19 +529,21 @@ Verification note, 2026-06-09: Phase 4.1 tooling was recovered after a partial i
 
 ### 4.2 Add Gameplay Loop And State-Machine Helpers
 
-- [ ] Add `create_state_machine`.
-- [ ] Add `add_state`.
-- [ ] Add `connect_state_transition`.
-- [ ] Add `generate_character_controller`.
-- [ ] Add `generate_interaction_system`.
-- [ ] Add `generate_inventory_system`.
-- [ ] Add `generate_dialogue_controller`.
-- [ ] Add `generate_save_load_system`.
-- [ ] Add `generate_settings_persistence`.
+- [x] Add `create_state_machine`.
+- [x] Add `add_state`.
+- [x] Add `connect_state_transition`.
+- [x] Add `generate_character_controller`.
+- [x] Add `generate_interaction_system`.
+- [x] Add `generate_inventory_system`.
+- [x] Add `generate_dialogue_controller`.
+- [x] Add `generate_save_load_system`.
+- [x] Add `generate_settings_persistence`.
 
 Acceptance:
 
-- [ ] Codex can scaffold a small gameplay system with scripts, scene nodes, and tests.
+- [x] Codex can scaffold a small gameplay system with scripts, scene nodes, and tests.
+
+Verification note, 2026-06-09: Phase 4.2 added `docs/superpowers/plans/2026-06-09-phase-4-2-gameplay-systems.md`, focused RED/GREEN tests in `tests/gameplay-systems.test.mjs`, `src/tools/gameplay-systems.ts`, registration from `src/index.ts`, Godot operation handlers in `src/scripts/godot_operations.gd`, and `test_mcp_enhancements/phase42_live_proof.mjs`. Context7 Godot docs were used for `ConfigFile.load()`, `ConfigFile.save()`, `set_value()`, and `get_value()` in the settings persistence generator. RED first failed with missing `build/tools/gameplay-systems.js`; a later live proof found and fixed an `add_state` use-after-free root-name bug with a regression test. Focused `npm run build; node --test tests/gameplay-systems.test.mjs` passed 7/7, final `npm test` passed 102/102, Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `node test_mcp_enhancements/phase42_live_proof.mjs` listed 260 tools, found all 9 Phase 4.2 tools, dry-ran all 9, generated a state machine plus state/transition, generated character/interaction/inventory/dialogue/save/settings systems with scenes/scripts/tests, validated all returned manifest commands, and removed temporary `mcp_phase42_*` artifacts. The open editor remained connected on `127.0.0.1:6010`.
 
 ### 4.3 Add Test Tooling Expansion
 

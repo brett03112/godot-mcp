@@ -64,6 +64,7 @@ import { registerCameraWorkflowTools } from './tools/camera-workflow.js';
 import { registerAudioPlayerWorkflowTools } from './tools/audio-player-workflow.js';
 import { registerNodeRefactorWorkflowTools } from './tools/node-refactor-workflow.js';
 import { registerDesignToSceneTools } from './tools/design-to-scene.js';
+import { registerGameplaySystemTools } from './tools/gameplay-systems.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -839,6 +840,7 @@ class GodotServer {
     registerAudioPlayerWorkflowTools(this.toolRegistry, ctx);
     registerNodeRefactorWorkflowTools(this.toolRegistry, ctx);
     registerDesignToSceneTools(this.toolRegistry, ctx);
+    registerGameplaySystemTools(this.toolRegistry, ctx);
     registerLiveEditorTools(this.toolRegistry, {
       manager: liveSessionManager,
       getTransportStatus: () => ensureLiveSessionTransportStatus(liveSessionManager, {
