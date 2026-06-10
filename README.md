@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **325 tools** across 33 categories plus **334 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **332 tools** across 34 categories plus **341 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (325 tools)
+## Tool Reference (332 tools)
 
 ### Project Management (7 tools)
 
@@ -403,6 +403,18 @@ configure_audio_bus(
 | `export_size_budget_check` | Check exported files or directories against total and per-file byte budgets |
 | `quality_gate_run` | Run a named quality gate and return pass/fail results with recommendations |
 
+### Task Ledger & Evidence (7 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `mcp_task_create` | Create a project-local task in `.godot-mcp/task-ledger.json` |
+| `mcp_task_update` | Update task fields, append notes, and add related files or recommendations |
+| `mcp_task_list` | List tasks with status, tag, query, and closed-task filters |
+| `mcp_task_close` | Close a task with resolution, summary, and follow-up recommendations |
+| `mcp_evidence_attach` | Attach inline or file-backed evidence to the project-local ledger |
+| `mcp_session_report` | Generate a Markdown session report from tasks and evidence |
+| `mcp_changelog_draft` | Draft a Markdown changelog from closed tasks and evidence |
+
 ### Refactoring (1 tool)
 
 | Tool | Description |
@@ -694,7 +706,7 @@ The server exposes read-only MCP resources for clients that inspect `resources/l
 | ------ | ------------- |
 | `godot-mcp://tools/{name}` | Read the description and input schema for an individual Godot MCP tool |
 
-### Per-Tool Definition Resources (325 resources)
+### Per-Tool Definition Resources (332 resources)
 
 Each per-tool resource returns the tool description, input schema, `callMethod: "tools/call"`, and its concrete `resourceUri`.
 
@@ -879,6 +891,13 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/texture_memory_budget_check` - Check texture memory against a profile budget.
 - `godot-mcp://tools/export_size_budget_check` - Check exported files or directories against byte budgets.
 - `godot-mcp://tools/quality_gate_run` - Run a named quality gate and return pass/fail recommendations.
+- `godot-mcp://tools/mcp_task_create` - Create a project-local MCP task.
+- `godot-mcp://tools/mcp_task_update` - Update a project-local MCP task.
+- `godot-mcp://tools/mcp_task_list` - List project-local MCP tasks.
+- `godot-mcp://tools/mcp_task_close` - Close a project-local MCP task.
+- `godot-mcp://tools/mcp_evidence_attach` - Attach evidence to the project-local MCP ledger.
+- `godot-mcp://tools/mcp_session_report` - Generate a task/evidence session report.
+- `godot-mcp://tools/mcp_changelog_draft` - Draft a changelog from closed tasks.
 
 ## Requirements
 
@@ -952,6 +971,9 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "node_count_budget_check", "draw_call_budget_check",
         "texture_memory_budget_check", "export_size_budget_check",
         "quality_gate_run",
+        "mcp_task_create", "mcp_task_update", "mcp_task_list",
+        "mcp_task_close", "mcp_evidence_attach", "mcp_session_report",
+        "mcp_changelog_draft",
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",

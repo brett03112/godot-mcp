@@ -71,6 +71,7 @@ import { registerAssetPipelineTools } from './tools/asset-pipeline.js';
 import { registerAddonToolManagerTools } from './tools/addon-tool-manager.js';
 import { registerLspDapIntegrationTools } from './tools/lsp-dap-integration.js';
 import { registerQualityGateTools } from './tools/quality-gates.js';
+import { registerTaskLedgerTools } from './tools/task-ledger.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -520,6 +521,14 @@ class GodotServer {
     'step_type': 'stepType',
     'start_frame': 'startFrame',
     'levels': 'levels',
+    'task_id': 'taskId',
+    'include_closed': 'includeClosed',
+    'append_notes': 'appendNotes',
+    'add_related_files': 'addRelatedFiles',
+    'add_recommendations': 'addRecommendations',
+    'related_files': 'relatedFiles',
+    'session_title': 'sessionTitle',
+    'include_evidence': 'includeEvidence',
   };
 
   /**
@@ -914,6 +923,7 @@ class GodotServer {
     registerAddonToolManagerTools(this.toolRegistry, ctx);
     registerLspDapIntegrationTools(this.toolRegistry, ctx);
     registerQualityGateTools(this.toolRegistry, ctx);
+    registerTaskLedgerTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

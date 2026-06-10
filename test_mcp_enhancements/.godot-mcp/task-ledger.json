@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "next_task_number": 2,
+  "next_evidence_number": 2,
+  "updated_at": "2026-06-10T18:15:45.297Z",
+  "tasks": [
+    {
+      "id": "task-0001",
+      "title": "Phase 4.9 reload proof",
+      "description": "Disposable proof task created after Codex reload to verify Phase 4.9 task ledger tool callability.",
+      "status": "closed",
+      "priority": "low",
+      "assignee": null,
+      "tags": [
+        "phase-4.9",
+        "reload-proof"
+      ],
+      "source": "codex-reload-verification",
+      "related_files": [
+        "project.godot",
+        ".godot-mcp/task-ledger.json"
+      ],
+      "recommendations": [
+        "Remove only if a clean proof ledger is desired.",
+        "Use this proof entry as the reload smoke record.",
+        "Valid statuses are open, in_progress, blocked, and closed.",
+        "No Godot editor reload needed for Phase 4.9 server-side tooling.",
+        "Keep the fresh Codex MCP process as the only 6010 listener."
+      ],
+      "evidence_ids": [
+        "evidence-0001"
+      ],
+      "notes": [
+        {
+          "text": "Codex MCP namespace was reloaded and the Phase 4.9 create/update path is callable.",
+          "created_at": "2026-06-10T18:13:33.542Z"
+        },
+        {
+          "text": "Valid status update proof: blocked is accepted before close.",
+          "created_at": "2026-06-10T18:15:30.641Z"
+        }
+      ],
+      "created_at": "2026-06-10T18:13:28.748Z",
+      "updated_at": "2026-06-10T18:15:45.297Z",
+      "closed_at": "2026-06-10T18:15:45.297Z",
+      "resolution": "verified",
+      "closed_summary": "Phase 4.9 task ledger tools were callable after Codex reload."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence-0001",
+      "task_id": "task-0001",
+      "kind": "text",
+      "title": "Codex reload live proof",
+      "summary": "Direct MCP namespace and live bridge were callable after reload.",
+      "source_path": null,
+      "stored_path": ".godot-mcp/evidence/evidence-0001-Codex-reload-live-proof.txt",
+      "content_preview": "session_list returned one connected Test_MCP_Enhancements session with transport.running=true on 127.0.0.1:6010. Phase 4.9 task ledger tools are being exercised from mcp__godot_mcp.",
+      "metadata": {
+        "phase": "4.9",
+        "editor_pid": 6860,
+        "proof": "codex-reload"
+      },
+      "created_at": "2026-06-10T18:15:35.918Z"
+    }
+  ]
+}

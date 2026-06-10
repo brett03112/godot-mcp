@@ -696,13 +696,13 @@ Verification note, 2026-06-10: Phase 4.8 added `docs/superpowers/plans/2026-06-1
 
 ### 4.9 Add Issue Tracker And Task Ledger Tools
 
-- [ ] Add `mcp_task_create`.
-- [ ] Add `mcp_task_update`.
-- [ ] Add `mcp_task_list`.
-- [ ] Add `mcp_task_close`.
-- [ ] Add `mcp_evidence_attach`.
-- [ ] Add `mcp_session_report`.
-- [ ] Add `mcp_changelog_draft`.
+- [x] Add `mcp_task_create`.
+- [x] Add `mcp_task_update`.
+- [x] Add `mcp_task_list`.
+- [x] Add `mcp_task_close`.
+- [x] Add `mcp_evidence_attach`.
+- [x] Add `mcp_session_report`.
+- [x] Add `mcp_changelog_draft`.
 
 Implementation notes:
 
@@ -711,7 +711,9 @@ Implementation notes:
 
 Acceptance:
 
-- [ ] Codex can leave a structured evidence trail of what it changed, tested, and still recommends.
+- [x] Codex can leave a structured evidence trail of what it changed, tested, and still recommends.
+
+Verification note, 2026-06-10: Phase 4.9 added `docs/superpowers/plans/2026-06-10-phase-4-9-task-ledger.md`, focused RED/GREEN tests in `tests/task-ledger.test.mjs`, modular tooling in `src/tools/task-ledger.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase49_live_proof.mjs`. RED first failed with missing `build/tools/task-ledger.js`; focused `npm run build && node --test tests/task-ledger.test.mjs` passed 4/4, final `npm test` passed 138/138, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.9 proof script listed 332 tools, found all 7 new tools, created a disposable project-local task ledger entry, updated/listed/closed it, attached evidence, generated a session report and changelog draft, and restored/remedied temporary `.godot-mcp` proof artifacts. Startup checks before implementation left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it, but the direct Codex MCP namespace returned `Transport closed`; after rebuilding, the current built listener was refreshed at PID 22996 and Godot editor PID 6860 reconnected to it on `127.0.0.1:6010`. Direct Codex MCP namespace callability still needs the Codex MCP connector namespace reloaded.
 
 ### 4.10 Add Safer Autonomous Planning Tools
 
