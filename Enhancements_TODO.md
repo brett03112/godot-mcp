@@ -897,22 +897,26 @@ Verification note, 2026-06-10: Phase 5.3 added `docs/superpowers/plans/2026-06-1
 
 ### 5.4 Add Verification Harness
 
-- [ ] Add disposable fixture project or use `test_mcp_enhancements`.
-- [ ] Add an automated smoke script for non-live tools.
-- [ ] Add a semi-live smoke checklist for the open editor.
-- [ ] Add tests for session manager behavior.
-- [ ] Add tests for protocol encoding/decoding.
-- [ ] Add tests for stale session cleanup.
-- [ ] Add tests for project-path mismatch rejection.
-- [ ] Add tests for disabled eval refusal.
-- [ ] Add manual verification notes template.
+- [x] Add disposable fixture project or use `test_mcp_enhancements`.
+- [x] Add an automated smoke script for non-live tools.
+- [x] Add a semi-live smoke checklist for the open editor.
+- [x] Add tests for session manager behavior.
+- [x] Add tests for protocol encoding/decoding.
+- [x] Add tests for stale session cleanup.
+- [x] Add tests for project-path mismatch rejection.
+- [x] Add tests for disabled eval refusal.
+- [x] Add manual verification notes template.
 
 Acceptance:
 
-- [ ] `npm run build` passes.
-- [ ] Existing tests pass.
-- [ ] Non-live smoke passes headlessly.
-- [ ] Live smoke proves an actual editor session is connected.
+- [x] `npm run build` passes.
+- [x] Existing tests pass.
+- [x] Non-live smoke passes headlessly.
+- [x] Live smoke proves an actual editor session is connected.
+
+Verification note, 2026-06-10: Phase 5.4 added `docs/superpowers/plans/2026-06-10-phase-5-4-verification-harness.md`, focused RED/GREEN harness coverage in `tests/phase-5-4-verification-harness.test.mjs`, `stringifyLiveProtocolMessage()` in `src/live/protocol.ts`, package smoke scripts `smoke:non-live` and `smoke:live`, the automated non-live harness `scripts/smoke-non-live.mjs`, the semi-live open-editor socket harness `scripts/smoke-live-editor.mjs`, and `docs/templates/manual-verification-note.md`. RED first failed because `build/live/protocol.js` did not export `stringifyLiveProtocolMessage`; after implementation, focused `npm run build && node --test tests/phase-5-4-verification-harness.test.mjs` passed 6/6. Final `npm test` passed 170/170. `npm run smoke:non-live` passed with 350 tools exposed and real calls to `project_settings_get`, `filesystem_search`, `validate_scene`, and `toolset_status` against `test_mcp_enhancements`. `npm run smoke:live` passed with exactly one `127.0.0.1:6010` listener owned by `godot-mcp/build/index.js` PID 27076 and an established open Godot editor connection from PID 20008 local port 56628. Godot headless editor smoke against `test_mcp_enhancements` exited 0, and `phase54_headless_editor.log` had 0 `SCRIPT ERROR`/`ERROR:` matches; Godot emitted the pre-existing nested-project warning for `res://test/tier2_projects/blank_test` and an ObjectDB shutdown warning. Direct Codex MCP tool namespace calls to `session_list` and `live_config_status` returned `Transport closed` after this implementation, so the Codex-managed MCP connector needs reload before post-reload callable proof of Phase 5.4 services.
+
+Post-reload verification update, 2026-06-10: After Codex reload, the callable MCP connector initially reported 0 sessions because stale listener PID 27076 still owned `127.0.0.1:6010`; stopping that stale listener let the callable connector PID 22684 bind the live transport and the open Godot editor PID 20008 reconnected on local port 52912. Direct MCP calls then succeeded for `session_list` with 1 connected `test_mcp_enhancements` editor session, `editor_state` with active scene `res://test_animation_with_anim.tscn`, `live_config_status`, `live_addon_status`, and `toolset_status` with 350 loaded tools. Fresh `npm run smoke:live` passed with listener PID 22684 and Godot PID 20008, and fresh `npm run smoke:non-live` passed with real calls to `project_settings_get`, `filesystem_search`, `validate_scene`, and `toolset_status`.
 
 ### 5.5 Add Release And Compatibility Policy
 

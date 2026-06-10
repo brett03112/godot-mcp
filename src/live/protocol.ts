@@ -88,6 +88,13 @@ export function parseLiveProtocolMessage(text: string): LiveProtocolMessage {
   return parsed;
 }
 
+export function stringifyLiveProtocolMessage(message: LiveProtocolMessage): string {
+  if (!isObject(message)) {
+    throw new Error('Live protocol message must be a JSON object.');
+  }
+  return JSON.stringify(message);
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

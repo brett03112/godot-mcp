@@ -12,6 +12,8 @@
   "scripts": {
     "build": "tsc && node scripts/build.js",
     "test": "npm run build && node --test tests/*.test.mjs",
+    "smoke:non-live": "npm run build && node scripts/smoke-non-live.mjs",
+    "smoke:live": "npm run build && node scripts/smoke-live-editor.mjs",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/index.js"
