@@ -2,6 +2,16 @@
 
 This document describes how to start smaller Godot MCP sessions with only the tools and resources needed for the current task.
 
+Related Phase 5.3 docs:
+
+- [Live bridge protocol](live-bridge-protocol.md)
+- [Live bridge security](live-bridge-security.md)
+- [Tooling adapters](tooling-adapters.md)
+
+## Fresh-User Setup
+
+For a fresh-user setup, build the MCP server, configure the MCP client to run `node /absolute/path/to/godot-mcp/build/index.js`, install the bundled live addon with `live_addon_install`, enable it with `live_addon_enable`, reload the MCP connector and the Godot addon if either side changed, then verify with `session_list` and `editor_state`.
+
 ## Toolset Profiles
 
 Phase 5.0 adds first-pass tool metadata and profile filtering. When no profile is configured, the MCP server exposes the full catalog for backward compatibility. When a profile is configured, the server filters `tools/list`, per-tool resources, catalog resources, and dispatch through the same active profile.

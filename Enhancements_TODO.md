@@ -874,7 +874,7 @@ Verification note, 2026-06-10: Phase 5.2 added `docs/superpowers/plans/2026-06-1
 
 ### 5.3 Add Documentation
 
-- [ ] Update `README.md` with:
+- [x] Update `README.md` with:
   - Live bridge overview
   - Install steps
   - Security model
@@ -882,16 +882,18 @@ Verification note, 2026-06-10: Phase 5.2 added `docs/superpowers/plans/2026-06-1
   - Resource list
   - Common workflows
   - Troubleshooting
-- [ ] Add `docs/live-bridge-protocol.md`.
-- [ ] Add `docs/live-bridge-security.md`.
-- [ ] Add `docs/autonomous-workflows.md`.
-- [ ] Add `docs/tooling-adapters.md`.
-- [ ] Update MCP resource catalog generation if counts are documented manually.
-- [ ] Update `package.json` repository metadata from `Coding-Solo/godot-mcp` to the correct repo.
+- [x] Add `docs/live-bridge-protocol.md`.
+- [x] Add `docs/live-bridge-security.md`.
+- [x] Add `docs/autonomous-workflows.md`.
+- [x] Add `docs/tooling-adapters.md`.
+- [x] Update MCP resource catalog generation if counts are documented manually.
+- [x] Update `package.json` repository metadata from the old upstream repo to the correct repo.
 
 Acceptance:
 
-- [ ] A fresh user can install the MCP, install the addon, enable it, and run `editor_state`.
+- [x] A fresh user can install the MCP, install the addon, enable it, and run `editor_state`.
+
+Verification note, 2026-06-10: Phase 5.3 added `docs/superpowers/plans/2026-06-10-phase-5-3-documentation.md`, focused RED/GREEN docs contract coverage in `tests/phase-5-3-docs.test.mjs`, live bridge protocol/security docs in `docs/live-bridge-protocol.md` and `docs/live-bridge-security.md`, tooling adapter docs in `docs/tooling-adapters.md`, fresh-user workflow updates in `docs/autonomous-workflows.md`, README install/security/workflow/troubleshooting updates, `test_mcp_enhancements/phase53_live_proof.mjs`, and canonical repository metadata in `package.json`. RED first failed because README/package still pointed to the old upstream repo, dedicated docs were missing, and the fresh-user live bridge path was not documented. Focused `npm run build && node --test tests/phase-5-3-docs.test.mjs` passed 3/3, final `npm test` passed 164/164, and the Phase 5.3 proof script listed 350 tools and 359 resources while proving `live_config_status`, `live_addon_status`, and `toolset_status` against `test_mcp_enhancements`. Godot headless editor smoke against `test_mcp_enhancements` exited 0 and the smoke log had 0 `SCRIPT ERROR`/`ERROR:` matches; Godot emitted the pre-existing nested-project warning for `res://test/tier2_projects/blank_test` and an ObjectDB leak warning at exit. README/package/docs now point to `https://github.com/brett03112/godot-mcp`.
 
 ### 5.4 Add Verification Harness
 

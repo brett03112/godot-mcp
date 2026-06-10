@@ -49,6 +49,14 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
+Canonical repository: https://github.com/brett03112/godot-mcp
+
+## Live Bridge Overview
+
+The live bridge connects this MCP server to an open Godot editor through the bundled `godot_mcp_live` editor addon. The MCP process owns a local WebSocket listener, normally `127.0.0.1:6010/godot-mcp-live`, and the addon registers a live editor session for the open project. MCP tools such as `session_list`, `editor_state`, `scene_save_active`, runtime tools, viewport capture, and addon management use that session to inspect or control the editor without asking the user to click around.
+
+The minimum fresh user path is: install and build this repo, configure an MCP client to run `build/index.js`, install the bundled addon, enable the addon, reload the MCP connector and addon after changes, call `session_list`, then call `editor_state`. The dedicated protocol and security notes live in [docs/live-bridge-protocol.md](docs/live-bridge-protocol.md) and [docs/live-bridge-security.md](docs/live-bridge-security.md).
+
 ## Tool Reference (350 tools)
 
 ### Project Management (7 tools)
@@ -1016,7 +1024,7 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 ### Step 1: Install and Build
 
 ```bash
-git clone https://github.com/Coding-Solo/godot-mcp.git
+git clone https://github.com/brett03112/godot-mcp.git
 cd godot-mcp
 npm install
 npm run build
@@ -1140,9 +1148,9 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
 }
 ```
 
-#### Option C: Configure with Claude Code
+#### Option C: Configure with Codex or Claude Code
 
-Add to `.mcp.json` in your project root:
+Add the server through your client MCP settings. Use the absolute path to this repo's built server:
 
 ```json
 {
@@ -1158,7 +1166,30 @@ Add to `.mcp.json` in your project root:
 }
 ```
 
-### Step 3: Optional Environment Variables
+### Step 3: Install and Enable the Live Addon
+
+With the MCP server loaded, install or update the bundled addon in the target Godot project:
+
+```text
+live_addon_install(project_path="C:/path/to/project", enable=true)
+```
+
+If the addon is already present, use:
+
+```text
+live_addon_update(project_path="C:/path/to/project")
+live_addon_enable(project_path="C:/path/to/project")
+```
+
+Reload or re-enable the addon in the Godot editor after updating addon files. Reload the MCP connector after changing server code, profile environment variables, or `.godot-mcp/config.json`. Verify the fresh user path with:
+
+```text
+live_config_status(project_path="C:/path/to/project")
+session_list(project_path="C:/path/to/project")
+editor_state(project_path="C:/path/to/project")
+```
+
+### Step 4: Optional Environment Variables
 
 - `GODOT_PATH`: Path to the Godot executable (overrides automatic detection)
 - `DEBUG`: Set to `"true"` to enable detailed server-side logging
@@ -1166,6 +1197,27 @@ Add to `.mcp.json` in your project root:
 - `ELEVENLABS_API_KEY`: API key for ElevenLabs audio generation (asset generation)
 - `ASSET_GEN_IMAGE_BACKEND`: Image generation backend — `dalle3` or `placeholder` (default: `placeholder`)
 - `ASSET_GEN_AUDIO_BACKEND`: Audio generation backend — `elevenlabs` or `placeholder` (default: `placeholder`)
+
+## Security Model
+
+Godot MCP's live bridge is local-development tooling. The default configuration is loopback-only, eval-disabled, and safe to inspect with `live_config_status`, which redacts secrets. Use `.godot-mcp/config.json` for project-local live bridge settings:
+
+```json
+{
+  "live": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 6010,
+    "shared_secret": "optional-local-secret",
+    "allowed_project_paths": ["."]
+  },
+  "eval": {
+    "enabled": false
+  }
+}
+```
+
+Use `allowed_project_paths` when you want the MCP server to accept only known project roots. Keep eval disabled unless a session explicitly requires it and you understand the risk. See [docs/live-bridge-security.md](docs/live-bridge-security.md) for the full model.
 
 ## Architecture
 
@@ -1227,6 +1279,30 @@ The server uses a **hybrid dispatch** pattern:
 - **Per-tool Timeout** - optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
 - **MCP Resources** expose server info, the active-profile tool catalog, runtime debug output, live resources when loaded, and one read-only resource for every loaded tool
 - **GDScript operations** (`godot_operations.gd`) handle operations requiring Godot's runtime: scene manipulation, particle creation, animation tree setup, networking helpers, physics, navigation, and more. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
+
+## Common Workflows
+
+### Fresh user live setup
+
+1. Clone `https://github.com/brett03112/godot-mcp`, run `npm install`, and run `npm run build`.
+2. Configure your MCP client to run `node /absolute/path/to/godot-mcp/build/index.js`.
+3. Open the target Godot project.
+4. Call `live_addon_install` with `enable=true`, or call `live_addon_update` for an existing install.
+5. Confirm `live_addon_enable` reports enabled.
+6. Reload the MCP connector and reload or re-enable the Godot addon if either side changed.
+7. Call `session_list`, then call `editor_state`.
+
+### Smaller tool catalogs
+
+Use `recommend_toolset_profile` to select a compact catalog for a task, set `GODOT_MCP_TOOLSETS` or `GODOT_MCP_TOOLS`, reload the MCP connector, and confirm with `toolset_status`.
+
+### Script debugging
+
+Use [docs/tooling-adapters.md](docs/tooling-adapters.md) with `lsp_status` on port `6005` and `dap_status` on port `6006`, then use diagnostics, definitions, breakpoints, stack trace, and variables tools as the active Godot editor exposes them.
+
+### Autonomous implementation
+
+Use `capability_matrix`, `recommend_next_tool`, `plan_feature_implementation`, `plan_test_strategy`, `risk_scan`, `preflight_project_health`, and `postchange_verification_plan` before mutating larger features. See [docs/autonomous-workflows.md](docs/autonomous-workflows.md).
 
 ## Example Prompts
 
@@ -1300,7 +1376,9 @@ The server uses a **hybrid dispatch** pattern:
 ## Troubleshooting
 
 - **Godot Not Found**: Set the `GODOT_PATH` environment variable to your Godot executable
-- **Connection Issues**: Ensure the server is running and restart your AI assistant
+- **Connection Issues**: Ensure exactly one current `node build/index.js` process owns `127.0.0.1:6010`, then reload the MCP connector and call `session_list`
+- **Live Addon Shows Connected But Tools See No Session**: A stale listener may own port `6010`; stop the stale current-build listener, reload the MCP connector, wait a few seconds, then call `session_list` and `editor_state`
+- **Unsupported Live Command**: Run `live_addon_update`, then reload or re-enable the Godot addon so the editor-side GDScript matches the MCP server
 - **Invalid Project Path**: Ensure the path points to a directory containing a `project.godot` file
 - **Build Issues**: Run `npm install` then `npm run build`
 - **For Cursor**: Ensure MCP is enabled in Settings > MCP. MCP tools require the Agent chat profile (Pro/Business). Use "Yolo Mode" for auto-approval.
