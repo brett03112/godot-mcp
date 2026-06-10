@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **344 tools** across 36 categories plus **353 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **350 tools** across 36 categories plus **359 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (344 tools)
+## Tool Reference (350 tools)
 
 ### Project Management (7 tools)
 
@@ -63,15 +63,21 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 | `list_projects` | Find project.godot files in a directory (recursive or flat) |
 | `get_project_info` | Analyze project structure and assets |
 
-### Toolset Profiles, Configuration & Session Setup (3 tools)
+### Toolset Profiles, Configuration & Session Setup (9 tools)
 
-Toolset profiles reduce token load by exposing only the catalog slice needed for a session. With no profile environment variables, the server remains backward-compatible and exposes the full 344-tool catalog. Live configuration defaults are local-only and eval-disabled.
+Toolset profiles reduce token load by exposing only the catalog slice needed for a session. With no profile environment variables, the server remains backward-compatible and exposes the full 350-tool catalog. Live configuration defaults are local-only and eval-disabled.
 
 | Tool | Description |
 | ------ | ------------- |
 | `toolset_status` | Report active toolsets, explicitly enabled tools, loaded/hidden counts, config sources, and disabled-tool remediation |
 | `recommend_toolset_profile` | Recommend compact toolsets, individual tools, resources, env snippets, and verification commands for a feature request |
 | `live_config_status` | Report effective live bridge configuration, validation, sources, and remediation with secrets redacted |
+| `live_addon_install` | Install the bundled Godot MCP Live editor addon into a Godot project |
+| `live_addon_update` | Update the installed Godot MCP Live addon from the bundled source |
+| `live_addon_remove` | Disable and optionally remove the project-local Godot MCP Live addon |
+| `live_addon_status` | Report live addon install, enablement, version, manifest, update, and Godot 4.6 compatibility status |
+| `live_addon_enable` | Enable the Godot MCP Live addon in `project.godot` |
+| `live_addon_disable` | Disable the Godot MCP Live addon in `project.godot` |
 
 ```powershell
 # Load a compact scene-editing catalog for the next MCP server process
@@ -766,9 +772,9 @@ configure_asset_generation(project_path, test_connectivity=true)
 | `create_astar_grid` | Save a reusable AStarGrid2D configuration resource for tile/grid pathfinding; AStarGrid2D itself is RefCounted in Godot 4.6 |
 | `setup_navigation_server` | Validate and return NavigationServer2D/3D runtime configuration for map, avoidance, cell, edge, and agent settings |
 
-## MCP Resource Reference (352 resources)
+## MCP Resource Reference (359 resources)
 
-The server exposes read-only MCP resources for clients that inspect `resources/list`, plus one resource template for individual tool metadata. The default full catalog currently contains 353 resources: 3 core resources, 6 live resources, and 344 per-tool definition resources. Filtered toolset profiles hide per-tool resources for hidden tools and hide live resources when the live toolset is not active.
+The server exposes read-only MCP resources for clients that inspect `resources/list`, plus one resource template for individual tool metadata. The default full catalog currently contains 359 resources: 3 core resources, 6 live resources, and 350 per-tool definition resources. Filtered toolset profiles hide per-tool resources for hidden tools and hide live resources when the live toolset is not active.
 
 ### Core Resources (3 resources)
 
@@ -788,7 +794,7 @@ The server exposes read-only MCP resources for clients that inspect `resources/l
 
 Live resources expose active editor/session snapshots when the `live` toolset is loaded or no profile filter is active.
 
-### Per-Tool Definition Resources (344 resources)
+### Per-Tool Definition Resources (350 resources)
 
 Each per-tool resource returns the tool description, input schema, `callMethod: "tools/call"`, and its concrete `resourceUri`.
 
@@ -812,6 +818,12 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/toolset_status` - Report active toolsets, explicit tools, hidden/loaded counts, config sources, and disabled-tool remediation.
 - `godot-mcp://tools/recommend_toolset_profile` - Recommend compact toolsets and env/config snippets for a feature request.
 - `godot-mcp://tools/live_config_status` - Report effective live bridge configuration, validation, sources, and remediation with secrets redacted.
+- `godot-mcp://tools/live_addon_install` - Install the bundled Godot MCP Live editor addon into a Godot project.
+- `godot-mcp://tools/live_addon_update` - Update the installed Godot MCP Live addon from the bundled source.
+- `godot-mcp://tools/live_addon_remove` - Disable and optionally remove the project-local Godot MCP Live addon.
+- `godot-mcp://tools/live_addon_status` - Report live addon install, enablement, version, manifest, update, and Godot 4.6 compatibility status.
+- `godot-mcp://tools/live_addon_enable` - Enable the Godot MCP Live addon in `project.godot`.
+- `godot-mcp://tools/live_addon_disable` - Disable the Godot MCP Live addon in `project.godot`.
 - `godot-mcp://tools/profiler` - Run the profiler lifecycle with `action: "start"`, `"get"`, or `"analyze"`.
 - `godot-mcp://tools/start_profiler` - Deprecated compatibility alias for `profiler` with `action: "start"`.
 - `godot-mcp://tools/get_profiling_data` - Read raw samples and statistical summaries from a completed profiler session.
@@ -1076,6 +1088,8 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",
         "toolset_status", "recommend_toolset_profile", "live_config_status",
+        "live_addon_install", "live_addon_update", "live_addon_remove",
+        "live_addon_status", "live_addon_enable", "live_addon_disable",
         "profiler", "start_profiler", "get_profiling_data", "analyze_bottlenecks",
         "generate_docstring", "generate_test_from_specification",
         "analyze_test_coverage", "create_mock_node",
@@ -1186,6 +1200,7 @@ src/
 │   ├── introspection.ts            # Class & engine introspection (2 tools)
 │   ├── audio.ts                    # Audio bus configuration (1 tool)
 │   ├── viewport.ts                 # Viewport screenshot capture (1 tool)
+│   ├── live-addon-installer.ts     # Bundled live addon installer/update tools (6 tools)
 │   ├── visual-qa.ts                # Visual QA and screenshot diff tools (9 tools)
 │   ├── playtest.ts                 # Automated playtesting harness (7 tools)
 │   ├── fun-metrics.ts              # Fun metrics framework (5 tools)

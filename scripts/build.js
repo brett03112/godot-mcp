@@ -26,4 +26,17 @@ try {
   process.exit(1);
 }
 
+try {
+  const sourceAddonPath = path.join(__dirname, '..', 'test_mcp_enhancements', 'addons', 'godot_mcp_live');
+  const buildAddonPath = path.join(__dirname, '..', 'build', 'addons', 'godot_mcp_live');
+  if (fs.existsSync(sourceAddonPath)) {
+    fs.ensureDirSync(path.dirname(buildAddonPath));
+    fs.copySync(sourceAddonPath, buildAddonPath, { overwrite: true });
+    console.log('Successfully copied godot_mcp_live addon to build/addons');
+  }
+} catch (error) {
+  console.error('Error copying live addon:', error);
+  process.exit(1);
+}
+
 console.log('Build scripts completed successfully!');

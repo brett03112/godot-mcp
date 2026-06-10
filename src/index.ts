@@ -75,6 +75,7 @@ import { registerTaskLedgerTools } from './tools/task-ledger.js';
 import { registerSaferPlanningTools } from './tools/safer-planning.js';
 import { registerToolsetProfileTools } from './tools/toolset-profile.js';
 import { registerLiveConfigTools } from './tools/live-config.js';
+import { registerLiveAddonInstallerTools } from './tools/live-addon-installer.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -971,6 +972,7 @@ class GodotServer {
     registerLiveConfigTools(this.toolRegistry, ctx, {
       getConfigStatus: (projectPath?: string) => this.resolveLiveConfig(projectPath || process.env.GODOT_MCP_PROJECT_PATH),
     });
+    registerLiveAddonInstallerTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

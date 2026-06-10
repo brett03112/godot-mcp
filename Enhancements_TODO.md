@@ -857,18 +857,20 @@ Verification note, 2026-06-10: Phase 5.1 added `docs/superpowers/plans/2026-06-1
 
 ### 5.2 Add Addon Installer And Updater
 
-- [ ] Add `live_addon_install`.
-- [ ] Add `live_addon_update`.
-- [ ] Add `live_addon_remove`.
-- [ ] Add `live_addon_status`.
-- [ ] Add `live_addon_enable`.
-- [ ] Add `live_addon_disable`.
-- [ ] Add compatibility check for Godot 4.6.
+- [x] Add `live_addon_install`.
+- [x] Add `live_addon_update`.
+- [x] Add `live_addon_remove`.
+- [x] Add `live_addon_status`.
+- [x] Add `live_addon_enable`.
+- [x] Add `live_addon_disable`.
+- [x] Add compatibility check for Godot 4.6.
 
 Acceptance:
 
-- [ ] Codex can install the live addon into `test_mcp_enhancements`.
-- [ ] The user can enable it in the editor and MCP sees the session.
+- [x] Codex can install the live addon into `test_mcp_enhancements`.
+- [x] The user can enable it in the editor and MCP sees the session.
+
+Verification note, 2026-06-10: Phase 5.2 added `docs/superpowers/plans/2026-06-10-phase-5-2-live-addon-installer.md`, focused RED/GREEN coverage in `tests/live-addon-installer.test.mjs`, bundled addon packaging in `scripts/build.js`, modular tooling in `src/tools/live-addon-installer.ts`, registration in `src/index.ts`, README count/tool/resource updates, and `test_mcp_enhancements/phase52_live_proof.mjs`. RED first failed with missing `build/tools/live-addon-installer.js`; focused `npm run build && node --test tests/live-addon-installer.test.mjs` passed 4/4, final `npm test` passed 161/161, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 5.2 proof script listed 350 tools and 359 resources, found all 6 new `live_addon_*` tools, proved `live_addon_status`, dry-run install/remove/enable/disable, and a real `live_addon_update` against `test_mcp_enhancements` while preserving the enabled addon state. Startup checks left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it; direct Codex MCP namespace callability still requires connector reload because `mcp__godot_mcp.session_list` and `editor_state` returned `Transport closed` before implementation.
 
 ### 5.3 Add Documentation
 
