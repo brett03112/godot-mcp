@@ -1,0 +1,1 @@
+session_list returned one connected Test_MCP_Enhancements session with transport.running=true on 127.0.0.1:6010. Phase 4.9 task ledger tools are being exercised from mcp__godot_mcp.

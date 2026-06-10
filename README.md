@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **116 tools** across 30 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **339 tools** across 35 categories plus **348 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (116 tools)
+## Tool Reference (339 tools)
 
 ### Project Management (7 tools)
 
@@ -243,14 +243,39 @@ create_material_from_texture(
 )
 ```
 
-### Testing & QA (2 tools)
+### Testing & QA (13 tools)
 
 | Tool | Description |
 | ------ | ------------- |
 | `create_test_suite` | Create GUT test files with test cases, assertions, and setup/teardown hooks |
 | `run_tests` | Execute GUT tests headlessly and return structured pass/fail results |
+| `gut_install_or_update` | Detect, install, or update the GUT addon while preserving existing installations by default |
+| `gut_discover_tests` | Discover GUT test scripts and `test_*` methods |
+| `gut_run_test_file` | Run a single GUT test file or return the exact command in dry-run mode |
+| `gut_run_changed_tests` | Select and run GUT tests related to changed project files |
+| `gut_run_with_coverage` | Report coverage-tool availability and return a GUT/JUnit fallback command when no coverage tool is present |
+| `gdunit4_install_or_update` | Detect, install, or update the gdUnit4 addon while preserving existing installations by default |
+| `gdunit4_run_tests` | Run gdUnit4 tests or return the planned command in dry-run mode |
+| `gdunit4_discover_tests` | Discover gdUnit4-style test scripts and methods |
+| `gdunit4_generate_test` | Generate a gdUnit4 `GdUnitTestSuite` template for a source script |
+| `test_watch_plan` | Recommend which Godot and Node tests to run for changed files |
+| `failure_to_patch_plan` | Map failure output to likely source files, test files, and next commands |
 
-### Asset Import & Configuration (4 tools)
+### Visual QA & Screenshot Diff (9 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `screenshot_compare` | Compare two PNG screenshots and report changed pixels, ratio, and changed bounds |
+| `capture_editor_viewport` | Capture a live editor viewport through the existing live editor screenshot bridge |
+| `capture_runtime_viewport` | Capture a runtime scene viewport by delegating to `capture_viewport` |
+| `visual_regression_baseline_create` | Create a project-local `.mcp_visual` PNG baseline from an existing screenshot |
+| `visual_regression_check` | Compare a current screenshot against a stored visual baseline |
+| `ui_overlap_check` | Inspect UI Control rectangles and report obvious overlaps |
+| `ui_contrast_check` | Check foreground/background color samples against a contrast ratio threshold |
+| `sprite_bounds_check` | Inspect Sprite2D bounds for missing textures and off-viewport sprites |
+| `camera_framing_check` | Check Camera2D framing for target Node2D positions |
+
+### Asset Import & Configuration (16 tools)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -258,6 +283,18 @@ create_material_from_texture(
 | `import_audio` | Configure loop settings, BPM sync, loop offset for WAV/OGG/MP3 |
 | `import_3d_model` | Configure collision generation, materials, animations, scale for GLTF/GLB/FBX/OBJ |
 | `create_resource` | Create any Resource .tres file with templates (themes, environments, materials) |
+| `asset_import_profile_create` | Create project-local import profiles for texture, audio, and model settings |
+| `asset_import_profile_apply` | Apply an import profile to selected assets with optional reimport |
+| `texture_import_settings_get` | Read texture `.import` `[params]` settings and remap metadata |
+| `texture_import_settings_set` | Update texture `.import` `[params]` settings with dry-run support |
+| `audio_import_settings_get` | Read audio `.import` `[params]` settings and remap metadata |
+| `audio_import_settings_set` | Update audio `.import` `[params]` settings with dry-run support |
+| `model_import_settings_get` | Read model/scene `.import` `[params]` settings and remap metadata |
+| `model_import_settings_set` | Update model/scene `.import` `[params]` settings with dry-run support |
+| `asset_batch_reimport` | Ask Godot to reimport selected assets after import setting changes |
+| `asset_usage_report` | Report references to selected assets across scenes, scripts, and resources |
+| `asset_size_budget_report` | Check selected asset sizes against total and per-asset budgets |
+| `asset_license_manifest` | Build a project-local license manifest from selected assets and sidecar files |
 
 ### Project Settings & Configuration (4 tools)
 
@@ -314,7 +351,7 @@ configure_audio_bus(
 | `configure_localization` | Set supported locales, register files, set fallback locale |
 | `extract_translatable_strings` | Scan .gd and .tscn files for tr() calls and UI text |
 
-### Plugin Management (4 tools)
+### Plugin Management (14 tools)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -322,6 +359,73 @@ configure_audio_bus(
 | `configure_plugin` | Enable, disable, or add settings to plugins |
 | `create_plugin` | Generate scaffolds from templates: basic, dock, inspector, import, tool |
 | `install_plugin` | Install from Godot Asset Library or Git repositories |
+| `asset_library_get_details` | Fetch and normalize details for a Godot Asset Library asset ID |
+| `asset_library_install_addon` | Install addon folders from an Asset Library archive or local source directory |
+| `asset_library_update_addon` | Update selected addon folders from an Asset Library archive or local source directory |
+| `asset_library_remove_addon` | Disable and optionally remove a project-local addon folder |
+| `addon_enable` | Enable an editor addon by adding its `plugin.cfg` to `project.godot` |
+| `addon_disable` | Disable an editor addon by removing its `plugin.cfg` from `project.godot` |
+| `addon_list` | List project addons with `plugin.cfg` metadata, enabled state, and optional health |
+| `addon_health_check` | Check addon install health, script presence, enabled state, and adapter mapping |
+| `external_tool_status` | Report optional addon/external tool adapter status and related MCP tools |
+| `external_tool_configure` | Store project-local configuration for optional external tool adapters |
+
+### LSP/DAP Integration (13 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `lsp_status` | Check the Godot GDScript language server endpoint and capabilities |
+| `lsp_symbols` | Retrieve document symbols from the Godot language server |
+| `lsp_definition` | Resolve a symbol definition location through LSP |
+| `lsp_references` | Find symbol references through LSP |
+| `lsp_diagnostics` | Collect published diagnostics for a GDScript document |
+| `lsp_rename_preview` | Request a preview-only LSP rename workspace edit |
+| `dap_status` | Check the Godot Debug Adapter endpoint and capabilities |
+| `dap_set_breakpoint` | Set a GDScript breakpoint through DAP |
+| `dap_clear_breakpoint` | Clear breakpoints for a GDScript source file through DAP |
+| `dap_stack_trace` | Retrieve stack frames for an active debug thread |
+| `dap_variables` | Retrieve variables from a debug frame, scope, or variables reference |
+| `dap_continue` | Continue an active debug thread |
+| `dap_step` | Step an active debug thread using next, in, or out semantics |
+
+### Performance, Memory & Quality Gates (10 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `performance_budget_create` | Store a named project-local performance budget under `.godot-mcp/performance_budgets` |
+| `performance_budget_check` | Check a runtime profile summary against named or inline performance budgets |
+| `runtime_profile_capture` | Persist runtime profile samples or summarize an existing `.mcp_profiling` artifact |
+| `runtime_profile_compare` | Compare baseline/current profiles and flag regressions over a percentage budget |
+| `memory_snapshot` | Create a structured memory snapshot from profile artifacts |
+| `node_count_budget_check` | Count scene nodes and fail when a node-count budget is exceeded |
+| `draw_call_budget_check` | Check max draw calls from a runtime profile |
+| `texture_memory_budget_check` | Check texture memory from a runtime profile |
+| `export_size_budget_check` | Check exported files or directories against total and per-file byte budgets |
+| `quality_gate_run` | Run a named quality gate and return pass/fail results with recommendations |
+
+### Task Ledger & Evidence (7 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `mcp_task_create` | Create a project-local task in `.godot-mcp/task-ledger.json` |
+| `mcp_task_update` | Update task fields, append notes, and add related files or recommendations |
+| `mcp_task_list` | List tasks with status, tag, query, and closed-task filters |
+| `mcp_task_close` | Close a task with resolution, summary, and follow-up recommendations |
+| `mcp_evidence_attach` | Attach inline or file-backed evidence to the project-local ledger |
+| `mcp_session_report` | Generate a Markdown session report from tasks and evidence |
+| `mcp_changelog_draft` | Draft a Markdown changelog from closed tasks and evidence |
+
+### Safer Autonomous Planning (7 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `capability_matrix` | Map MCP tools into capability categories and highlight tools relevant to a goal |
+| `recommend_next_tool` | Recommend a safer next MCP tool sequence and validation path for a goal |
+| `plan_feature_implementation` | Create a scoped Godot feature implementation plan with tools, files, tests, risks, and evidence |
+| `plan_test_strategy` | Plan layered tests and commands based on a goal and changed files |
+| `risk_scan` | Scan goals, changed files, and planned actions for Godot MCP implementation risks |
+| `preflight_project_health` | Inspect project-local health signals before autonomous edits |
+| `postchange_verification_plan` | Plan post-change commands, Godot checks, MCP calls, evidence, and reload guidance |
 
 ### Refactoring (1 tool)
 
@@ -614,7 +718,7 @@ The server exposes read-only MCP resources for clients that inspect `resources/l
 | ------ | ------------- |
 | `godot-mcp://tools/{name}` | Read the description and input schema for an individual Godot MCP tool |
 
-### Per-Tool Definition Resources (115 resources)
+### Per-Tool Definition Resources (339 resources)
 
 Each per-tool resource returns the tool description, input schema, `callMethod: "tools/call"`, and its concrete `resourceUri`.
 
@@ -709,10 +813,42 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/create_shader_material` - Create shader code and material resources from custom code or templates.
 - `godot-mcp://tools/create_test_suite` - Generate a GUT test script with test methods.
 - `godot-mcp://tools/run_tests` - Execute GUT tests headlessly and parse pass/fail/error details.
+- `godot-mcp://tools/gut_install_or_update` - Detect, install, or update the GUT addon while preserving existing installations by default.
+- `godot-mcp://tools/gut_discover_tests` - Discover GUT test files and test methods.
+- `godot-mcp://tools/gut_run_test_file` - Run one GUT test file or return the command in dry-run mode.
+- `godot-mcp://tools/gut_run_changed_tests` - Select and run GUT tests related to changed files.
+- `godot-mcp://tools/gut_run_with_coverage` - Report GUT coverage availability and return a JUnit fallback command when no coverage tool is present.
+- `godot-mcp://tools/gdunit4_install_or_update` - Detect, install, or update the gdUnit4 addon while preserving existing installations by default.
+- `godot-mcp://tools/gdunit4_run_tests` - Run gdUnit4 tests or return the planned command in dry-run mode.
+- `godot-mcp://tools/gdunit4_discover_tests` - Discover gdUnit4-style test files and methods.
+- `godot-mcp://tools/gdunit4_generate_test` - Generate a gdUnit4 `GdUnitTestSuite` template for a source script.
+- `godot-mcp://tools/test_watch_plan` - Recommend which tests to run after changed files.
+- `godot-mcp://tools/failure_to_patch_plan` - Map failure output to likely source files, test files, and next commands.
+- `godot-mcp://tools/screenshot_compare` - Compare two PNG screenshots and report changed pixels, ratio, and bounds.
+- `godot-mcp://tools/capture_editor_viewport` - Capture a live editor viewport screenshot through the live bridge.
+- `godot-mcp://tools/capture_runtime_viewport` - Capture a runtime scene viewport screenshot through `capture_viewport`.
+- `godot-mcp://tools/visual_regression_baseline_create` - Create a `.mcp_visual` PNG baseline from an existing screenshot.
+- `godot-mcp://tools/visual_regression_check` - Compare a screenshot against a stored visual regression baseline.
+- `godot-mcp://tools/ui_overlap_check` - Inspect UI Control rectangles and report obvious overlaps.
+- `godot-mcp://tools/ui_contrast_check` - Check UI foreground/background samples against a contrast ratio threshold.
+- `godot-mcp://tools/sprite_bounds_check` - Inspect Sprite2D bounds for missing textures and off-viewport sprites.
+- `godot-mcp://tools/camera_framing_check` - Check Camera2D framing for target Node2D positions.
 - `godot-mcp://tools/import_texture` - Configure texture import settings such as filtering, mipmaps, and compression.
 - `godot-mcp://tools/import_audio` - Configure audio import settings such as looping, BPM, and compression.
 - `godot-mcp://tools/import_3d_model` - Configure 3D model import settings for collision, materials, animation, and scale.
 - `godot-mcp://tools/create_resource` - Create custom Godot `.tres` resources such as Theme, Environment, Material, or AudioBusLayout.
+- `godot-mcp://tools/asset_import_profile_create` - Create project-local import profiles for texture, audio, and model settings.
+- `godot-mcp://tools/asset_import_profile_apply` - Apply an import profile to selected assets with optional reimport.
+- `godot-mcp://tools/texture_import_settings_get` - Read texture `.import` `[params]` settings and remap metadata.
+- `godot-mcp://tools/texture_import_settings_set` - Update texture `.import` `[params]` settings with dry-run support.
+- `godot-mcp://tools/audio_import_settings_get` - Read audio `.import` `[params]` settings and remap metadata.
+- `godot-mcp://tools/audio_import_settings_set` - Update audio `.import` `[params]` settings with dry-run support.
+- `godot-mcp://tools/model_import_settings_get` - Read model/scene `.import` `[params]` settings and remap metadata.
+- `godot-mcp://tools/model_import_settings_set` - Update model/scene `.import` `[params]` settings with dry-run support.
+- `godot-mcp://tools/asset_batch_reimport` - Ask Godot to reimport selected assets after import setting changes.
+- `godot-mcp://tools/asset_usage_report` - Report references to selected assets across scenes, scripts, and resources.
+- `godot-mcp://tools/asset_size_budget_report` - Check selected asset sizes against total and per-asset budgets.
+- `godot-mcp://tools/asset_license_manifest` - Build a project-local license manifest from selected assets and sidecar files.
 - `godot-mcp://tools/modify_project_setting` - Modify `project.godot` settings.
 - `godot-mcp://tools/configure_input_action` - Create or modify input action maps with keyboard, mouse, and gamepad bindings.
 - `godot-mcp://tools/setup_render_layers` - Configure physics and render layer names.
@@ -734,6 +870,53 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/configure_plugin` - Enable, disable, or configure plugin settings.
 - `godot-mcp://tools/create_plugin` - Generate a plugin scaffold with `plugin.cfg`, script, and directory structure.
 - `godot-mcp://tools/install_plugin` - Install plugins from the Godot Asset Library or Git repositories.
+- `godot-mcp://tools/asset_library_get_details` - Fetch and normalize details for a Godot Asset Library asset ID.
+- `godot-mcp://tools/asset_library_install_addon` - Install addon folders from an Asset Library archive or local source directory.
+- `godot-mcp://tools/asset_library_update_addon` - Update selected addon folders from an Asset Library archive or local source directory.
+- `godot-mcp://tools/asset_library_remove_addon` - Disable and optionally remove a project-local addon folder.
+- `godot-mcp://tools/addon_enable` - Enable an editor addon by adding its `plugin.cfg` to `project.godot`.
+- `godot-mcp://tools/addon_disable` - Disable an editor addon by removing its `plugin.cfg` from `project.godot`.
+- `godot-mcp://tools/addon_list` - List project addons with `plugin.cfg` metadata, enabled state, and optional health.
+- `godot-mcp://tools/addon_health_check` - Check addon install health, script presence, enabled state, and adapter mapping.
+- `godot-mcp://tools/external_tool_status` - Report optional addon/external tool adapter status and related MCP tools.
+- `godot-mcp://tools/external_tool_configure` - Store project-local configuration for optional external tool adapters.
+- `godot-mcp://tools/lsp_status` - Check the Godot GDScript language server endpoint and capabilities.
+- `godot-mcp://tools/lsp_symbols` - Retrieve document symbols from the Godot language server.
+- `godot-mcp://tools/lsp_definition` - Resolve a symbol definition location through LSP.
+- `godot-mcp://tools/lsp_references` - Find symbol references through LSP.
+- `godot-mcp://tools/lsp_diagnostics` - Collect published diagnostics for a GDScript document.
+- `godot-mcp://tools/lsp_rename_preview` - Request a preview-only LSP rename workspace edit.
+- `godot-mcp://tools/dap_status` - Check the Godot Debug Adapter endpoint and capabilities.
+- `godot-mcp://tools/dap_set_breakpoint` - Set a GDScript breakpoint through DAP.
+- `godot-mcp://tools/dap_clear_breakpoint` - Clear breakpoints for a GDScript source file through DAP.
+- `godot-mcp://tools/dap_stack_trace` - Retrieve stack frames for an active debug thread.
+- `godot-mcp://tools/dap_variables` - Retrieve variables from a debug frame, scope, or variables reference.
+- `godot-mcp://tools/dap_continue` - Continue an active debug thread.
+- `godot-mcp://tools/dap_step` - Step an active debug thread using next, in, or out semantics.
+- `godot-mcp://tools/performance_budget_create` - Store a named project-local performance budget under `.godot-mcp/performance_budgets`.
+- `godot-mcp://tools/performance_budget_check` - Check profile summaries against named or inline performance budgets.
+- `godot-mcp://tools/runtime_profile_capture` - Persist runtime profile samples or summarize existing `.mcp_profiling` artifacts.
+- `godot-mcp://tools/runtime_profile_compare` - Compare baseline and current profiles for regressions.
+- `godot-mcp://tools/memory_snapshot` - Create a structured memory snapshot from runtime profile artifacts.
+- `godot-mcp://tools/node_count_budget_check` - Count scene nodes and check a node-count budget.
+- `godot-mcp://tools/draw_call_budget_check` - Check max draw calls against a profile budget.
+- `godot-mcp://tools/texture_memory_budget_check` - Check texture memory against a profile budget.
+- `godot-mcp://tools/export_size_budget_check` - Check exported files or directories against byte budgets.
+- `godot-mcp://tools/quality_gate_run` - Run a named quality gate and return pass/fail recommendations.
+- `godot-mcp://tools/mcp_task_create` - Create a project-local MCP task.
+- `godot-mcp://tools/mcp_task_update` - Update a project-local MCP task.
+- `godot-mcp://tools/mcp_task_list` - List project-local MCP tasks.
+- `godot-mcp://tools/mcp_task_close` - Close a project-local MCP task.
+- `godot-mcp://tools/mcp_evidence_attach` - Attach evidence to the project-local MCP ledger.
+- `godot-mcp://tools/mcp_session_report` - Generate a task/evidence session report.
+- `godot-mcp://tools/mcp_changelog_draft` - Draft a changelog from closed tasks.
+- `godot-mcp://tools/capability_matrix` - Map MCP tools into goal-aware capability categories.
+- `godot-mcp://tools/recommend_next_tool` - Recommend a safer next tool sequence and validation path.
+- `godot-mcp://tools/plan_feature_implementation` - Plan a bounded feature implementation.
+- `godot-mcp://tools/plan_test_strategy` - Plan layered tests for a goal and changed files.
+- `godot-mcp://tools/risk_scan` - Scan planned changes for implementation and reload risks.
+- `godot-mcp://tools/preflight_project_health` - Inspect project health before edits.
+- `godot-mcp://tools/postchange_verification_plan` - Plan post-change verification and reload proof.
 
 ## Requirements
 
@@ -794,6 +977,26 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "validate_translations", "create_dialogue_resource",
         "configure_localization", "extract_translatable_strings",
         "list_plugins", "configure_plugin", "create_plugin", "install_plugin",
+        "asset_library_get_details", "asset_library_install_addon",
+        "asset_library_update_addon", "asset_library_remove_addon",
+        "addon_enable", "addon_disable", "addon_list", "addon_health_check",
+        "external_tool_status", "external_tool_configure",
+        "lsp_status", "lsp_symbols", "lsp_definition", "lsp_references",
+        "lsp_diagnostics", "lsp_rename_preview",
+        "dap_status", "dap_set_breakpoint", "dap_clear_breakpoint",
+        "dap_stack_trace", "dap_variables", "dap_continue", "dap_step",
+        "performance_budget_create", "performance_budget_check",
+        "runtime_profile_capture", "runtime_profile_compare", "memory_snapshot",
+        "node_count_budget_check", "draw_call_budget_check",
+        "texture_memory_budget_check", "export_size_budget_check",
+        "quality_gate_run",
+        "mcp_task_create", "mcp_task_update", "mcp_task_list",
+        "mcp_task_close", "mcp_evidence_attach", "mcp_session_report",
+        "mcp_changelog_draft",
+        "capability_matrix", "recommend_next_tool",
+        "plan_feature_implementation", "plan_test_strategy",
+        "risk_scan", "preflight_project_health",
+        "postchange_verification_plan",
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",
@@ -907,6 +1110,7 @@ src/
 │   ├── introspection.ts            # Class & engine introspection (2 tools)
 │   ├── audio.ts                    # Audio bus configuration (1 tool)
 │   ├── viewport.ts                 # Viewport screenshot capture (1 tool)
+│   ├── visual-qa.ts                # Visual QA and screenshot diff tools (9 tools)
 │   ├── playtest.ts                 # Automated playtesting harness (6 tools)
 │   ├── fun-metrics.ts              # Fun metrics framework (5 tools)
 │   ├── asset-generation.ts         # Asset generation bridge (5 tools)
@@ -914,13 +1118,13 @@ src/
 │   ├── physics.ts                  # Physics materials, bodies, shapes, and joints (5 tools)
 │   └── navigation.ts               # Navigation agents, links, obstacles, navmesh, and AStar grid (6 tools)
 └── scripts/
-    └── godot_operations.gd         # GDScript operation handlers (~7,200 lines)
+    └── godot_operations.gd         # GDScript operation handlers for Godot-backed tools
 ```
 
 The server uses a **hybrid dispatch** pattern:
 
-1. **Modular tools** (58 tools) register via `ToolRegistry` in domain-specific modules under `src/tools/`
-2. **Legacy tools** (57 tools) continue working via the existing switch statement in `src/index.ts`
+1. **Modular tools** register via `ToolRegistry` in domain-specific modules under `src/tools/`
+2. **Legacy tools** continue working via the existing switch statement in `src/index.ts`
 3. The `CallToolRequestSchema` handler checks the registry first, then falls back to the switch
 
 **Infrastructure:**

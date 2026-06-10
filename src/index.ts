@@ -63,11 +63,24 @@ import { registerUiThemeWorkflowTools } from './tools/ui-theme-workflow.js';
 import { registerCameraWorkflowTools } from './tools/camera-workflow.js';
 import { registerAudioPlayerWorkflowTools } from './tools/audio-player-workflow.js';
 import { registerNodeRefactorWorkflowTools } from './tools/node-refactor-workflow.js';
-import { registerLiveEditorTools } from './tools/live-editor.js';
+import { registerDesignToSceneTools } from './tools/design-to-scene.js';
+import { registerGameplaySystemTools } from './tools/gameplay-systems.js';
+import { registerTestToolingTools } from './tools/test-tooling.js';
+import { registerVisualQaTools } from './tools/visual-qa.js';
+import { registerAssetPipelineTools } from './tools/asset-pipeline.js';
+import { registerAddonToolManagerTools } from './tools/addon-tool-manager.js';
+import { registerLspDapIntegrationTools } from './tools/lsp-dap-integration.js';
+import { registerQualityGateTools } from './tools/quality-gates.js';
+import { registerTaskLedgerTools } from './tools/task-ledger.js';
+import { registerSaferPlanningTools } from './tools/safer-planning.js';
+import {
+  getLiveResourceDescriptors,
+  readLiveResource,
+  registerLiveEditorTools,
+} from './tools/live-editor.js';
 import { liveSessionManager } from './live/session-manager.js';
 import {
-  getLiveSessionTransportStatus,
-  startLiveSessionTransport,
+  ensureLiveSessionTransportStatus,
   stopLiveSessionTransport,
 } from './live/transport.js';
 
@@ -202,12 +215,41 @@ class GodotServer {
     'sample_interval': 'sampleInterval',
     'profiler_id': 'profilerId',
     'target_fps': 'targetFps',
+    // Phase 4.8: Quality gates
+    'budget_name': 'budgetName',
+    'gate_name': 'gateName',
+    'profile_id': 'profileId',
+    'baseline_profile_id': 'baselineProfileId',
+    'current_profile_id': 'currentProfileId',
+    'max_regression_percent': 'maxRegressionPercent',
+    'min_avg_fps': 'minAvgFps',
+    'min_min_fps': 'minMinFps',
+    'max_frame_time_ms': 'maxFrameTimeMs',
+    'max_draw_calls': 'maxDrawCalls',
+    'max_static_memory_mb': 'maxStaticMemoryMb',
+    'max_texture_memory_mb': 'maxTextureMemoryMb',
+    'max_node_count': 'maxNodeCount',
+    'max_export_size_bytes': 'maxExportSizeBytes',
+    'max_total_bytes': 'maxTotalBytes',
+    'per_file_budget_bytes': 'perFileBudgetBytes',
+    'export_paths': 'exportPaths',
+    'profile_samples': 'profileSamples',
+    'run_checks': 'runChecks',
     // Tier 3: Code intelligence
     'script_path': 'scriptPath',
     'class_name': 'className',
     'setup_code': 'setupCode',
     'teardown_code': 'teardownCode',
     'test_dir': 'testDir',
+    'test_file': 'testFile',
+    'changed_files': 'changedFiles',
+    'failure_output': 'failureOutput',
+    'source_path': 'sourcePath',
+    'test_name': 'testName',
+    'include_junit': 'includeJunit',
+    'junit_output_path': 'junitOutputPath',
+    'exit_on_finish': 'exitOnFinish',
+    'allow_network_install': 'allowNetworkInstall',
     'exclude_virtual': 'excludeVirtual',
     'base_class': 'baseClass',
     'methods_to_mock': 'methodsToMock',
@@ -455,6 +497,45 @@ class GodotServer {
     'preserve_groups': 'preserveGroups',
     'preserve_script': 'preserveScript',
     'keep_global_transform': 'keepGlobalTransform',
+    'before_path': 'beforePath',
+    'after_path': 'afterPath',
+    'diff_output_path': 'diffOutputPath',
+    'current_path': 'currentPath',
+    'baseline_name': 'baselineName',
+    'baseline_path': 'baselinePath',
+    'threshold_ratio': 'thresholdRatio',
+    'pixel_threshold': 'pixelThreshold',
+    'min_overlap_area': 'minOverlapArea',
+    'min_ratio': 'minRatio',
+    'target_paths': 'targetPaths',
+    'include_hidden': 'includeHidden',
+    'viewport_index': 'viewportIndex',
+    'host': 'host',
+    'port': 'port',
+    'line': 'line',
+    'column': 'column',
+    'include_declaration': 'includeDeclaration',
+    'thread_id': 'threadId',
+    'frame_id': 'frameId',
+    'variables_reference': 'variablesReference',
+    'breakpoint_id': 'breakpointId',
+    'step_type': 'stepType',
+    'start_frame': 'startFrame',
+    'levels': 'levels',
+    'task_id': 'taskId',
+    'include_closed': 'includeClosed',
+    'append_notes': 'appendNotes',
+    'add_related_files': 'addRelatedFiles',
+    'add_recommendations': 'addRecommendations',
+    'related_files': 'relatedFiles',
+    'session_title': 'sessionTitle',
+    'include_evidence': 'includeEvidence',
+    'available_tools': 'availableTools',
+    'current_state': 'currentState',
+    'include_validation': 'includeValidation',
+    'include_reload_guidance': 'includeReloadGuidance',
+    'planned_actions': 'plannedActions',
+    'risk_tolerance': 'riskTolerance',
   };
 
   /**
@@ -518,11 +599,6 @@ class GodotServer {
     // Set up tool handlers
     this.setupToolHandlers();
     this.setupResourceHandlers();
-    startLiveSessionTransport(liveSessionManager, {
-      sharedSecret: process.env.GODOT_MCP_LIVE_SECRET,
-      onError: (message) => console.error(`[LIVE] ${message}`),
-    });
-
     // Error handling
     this.server.onerror = (error) => console.error('[MCP Error]', error);
 
@@ -839,10 +915,23 @@ class GodotServer {
     registerCameraWorkflowTools(this.toolRegistry, ctx);
     registerAudioPlayerWorkflowTools(this.toolRegistry, ctx);
     registerNodeRefactorWorkflowTools(this.toolRegistry, ctx);
+    registerDesignToSceneTools(this.toolRegistry, ctx);
+    registerGameplaySystemTools(this.toolRegistry, ctx);
+    registerTestToolingTools(this.toolRegistry, ctx);
     registerLiveEditorTools(this.toolRegistry, {
       manager: liveSessionManager,
-      getTransportStatus: getLiveSessionTransportStatus,
+      getTransportStatus: () => ensureLiveSessionTransportStatus(liveSessionManager, {
+        sharedSecret: process.env.GODOT_MCP_LIVE_SECRET,
+        onError: (message) => console.error(`[LIVE] ${message}`),
+      }),
     });
+    registerVisualQaTools(this.toolRegistry, ctx);
+    registerAssetPipelineTools(this.toolRegistry, ctx);
+    registerAddonToolManagerTools(this.toolRegistry, ctx);
+    registerLspDapIntegrationTools(this.toolRegistry, ctx);
+    registerQualityGateTools(this.toolRegistry, ctx);
+    registerTaskLedgerTools(this.toolRegistry, ctx);
+    registerSaferPlanningTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
@@ -3245,6 +3334,7 @@ class GodotServer {
         description: 'Current captured output for the active Godot process, if one is running.',
         mimeType: 'application/json',
       },
+      ...getLiveResourceDescriptors(),
       ...toolResources,
     ];
   }
@@ -3285,6 +3375,7 @@ class GodotServer {
           'godot-mcp://server/info',
           'godot-mcp://tools/catalog',
           'godot-mcp://runtime/debug-output',
+          ...getLiveResourceDescriptors().map((resource) => resource.uri),
           'godot-mcp://tools/{name}',
         ],
         note: 'These resources expose read-only metadata for resource-oriented MCP clients. Use MCP tools/call to execute Godot operations.',
@@ -3321,6 +3412,10 @@ class GodotServer {
         output: this.activeProcess?.output || [],
         errors: this.activeProcess?.errors || [],
       };
+    }
+
+    if (parsed.hostname === 'live') {
+      return readLiveResource(uri, liveSessionManager);
     }
 
     throw new McpError(ErrorCode.InvalidParams, `Resource not found: ${uri}`);

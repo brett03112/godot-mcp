@@ -9,6 +9,7 @@ export type LiveSessionSnapshot = {
   connectionState: string;
   lastHeartbeatUnix: number | null;
   lastError: string;
+  runtimeStatus?: Record<string, unknown>;
 };
 
 export type LiveHelloMessage = {
@@ -21,10 +22,18 @@ export type LiveHeartbeatMessage = {
   session: Record<string, unknown>;
 };
 
+export type LiveCommandMessage = {
+  kind: 'command';
+  request_id: string;
+  command: string;
+  args: Record<string, unknown>;
+};
+
 export type LiveCommandResponseMessage = {
   kind: 'command_response';
   request_id?: string | number | null;
   status?: string;
+  data?: unknown;
   error?: unknown;
   session?: Record<string, unknown>;
 };
@@ -46,6 +55,12 @@ export function isLiveSessionUpdateMessage(value: unknown): value is LiveSession
     && isObject(value.session);
 }
 
+export function isLiveCommandResponseMessage(value: unknown): value is LiveCommandResponseMessage {
+  return isObject(value)
+    && value.kind === 'command_response'
+    && (typeof value.request_id === 'string' || typeof value.request_id === 'number');
+}
+
 export function normalizeLiveSessionSnapshot(session: Record<string, unknown>): LiveSessionSnapshot {
   const sessionId = requiredString(session.session_id, 'session.session_id');
   const projectPath = requiredString(session.project_path, 'session.project_path');
@@ -61,6 +76,7 @@ export function normalizeLiveSessionSnapshot(session: Record<string, unknown>): 
     connectionState: optionalString(session.connection_state) || 'connected',
     lastHeartbeatUnix: optionalNumber(session.last_heartbeat_unix),
     lastError: optionalString(session.last_error) || '',
+    runtimeStatus: optionalObject(session.runtime_status) || optionalObject(session.runtimeStatus) || undefined,
   };
 }
 
@@ -93,4 +109,8 @@ function optionalNumber(value: unknown): number | null {
 
 function optionalBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function optionalObject(value: unknown): Record<string, unknown> | null {
+  return isObject(value) ? value : null;
 }

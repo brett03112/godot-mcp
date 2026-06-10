@@ -22,6 +22,7 @@ export type LiveTransportStatus = {
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 6010;
 const DEFAULT_PATH = '/godot-mcp-live';
+const START_RETRY_DELAY_MS = 250;
 
 let transport: LiveSessionTransport | null = null;
 
@@ -31,6 +32,7 @@ export class LiveSessionTransport {
   private server: WebSocketServer | null = null;
   private running = false;
   private lastError: string | null = null;
+  private lastErrorAtMs = 0;
 
   constructor(manager: LiveSessionManager, options: LiveTransportOptions = {}) {
     this.manager = manager;
@@ -49,17 +51,25 @@ export class LiveSessionTransport {
     }
 
     try {
-      this.server = new WebSocketServer({
+      const server = new WebSocketServer({
         host: this.options.host,
         port: this.options.port,
         path: this.options.path,
         perMessageDeflate: false,
       });
-      this.running = true;
+      this.server = server;
+      this.running = false;
       this.lastError = null;
-      this.server.on('connection', (socket, request) => this.handleConnection(socket, request));
-      this.server.on('error', (error) => this.recordError(error.message));
-      this.server.on('close', () => {
+      server.on('listening', () => {
+        if (this.server !== server) return;
+        this.running = true;
+        this.lastError = null;
+      });
+      server.on('connection', (socket, request) => this.handleConnection(socket, request));
+      server.on('error', (error) => this.recordServerError(error.message, server));
+      server.on('close', () => {
+        if (this.server !== server) return;
+        this.server = null;
         this.running = false;
       });
     } catch (error: any) {
@@ -71,12 +81,13 @@ export class LiveSessionTransport {
 
   stop(): void {
     if (!this.server) return;
-    for (const client of this.server.clients) {
+    const server = this.server;
+    for (const client of server.clients) {
       client.close();
     }
-    this.server.close();
     this.server = null;
     this.running = false;
+    server.close();
   }
 
   getStatus(): LiveTransportStatus {
@@ -87,6 +98,18 @@ export class LiveSessionTransport {
       path: this.options.path,
       lastError: this.lastError,
     };
+  }
+
+  getStatusWithRetry(): LiveTransportStatus {
+    const status = this.getStatus();
+    if (
+      !status.running
+      && status.lastError
+      && Date.now() - this.lastErrorAtMs >= START_RETRY_DELAY_MS
+    ) {
+      return this.start();
+    }
+    return status;
   }
 
   private handleConnection(socket: WebSocket, request: IncomingMessage): void {
@@ -145,8 +168,20 @@ export class LiveSessionTransport {
 
   private recordError(message: string): void {
     this.lastError = message;
-    this.running = this.server !== null;
+    this.lastErrorAtMs = Date.now();
     this.options.onError?.(message);
+  }
+
+  private recordServerError(message: string, server: WebSocketServer): void {
+    this.recordError(message);
+    if (this.server !== server) return;
+    this.server = null;
+    this.running = false;
+    try {
+      server.close();
+    } catch {
+      // The server may not have finished binding, which is expected for startup errors.
+    }
   }
 }
 
@@ -160,19 +195,24 @@ export function startLiveSessionTransport(
   return transport.start();
 }
 
+export function ensureLiveSessionTransportStatus(
+  manager: LiveSessionManager = liveSessionManager,
+  options: LiveTransportOptions = {},
+): LiveTransportStatus {
+  if (!transport) {
+    transport = new LiveSessionTransport(manager, options);
+    return transport.start();
+  }
+  return transport.getStatusWithRetry();
+}
+
 export function stopLiveSessionTransport(): void {
   transport?.stop();
   transport = null;
 }
 
 export function getLiveSessionTransportStatus(): LiveTransportStatus {
-  return transport?.getStatus() || {
-    running: false,
-    host: DEFAULT_HOST,
-    port: DEFAULT_PORT,
-    path: DEFAULT_PATH,
-    lastError: null,
-  };
+  return ensureLiveSessionTransportStatus();
 }
 
 function isLoopbackAddress(remoteAddress: string): boolean {

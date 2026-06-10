@@ -312,68 +312,74 @@ Verification note, 2026-06-03: focused Phase 2.2 TDD added `tests/live-session-m
 
 ### 2.3 Add Live Editor State Tools And Resources
 
-- [ ] Add `editor_state`.
+- [x] Add `editor_state`.
 - [x] Add `session_list`.
 - [x] Add `session_activate`.
 - [x] Add `session_disconnect`.
-- [ ] Add `scene_current`.
-- [ ] Add `scene_open`.
-- [ ] Add `scene_save_active`.
-- [ ] Add `scene_reload_active`.
-- [ ] Add `selection_get`.
-- [ ] Add `selection_set`.
-- [ ] Add `editor_screenshot`.
-- [ ] Add `logs_read_editor`.
-- [ ] Add `logs_clear`.
-- [ ] Add `editor_monitors_get`.
-- [ ] Add `editor_quit`.
+- [x] Add `scene_current`.
+- [x] Add `scene_open`.
+- [x] Add `scene_save_active`.
+- [x] Add `scene_reload_active`.
+- [x] Add `selection_get`.
+- [x] Add `selection_set`.
+- [x] Add `editor_screenshot`.
+- [x] Add `logs_read_editor`.
+- [x] Add `logs_clear`.
+- [x] Add `editor_monitors_get`.
+- [x] Add `editor_quit`.
 
 Resources:
 
-- [ ] Add `godot-mcp://live/sessions`.
-- [ ] Add `godot-mcp://live/editor/state`.
-- [ ] Add `godot-mcp://live/scene/current`.
-- [ ] Add `godot-mcp://live/scene/hierarchy`.
-- [ ] Add `godot-mcp://live/selection/current`.
-- [ ] Add `godot-mcp://live/logs/recent`.
+- [x] Add `godot-mcp://live/sessions`.
+- [x] Add `godot-mcp://live/editor/state`.
+- [x] Add `godot-mcp://live/scene/current`.
+- [x] Add `godot-mcp://live/scene/hierarchy`.
+- [x] Add `godot-mcp://live/selection/current`.
+- [x] Add `godot-mcp://live/logs/recent`.
 
 Acceptance:
 
-- [ ] Codex can read the active scene path from the live editor.
-- [ ] Codex can read the selected node path.
-- [ ] Codex can set the editor selection to a known node.
-- [ ] Codex can save the active scene through the editor.
-- [ ] Codex can capture a screenshot of the editor viewport or active game viewport.
+- [x] Codex can read the active scene path from the live editor.
+- [x] Codex can read the selected node path.
+- [x] Codex can set the editor selection to a known node.
+- [x] Codex can save the active scene through the editor.
+- [x] Codex can capture a screenshot of the editor viewport or active game viewport.
+
+Verification note, 2026-06-03: focused Phase 2.3 TDD added `tests/live-editor-state.test.mjs` covering tool registration, MCP-to-addon command request/response, scene/selection/save/screenshot command mapping, and live resource reads. RED was observed as missing `getLiveResourceDescriptors` export and missing addon dispatcher handlers. After extending `src/live/protocol.ts`, `src/live/session-manager.ts`, `src/tools/live-editor.ts`, `src/index.ts`, and the live addon scripts, `npm run build && node --test tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 16/16 focused tests and `npm test` passed 67/67 repo tests. A built MCP stdio catalog smoke with `GODOT_PATH=C:\Users\brett\Desktop\Godot\Godot.exe` listed 194 tools including `editor_state`, `scene_current`, `selection_get`, `selection_set`, `scene_save_active`, and `editor_screenshot`, and 203 resources including all six `godot-mcp://live/*` Phase 2.3 resources. The smoke also confirmed the already-running MCP process still owned `127.0.0.1:6010` (`listen EADDRINUSE`) and exposed only the older Phase 2.2 live tools, so live command acceptance against the GUI editor required MCP connector reload. The existing live session remained connected through that older process: `test_mcp_enhancements`, Godot `4.6.3-stable (official)`, active scene `res://test_animation_with_anim.tscn`, session `godot-mcp-1780523463261-849982`. A Godot 4.6.3 headless editor parse smoke for `test_mcp_enhancements` exited 0 with only the known nested-project warning and an ObjectDB leak warning on editor shutdown.
+
+Live GUI acceptance update, 2026-06-03: after restarting Codex, the active MCP process was a single Node server at PID 18304 with `127.0.0.1:6010` listening and one established connection. `session_list` reported one connected `test_mcp_enhancements` editor session, Godot `4.6.3-stable (official)`, editor PID 2596, active scene `res://test_animation_with_anim.tscn`, writable, and not stale. Live calls succeeded for `editor_state`, `scene_current`, `selection_get`, `selection_set` to `TestButton`, `selection_get` readback of `TestButton`, `scene_save_active` with `error_code: 0`, `editor_screenshot` to `res://screenshots/mcp_live_phase23.png` (`1101x845`), `logs_read_editor`, and `editor_monitors_get`.
 
 ### 2.4 Add Live Scene Mutation Tools
 
-- [ ] Add `live_scene_get_hierarchy`.
-- [ ] Add `live_node_get_properties`.
-- [ ] Add `live_node_set_property`.
-- [ ] Add `live_node_create`.
-- [ ] Add `live_node_delete`.
-- [ ] Add `live_node_duplicate`.
-- [ ] Add `live_node_reparent`.
-- [ ] Add `live_node_rename`.
-- [ ] Add `live_node_connect_signal`.
-- [ ] Add `live_node_disconnect_signal`.
-- [ ] Add `live_scene_mark_dirty`.
-- [ ] Add `live_scene_save`.
+- [x] Add `live_scene_get_hierarchy`.
+- [x] Add `live_node_get_properties`.
+- [x] Add `live_node_set_property`.
+- [x] Add `live_node_create`.
+- [x] Add `live_node_delete`.
+- [x] Add `live_node_duplicate`.
+- [x] Add `live_node_reparent`.
+- [x] Add `live_node_rename`.
+- [x] Add `live_node_connect_signal`.
+- [x] Add `live_node_disconnect_signal`.
+- [x] Add `live_scene_mark_dirty`.
+- [x] Add `live_scene_save`.
 
 Acceptance:
 
-- [ ] Codex can add a node to the currently open scene without the user providing a `.tscn` path.
-- [ ] Codex can change a selected node property and save the active scene.
-- [ ] File-backed validators see the saved change afterward.
+- [x] Codex can add a node to the currently open scene without the user providing a `.tscn` path.
+- [x] Codex can change a selected node property and save the active scene.
+- [x] File-backed validators see the saved change afterward.
+
+Verification note, 2026-06-03: focused Phase 2.4 TDD added `tests/live-scene-mutation.test.mjs` covering registration and MCP command mapping for all 12 live scene mutation tools, plus addon contract checks for dispatcher command branches and handlers. RED was observed as missing registry entries and missing addon handler names. After extending `src/tools/live-editor.ts` and `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, `npm run build && node --test tests/live-scene-mutation.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 18/18 focused live tests, `npm test` passed 69/69 repo tests, and `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path test_mcp_enhancements --quit` exited 0 with only the known nested-project warning and ObjectDB shutdown warning. A fresh MCP stdio plus headless Godot 4.6.3 editor live smoke connected session `godot-mcp-1780527663355-734808`, opened `res://test_animation_with_anim.tscn`, read hierarchy root `root`, created `McpPhase24LiveProof_1780527661189` without passing a `.tscn` path, set `visible=false`, saved with `error_code: 0`, confirmed the saved scene file contained the proof node and `visible = false`, confirmed file-backed `node_find` saw the proof node, deleted it, saved again with `error_code: 0`, and confirmed the saved scene file no longer contained the proof node. The already-open GUI editor addon still had the Phase 2.3 dispatcher loaded and returned `unsupported_command` for `live_scene_get_hierarchy`; a plugin/editor reload is required before the GUI session can answer Phase 2.4 commands. A fresh hidden listener was restored afterward at PID 2340 with an established GUI connection on `127.0.0.1:6010`.
 
 ### 2.5 Add Editor Filesystem And Import Operations
 
-- [ ] Add `editor_filesystem_scan`.
-- [ ] Add `editor_filesystem_reimport`.
-- [ ] Add `editor_resource_reload`.
-- [ ] Add `editor_resource_uid_update`.
-- [ ] Add `editor_open_resource`.
-- [ ] Add `editor_focus_file`.
+- [x] Add `editor_filesystem_scan`.
+- [x] Add `editor_filesystem_reimport`.
+- [x] Add `editor_resource_reload`.
+- [x] Add `editor_resource_uid_update`.
+- [x] Add `editor_open_resource`.
+- [x] Add `editor_focus_file`.
 
 Research basis:
 
@@ -381,7 +387,9 @@ Research basis:
 
 Acceptance:
 
-- [ ] Codex can create a file externally, ask the live editor to scan/reimport, and then see the resource in the editor filesystem.
+- [x] Codex can create a file externally, ask the live editor to scan/reimport, and then see the resource in the editor filesystem.
+
+Verification note, 2026-06-03: focused Phase 2.5 TDD added `tests/live-editor-filesystem.test.mjs` covering registration and live-command mapping for all 6 editor filesystem/import tools, plus addon contract checks for dispatcher command branches and handlers. RED was observed as missing registry entries and missing addon handler names. After extending `src/tools/live-editor.ts` and `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, `npm run build && node --test tests/live-editor-filesystem.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 18/18 focused live tests, `npm test` passed 71/71 repo tests, and `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path test_mcp_enhancements --quit` exited 0 with only the known nested-project warning and ObjectDB shutdown warning. Context7/Godot 4.6 docs confirmed `EditorFileSystem.update_file()`, `scan()`, `reimport_files()`, `EditorInterface.get_resource_filesystem()`, `EditorInterface.get_file_system_dock()`, and `FileSystemDock.navigate_to_path()`. A fresh MCP stdio server from the built code listed 212 tools, a fresh headless Godot live editor session `godot-mcp-1780528878653-200823` connected for `test_mcp_enhancements`, an externally-created `res://mcp_phase25_live_probe.svg` scanned visible/existing with `waited_ms: 51`, reimported with no timeout, reloaded as `CompressedTexture2D`, returned UID `uid://chkcmhe8omw04`, focused and opened as a resource, then cleanup removed the probe and a follow-up scan reported `exists: false` and `visible: false`. The live listener was restored afterward on `127.0.0.1:6010` with one established editor connection.
 
 ## Phase 3 - Runtime Control, Debugger Bridge, And Play Mode Awareness
 
@@ -389,87 +397,106 @@ Goal: Let Codex inspect and control the currently running game, not only offline
 
 ### 3.1 Add Editor Debugger Plugin Bridge
 
-- [ ] Add an `EditorDebuggerPlugin` inside the live addon.
-- [ ] Register it from the editor plugin with `add_debugger_plugin()`.
-- [ ] Define message namespace, for example `godot_mcp:*`.
-- [ ] Add runtime-side helper/autoload for messages from the running game using `EngineDebugger`.
-- [ ] Track debugger session IDs.
-- [ ] Track play start/stop events.
-- [ ] Surface runtime connection status in `editor_state`.
+- [x] Add an `EditorDebuggerPlugin` inside the live addon.
+- [x] Register it from the editor plugin with `add_debugger_plugin()`.
+- [x] Define message namespace, for example `godot_mcp:*`.
+- [x] Add runtime-side helper/autoload for messages from the running game using `EngineDebugger`.
+- [x] Track debugger session IDs.
+- [x] Track play start/stop events.
+- [x] Surface runtime connection status in `editor_state`.
+- [x] Add editor-driven `runtime_play_scene` and `runtime_stop` commands for live runtime acceptance.
 
 Acceptance:
 
-- [ ] Starting the game from the editor creates a runtime debugger session visible to the MCP.
-- [ ] MCP can send a ping to the running game and receive a response.
+- [x] Starting the game from the editor creates a runtime debugger session visible to the MCP.
+- [x] MCP can send a ping to the running game and receive a response.
+
+Verification note, 2026-06-05: Phase 3.1 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-1-editor-debugger-bridge.md`, a live addon `EditorDebuggerPlugin` bridge (`debugger_bridge.gd`), a runtime `EngineDebugger` autoload helper (`runtime_bridge.gd`), project autoload registration, `runtime_status` session serialization, and the MCP `runtime_ping` live command. Context7 and the official Godot 4.6 docs were used for `EditorPlugin.add_debugger_plugin()`, `EditorDebuggerPlugin._has_capture()/_capture()/_setup_session()`, `EditorDebuggerSession.send_message()`, and `EngineDebugger.register_message_capture()/send_message()/unregister_message_capture()`. RED was observed with `npm run build && node --test tests/live-runtime-debugger.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing `debugger_bridge.gd`, missing runtime autoload, missing `runtime_ping`, and missing serialized `runtime_status`; after implementation the same focused command passed 6/6. Broader focused live regression `npm run build && node --test tests/live-runtime-debugger.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 19/19, and `npm test` passed 74/74 after the final Godot signature fix. Godot 4.6.3 editor parse smoke with `C:\Users\brett\Desktop\Godot\Godot.exe --headless --editor --path C:\Users\brett\Desktop\godot-mcp\test_mcp_enhancements --quit` initially exposed that `_has_capture()` must match the parent signature as `String`, not `StringName`; after fixing that, the same smoke passed an explicit `SCRIPT ERROR|\bERROR:` output guard with only the known nested-project and ObjectDB shutdown warnings. A runtime autoload smoke with `--headless --path ... --quit-after 1 res://tier1_test_scene.tscn` also passed the explicit script-error output guard. Initial live GUI runtime acceptance was blocked because the callable MCP connector reported zero sessions and `listen EADDRINUSE` on `127.0.0.1:6010`; Windows TCP inspection showed PID 21344 (`node C:\Users\brett\Desktop\godot-mcp\build\index.js`) owned the port and had one established editor connection, so the open GUI was connected to a different already-running MCP server that had to be reloaded before the new Phase 3.1 `runtime_ping` command could be exercised against it.
+
+Follow-up verification note, 2026-06-05: After cleaning duplicate Codex MCP config and reloading, a controlled MCP smoke confirmed the editor bridge reconnected on attempt 2 and `editor_state` returned the live GUI state. External `--remote-debug` runtime attachment did not create an `EditorDebuggerPlugin` session, so Phase 3.1 added `runtime_play_scene` and `runtime_stop` to start/stop the game from inside the live editor using Godot 4.6 `EditorInterface.play_custom_scene(scene_filepath)` and `EditorInterface.stop_playing_scene()`. Focused runtime/addon tests passed 7/7, broader live regression passed 20/20, `npm test` passed 75/75, Godot editor parse smoke passed the explicit `SCRIPT ERROR|\bERROR:` guard, and runtime autoload smoke passed. A controlled live proof then started a built MCP server, launched a fresh headless editor session for `test_mcp_enhancements`, called `runtime_play_scene` for `res://tier1_test_scene.tscn`, observed `runtime_status.state: running` with `runtime_active_session_id: 0`, called `runtime_ping`, verified the returned `last_ping.pong: true` from runtime PID 9796 for scene `res://tier1_test_scene.tscn`, and called `runtime_stop` successfully.
+
+GUI reload verification note, 2026-06-05: After the user reloaded the Godot editor/app, a controlled smoke against the open GUI editor PID 4068 connected on attempt 2, read `editor_state`, called `runtime_play_scene` for `res://tier1_test_scene.tscn`, observed `runtime_status.state: running` with `runtime_active_session_id: 0`, `last_message: godot_mcp:runtime_ready`, runtime PID 3820, and scene `res://tier1_test_scene.tscn`, then called `runtime_ping` with roundtrip ID `godot-mcp-ping-379588` and verified `last_ping.pong: true` before `runtime_stop`. An earlier GUI attempt sent ping before `runtime_ready` arrived (`runtime_ready` arrived after the ping send), so live acceptance should wait for `runtime_ready` before sending runtime commands. The Codex app tool registry still did not expose the `mcp__godot_mcp` namespace in this already-running thread after the config cleanup, so the GUI proof used a temporary built MCP child server; the single intended Codex MCP declaration is now in `C:\Users\brett\.codex\config.toml`, and a fresh Codex app reload/new thread is expected to load that tool namespace.
+
+Restart-debugging verification note, 2026-06-05: After a Codex restart the `mcp__godot_mcp` namespace loaded, but `session_list` still reported zero sessions with stale `listen EADDRINUSE` while Windows showed no active listener on `127.0.0.1:6010`; the Godot dock stayed at `connecting`. Root cause was the live WebSocket transport treating asynchronous bind errors as a non-null running server, which blocked later retries after the port was freed. A RED test in `tests/live-session-manager.test.mjs` reproduced that a port-blocked startup could not retry; `src/live/transport.ts` now marks the transport running only on `listening`, clears the server on server-level `error`, and lets a later `start()` retry. After another Codex/editor reload, `session_list` correctly reported `running: false` instead of stale running state, but it still did not trigger a new bind; a second RED test now verifies the singleton transport retries from `getLiveSessionTransportStatus()` after the startup bind error has been visible briefly. A second live probe found stale runtime metadata after editor stop/start, so `debugger_bridge.gd` now clears runtime metadata on start/stop and `runtime_ping` returns `runtime_not_ready` until a fresh `godot_mcp:runtime_ready` arrives after the current `started_unix`. Focused runtime/session/addon regression passed 16/16, focused session retry regression passed 10/10, `npm test` passed 77/77, the Godot editor parse smoke passed the explicit `SCRIPT ERROR|\bERROR:` guard, and a fresh headless live proof connected session `godot-mcp-1780683571075-175182`, started `res://tier1_test_scene.tscn`, observed fresh runtime PID 19348 with `last_message_unix >= started_unix`, sent ping `godot-mcp-ping-4600`, verified `last_ping.pong: true`, and stopped the runtime. The current GUI editor and Codex MCP child still need to be reloaded to pick up these just-built fixes.
+
+Callable-process verification note, 2026-06-05: After another Codex/editor reload the Godot dock reported connected and Windows showed PID 22624 listening on `127.0.0.1:6010` with one established editor connection, but the callable `mcp__godot_mcp.session_list` still returned zero sessions. Windows process inspection showed a second Codex-launched MCP process PID 18584; the editor had connected to the earlier listener PID 22624 while tool calls were routed to PID 18584. Root cause was eager live listener startup in every `node build/index.js` process, which lets a non-callable process win the fixed live port. `src/index.ts` no longer starts the live transport in the constructor; it now passes a lazy `ensureLiveSessionTransportStatus()` callback to live tools, so the process that receives `session_list` is the process that binds the live bridge. `tests/live-session-manager.test.mjs` adds a RED/green regression proving the singleton can start lazily from the status helper and accept a WebSocket hello. Focused live-session regression passed 11/11, `npm test` passed 78/78, and Godot editor parse smoke passed the explicit `SCRIPT ERROR|\bERROR:` guard. A Codex restart is required to replace the already-running eager-listener processes with this lazy-listener build.
 
 ### 3.2 Add Runtime Inspection Tools
 
-- [ ] Add `runtime_get_scene_tree`.
-- [ ] Add `runtime_get_node_info`.
-- [ ] Add `runtime_get_node_property`.
-- [ ] Add `runtime_watch_node`.
-- [ ] Add `runtime_get_ui_elements`.
-- [ ] Add `runtime_get_focus_owner`.
-- [ ] Add `runtime_get_viewport_info`.
-- [ ] Add `runtime_get_performance_metrics`.
-- [ ] Add `runtime_get_input_map`.
-- [ ] Add `runtime_get_groups`.
+- [x] Add `runtime_get_scene_tree`.
+- [x] Add `runtime_get_node_info`.
+- [x] Add `runtime_get_node_property`.
+- [x] Add `runtime_watch_node`.
+- [x] Add `runtime_get_ui_elements`.
+- [x] Add `runtime_get_focus_owner`.
+- [x] Add `runtime_get_viewport_info`.
+- [x] Add `runtime_get_performance_metrics`.
+- [x] Add `runtime_get_input_map`.
+- [x] Add `runtime_get_groups`.
 
 Acceptance:
 
-- [ ] Codex can inspect the live running scene tree while the project is playing.
-- [ ] Codex can list visible UI controls with text, bounds, disabled/visible state, and focus information.
+- [x] Codex can inspect the live running scene tree while the project is playing.
+- [x] Codex can list visible UI controls with text, bounds, disabled/visible state, and focus information.
+
+Verification note, 2026-06-05: Phase 3.2 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-2-runtime-inspection-tools.md`, focused RED tests in `tests/live-runtime-inspection.test.mjs`, expanded addon contract assertions in `tests/live-addon-skeleton.test.mjs`, ten new live MCP tool registrations in `src/tools/live-editor.ts`, editor dispatcher forwarding in `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, async debugger request/result handling in `debugger_bridge.gd`, and runtime `SceneTree`/node/UI/viewport/performance/input/group serializers in `runtime_bridge.gd`. Context7/Godot 4.6 docs were used for `EngineDebugger` message capture and GDScript coroutine/`await` behavior. RED was observed with `npm run build && node --test tests/live-runtime-inspection.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing `runtime_get_scene_tree` registration and missing addon/runtime handler names. An initial Godot editor smoke caught `Variant.get_type_name(...)` parser errors, which were fixed with explicit type strings. Initial live proof showed blocking `OS.delay_msec()` starved `EditorDebuggerPlugin._capture()` until after timeout; `transport_websocket.gd`, `command_dispatcher.gd`, and `debugger_bridge.gd` now await frame-yielded inspection responses, and `runtime_ready_unix` keeps runtime readiness valid after later `inspection_result` messages. Final focused live regression `npm run build && node --test tests/live-runtime-inspection.test.mjs tests/live-runtime-debugger.test.mjs tests/live-editor-state.test.mjs tests/live-session-manager.test.mjs tests/live-addon-skeleton.test.mjs` passed 25/25, `npm test` passed 80/80, Godot 4.6.3 editor parse smoke passed the explicit `SCRIPT ERROR|\bERROR:` guard with only the known nested-project and ObjectDB shutdown warnings, and runtime autoload smoke with `--headless --path ... --quit-after 1 res://tier1_test_scene.tscn` exited 0. Live acceptance used the `.mcp.json` stdio command `node C:/Users/brett/Desktop/godot-mcp/build/index.js` with `GODOT_PATH=C:/Users/brett/Desktop/Godot/Godot.exe`; a stale non-callable listener PID 21036 owned `127.0.0.1:6010` and was stopped so the `.mcp.json` process could own the bridge. A fresh headless editor session `godot-mcp-1780687800899-474470` (editor PID 15272) started `res://tier1_test_scene.tscn`, observed runtime session `0`, and proved `runtime_get_scene_tree` root `root`, `runtime_get_node_info` class `Node2D`, `runtime_get_node_property name = root`, `runtime_watch_node` keys `name` and `process_mode`, `runtime_get_ui_elements` count `1`, `runtime_get_focus_owner` structured null focus, `runtime_get_viewport_info` size `1152x648`, `runtime_get_performance_metrics` including `TIME_FPS`, `runtime_get_input_map` count `92`, `runtime_get_groups` count `1`, and `runtime_stop`.
 
 ### 3.3 Add Runtime Input Tools
 
-- [ ] Add `runtime_input_key`.
-- [ ] Add `runtime_input_mouse`.
-- [ ] Add `runtime_input_gamepad`.
-- [ ] Add `runtime_input_action`.
-- [ ] Add `runtime_input_text`.
-- [ ] Add `runtime_input_state`.
-- [ ] Add `runtime_wait_for_condition`.
-- [ ] Add `runtime_click_ui_text`.
-- [ ] Add `runtime_click_ui_path`.
+- [x] Add `runtime_input_key`.
+- [x] Add `runtime_input_mouse`.
+- [x] Add `runtime_input_gamepad`.
+- [x] Add `runtime_input_action`.
+- [x] Add `runtime_input_text`.
+- [x] Add `runtime_input_state`.
+- [x] Add `runtime_wait_for_condition`.
+- [x] Add `runtime_click_ui_text`.
+- [x] Add `runtime_click_ui_path`.
 
 Acceptance:
 
-- [ ] Codex can press a project input action.
-- [ ] Codex can click a visible UI button by text or node path.
-- [ ] Codex can wait for a UI/state condition and report timeout vs success.
+- [x] Codex can press a project input action.
+- [x] Codex can click a visible UI button by text or node path.
+- [x] Codex can wait for a UI/state condition and report timeout vs success.
+
+Verification note, 2026-06-05: Phase 3.3 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-3-runtime-input-tools.md`, focused RED tests in `tests/live-runtime-input.test.mjs`, addon contract assertions in `tests/live-addon-skeleton.test.mjs`, nine new live MCP tool registrations in `src/tools/live-editor.ts`, dispatcher forwarding in `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, and runtime input/event/UI-click/state/wait handlers in `test_mcp_enhancements/addons/godot_mcp_live/runtime_bridge.gd`. Context7/Godot docs were used for `Input.parse_input_event()`, `InputEventAction`, `InputEventKey`, mouse/joypad input events, `OS.find_keycode_from_string()`, and timer/frame waiting behavior. RED was observed with `npm run build && node --test tests/live-runtime-input.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing `runtime_input_key` registration, unknown-tool dispatch, and missing addon command names. GREEN focused runtime-input/addon tests passed 5/5, broader live runtime regression passed 27/27, and `npm test` passed 82/82. Godot 4.6.3 headless editor parse smoke exited 0 after fixing a typed `Dictionary` return analyzer issue in `_runtime_wait_for_condition`; final editor/runtime smokes exited 0 with only the known nested-project and ObjectDB shutdown warnings. Live acceptance used `.mcp.json` exactly (`node C:/Users/brett/Desktop/godot-mcp/build/index.js` with `GODOT_PATH=C:/Users/brett/Desktop/Godot/Godot.exe`), a fresh headless editor session `godot-mcp-1780689073858-892208` (editor PID 22164), and `res://test_connect.tscn`: `runtime_input_action` pressed and released `ui_accept`, `runtime_wait_for_condition` matched action pressed with `elapsed_ms: 0`, `runtime_input_state` showed `ui_accept.pressed` true then false, `runtime_wait_for_condition` matched visible UI text `Test Button`, `runtime_click_ui_text` and `runtime_click_ui_path` clicked the `Button` at `[275, 225]`, and a false node-property wait returned `matched: false`, `timed_out: true`, `observed: "TestConnect"` after 101 ms. A second `.mcp.json` live probe with headless editor session `godot-mcp-1780689203684-271500` (editor PID 23128) proved the remaining direct input constructors: `runtime_input_key` sent Space press/release, `runtime_input_mouse` sent motion plus left press/release at `[275, 225]`, `runtime_input_gamepad` sent joypad button 0 and axis 0 value `0.5`, `runtime_input_text` inserted `Hi` with four key events, and `runtime_input_state` read back key/mouse/gamepad state. The stale listener on `127.0.0.1:6010` was stopped for the `.mcp.json` proofs; afterward a hidden `.mcp.json` keeper restored a fresh listener at PID 21008 with the open GUI editor PID 24116 reconnected on an established loopback socket.
 
 ### 3.4 Add Lightweight Runtime Assertions
 
-- [ ] Add `runtime_assert_node_exists`.
-- [ ] Add `runtime_assert_property_equals`.
-- [ ] Add `runtime_assert_signal_emitted`.
-- [ ] Add `runtime_assert_ui_text_visible`.
-- [ ] Add `runtime_assert_no_errors`.
-- [ ] Add `runtime_snapshot_assertion_report`.
+- [x] Add `runtime_assert_node_exists`.
+- [x] Add `runtime_assert_property_equals`.
+- [x] Add `runtime_assert_signal_emitted`.
+- [x] Add `runtime_assert_ui_text_visible`.
+- [x] Add `runtime_assert_no_errors`.
+- [x] Add `runtime_snapshot_assertion_report`.
 
 Acceptance:
 
-- [ ] Codex can perform a short live smoke test without writing a full GUT test.
-- [ ] Failures include the observed value and suggested next probe.
+- [x] Codex can perform a short live smoke test without writing a full GUT test.
+- [x] Failures include the observed value and suggested next probe.
+
+Verification note, 2026-06-05: Phase 3.4 added an implementation plan at `docs/superpowers/plans/2026-06-05-phase-3-4-runtime-assertions.md`, focused RED tests in `tests/live-runtime-assertions.test.mjs`, addon contract assertions in `tests/live-addon-skeleton.test.mjs`, six new live MCP tool registrations in `src/tools/live-editor.ts`, dispatcher forwarding in `test_mcp_enhancements/addons/godot_mcp_live/command_dispatcher.gd`, and runtime assertion/report/signal-tracking handlers in `test_mcp_enhancements/addons/godot_mcp_live/runtime_bridge.gd`. Context7/Godot 4.6 docs were used for signal connection and callable behavior. RED was observed with `npm run build && node --test tests/live-runtime-assertions.test.mjs tests/live-addon-skeleton.test.mjs` failing for missing tool registration and addon command names. GREEN focused assertion/addon tests passed 5/5, broader live runtime regression passed 29/29, and `npm test` passed 84/84. `validate_script` passed for `runtime_bridge.gd` and `command_dispatcher.gd`; Godot 4.6.3 headless editor and runtime smokes exited 0 with no `SCRIPT ERROR` or `ERROR:` matches, only the known nested-project/ObjectDB warnings. Live acceptance used `.mcp.json` exactly (`node C:/Users/brett/Desktop/godot-mcp/build/index.js` with `GODOT_PATH=C:/Users/brett/Desktop/Godot/Godot.exe`), stopped stale listener PID 22932, and proved all six new tools were present. Against live session `godot-mcp-1780690353054-740449` / editor PID 8948 running `res://test_connect.tscn`, `runtime_assert_node_exists` passed for `.`, `runtime_assert_property_equals` passed for root `name == TestConnect`, `runtime_assert_ui_text_visible` passed for `Test Button`, `runtime_assert_signal_emitted` failed before clicking then passed after `runtime_click_ui_path TestButton` with count `1`, `runtime_assert_no_errors` passed with count `0`, and `runtime_snapshot_assertion_report` returned total `3`, passed `2`, failed `1`; the intentional false property assertion observed `TestConnect` and suggested `runtime_get_node_property`. A fresh hidden `.mcp.json` keeper restored a listener on `127.0.0.1:6010/godot-mcp-live` at PID 21796.
 
 ### 3.5 Add Safe Eval, Gated And Disabled By Default
 
-- [ ] Add `live_eval_status`.
-- [ ] Add `game_eval` only if explicitly enabled in MCP config.
-- [ ] Add `editor_eval` only if explicitly enabled in MCP config.
-- [ ] Require:
+- [x] Add `live_eval_status`.
+- [x] Add `game_eval` only if explicitly enabled in MCP config.
+- [x] Add `editor_eval` only if explicitly enabled in MCP config.
+- [x] Require:
   - local loopback connection
   - matching project path
   - explicit config flag
   - optional per-session approval token
-- [ ] Return clear refusal when eval is disabled.
-- [ ] Log all eval calls with timestamp, session, code hash, and caller-visible reason.
+- [x] Return clear refusal when eval is disabled.
+- [x] Log all eval calls with timestamp, session, code hash, and caller-visible reason.
 
 Acceptance:
 
-- [ ] Eval is disabled by default.
-- [ ] Disabled eval returns a safe error.
-- [ ] Enabled eval can run a harmless expression in a disposable test project.
+- [x] Eval is disabled by default.
+- [x] Disabled eval returns a safe error.
+- [x] Enabled eval can run a harmless expression in a disposable test project.
+
+Verification note, 2026-06-07: Phase 3.5 added `docs/superpowers/plans/2026-06-07-phase-3-5-safe-eval.md`, focused RED tests in `tests/live-safe-eval.test.mjs`, `live_eval_status`, and gated `editor_eval`/`game_eval` registration in `src/tools/live-editor.ts`. Eval tools are absent unless `GODOT_MCP_ENABLE_EVAL=true` is present in MCP env/config; enabled calls require loopback, project-path match, optional `GODOT_MCP_EVAL_APPROVAL_TOKEN`, caller `reason`, and write JSONL audit records with timestamp, session, SHA-256 code hash, decision, and reason. Context7/Godot 4.6 docs were used for `Expression.parse()` and `Expression.execute()`. RED failed for missing `live_eval_status`, `editor_eval`, and `game_eval`; GREEN focused `npm run build && node --test tests/live-safe-eval.test.mjs tests/live-addon-skeleton.test.mjs` passed 7/7, broader live runtime regression passed 33/33, and `npm test` passed 88/88. Godot 4.6.3 headless editor and runtime smokes exited 0 with no `SCRIPT ERROR` or `ERROR:` matches. `.mcp.json` live proof confirmed default eval state listed 241 tools with `live_eval_status` present and both eval tools absent; enabled proof listed 243 tools, used approval token `phase35-live-proof`, connected fresh headless editor session `godot-mcp-1780859465720-855073` PID 17008, ran `editor_eval` result `2`, started `res://tier1_test_scene.tscn`, waited for `runtime_ready`, ran `game_eval` result `5`, stopped runtime, and verified accepted audit entries with 64-character code hashes. The already-open GUI editor PID 14012 still had the old addon loaded during the first enabled proof, so reload Godot before using Phase 3.5 eval from that GUI session.
 
 ## Phase 4 - Autonomous Development Tooling Beyond The Live Bridge
 
@@ -477,16 +504,16 @@ Goal: Add higher-level tools that make Codex a better game-development operator,
 
 ### 4.1 Add Design-To-Scene Generators
 
-- [ ] Add `generate_scene_from_brief`.
-- [ ] Add `generate_level_blockout`.
-- [ ] Add `generate_menu_flow`.
-- [ ] Add `generate_hud`.
-- [ ] Add `generate_dialogue_scene`.
-- [ ] Add `generate_settings_screen`.
-- [ ] Add `generate_mobile_controls`.
-- [ ] Add `generate_gameplay_prefab`.
-- [ ] Add `generate_enemy_archetype`.
-- [ ] Add `generate_pickup_archetype`.
+- [x] Add `generate_scene_from_brief`.
+- [x] Add `generate_level_blockout`.
+- [x] Add `generate_menu_flow`.
+- [x] Add `generate_hud`.
+- [x] Add `generate_dialogue_scene`.
+- [x] Add `generate_settings_screen`.
+- [x] Add `generate_mobile_controls`.
+- [x] Add `generate_gameplay_prefab`.
+- [x] Add `generate_enemy_archetype`.
+- [x] Add `generate_pickup_archetype`.
 
 Implementation notes:
 
@@ -496,44 +523,50 @@ Implementation notes:
 
 Acceptance:
 
-- [ ] Codex can create a playable mini-feature from a short brief and then validate the created files.
+- [x] Codex can create a playable mini-feature from a short brief and then validate the created files.
+
+Verification note, 2026-06-09: Phase 4.1 tooling was recovered after a partial implementation state. Fixes covered the Godot dispatcher calling the underscored Phase 4.1 handlers, GDScript keyword/parser issues, the Godot 4.6 `Control.PRESET_MODE_KEEP_SIZE` constant, generated validation command path hydration, and a race in `test_mcp_enhancements/phase41_live_proof.mjs`. Focused `npm run build; node --test tests/design-to-scene.test.mjs` passed 7/7, final `npm test` passed 95/95, Godot 4.6.3 editor smoke against `test_mcp_enhancements` exited 0 with no repo script errors, and `node test_mcp_enhancements/phase41_live_proof.mjs` listed 251 tools, found all 10 Phase 4.1 tools, dry-ran all 10, generated HUD/enemy/brief proof files, and validated the returned manifest commands successfully. Temporary `mcp_phase41_*` and `mcp_design_*` proof artifacts were removed afterward.
 
 ### 4.2 Add Gameplay Loop And State-Machine Helpers
 
-- [ ] Add `create_state_machine`.
-- [ ] Add `add_state`.
-- [ ] Add `connect_state_transition`.
-- [ ] Add `generate_character_controller`.
-- [ ] Add `generate_interaction_system`.
-- [ ] Add `generate_inventory_system`.
-- [ ] Add `generate_dialogue_controller`.
-- [ ] Add `generate_save_load_system`.
-- [ ] Add `generate_settings_persistence`.
+- [x] Add `create_state_machine`.
+- [x] Add `add_state`.
+- [x] Add `connect_state_transition`.
+- [x] Add `generate_character_controller`.
+- [x] Add `generate_interaction_system`.
+- [x] Add `generate_inventory_system`.
+- [x] Add `generate_dialogue_controller`.
+- [x] Add `generate_save_load_system`.
+- [x] Add `generate_settings_persistence`.
 
 Acceptance:
 
-- [ ] Codex can scaffold a small gameplay system with scripts, scene nodes, and tests.
+- [x] Codex can scaffold a small gameplay system with scripts, scene nodes, and tests.
+
+Verification note, 2026-06-09: Phase 4.2 added `docs/superpowers/plans/2026-06-09-phase-4-2-gameplay-systems.md`, focused RED/GREEN tests in `tests/gameplay-systems.test.mjs`, `src/tools/gameplay-systems.ts`, registration from `src/index.ts`, Godot operation handlers in `src/scripts/godot_operations.gd`, and `test_mcp_enhancements/phase42_live_proof.mjs`. Context7 Godot docs were used for `ConfigFile.load()`, `ConfigFile.save()`, `set_value()`, and `get_value()` in the settings persistence generator. RED first failed with missing `build/tools/gameplay-systems.js`; a later live proof found and fixed an `add_state` use-after-free root-name bug with a regression test. Focused `npm run build; node --test tests/gameplay-systems.test.mjs` passed 7/7, final `npm test` passed 102/102, Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `node test_mcp_enhancements/phase42_live_proof.mjs` listed 260 tools, found all 9 Phase 4.2 tools, dry-ran all 9, generated a state machine plus state/transition, generated character/interaction/inventory/dialogue/save/settings systems with scenes/scripts/tests, validated all returned manifest commands, and removed temporary `mcp_phase42_*` artifacts. The open editor remained connected on `127.0.0.1:6010`.
 
 ### 4.3 Add Test Tooling Expansion
 
-- [ ] Keep existing GUT support.
-- [ ] Add `gut_install_or_update`.
-- [ ] Add `gut_discover_tests`.
-- [ ] Add `gut_run_test_file`.
-- [ ] Add `gut_run_changed_tests`.
-- [ ] Add `gut_run_with_coverage` if coverage tooling is available.
-- [ ] Research and optionally add gdUnit4 support:
+- [x] Keep existing GUT support.
+- [x] Add `gut_install_or_update`.
+- [x] Add `gut_discover_tests`.
+- [x] Add `gut_run_test_file`.
+- [x] Add `gut_run_changed_tests`.
+- [x] Add `gut_run_with_coverage` if coverage tooling is available.
+- [x] Research and optionally add gdUnit4 support:
   - `gdunit4_install_or_update`
   - `gdunit4_run_tests`
   - `gdunit4_discover_tests`
   - `gdunit4_generate_test`
-- [ ] Add `test_watch_plan` to recommend which tests to run after changed files.
-- [ ] Add `failure_to_patch_plan` to map failing tests to likely files/nodes.
+- [x] Add `test_watch_plan` to recommend which tests to run after changed files.
+- [x] Add `failure_to_patch_plan` to map failing tests to likely files/nodes.
 
 Research basis:
 
 - GUT command-line testing is already supported in this repo.
 - gdUnit4 is a mature alternative with modern Godot 4 support and could be useful for users who prefer that ecosystem.
+
+Verification note, 2026-06-09: Phase 4.3 added `docs/superpowers/plans/2026-06-09-phase-4-3-test-tooling.md`, focused RED/GREEN tests in `tests/test-tooling.test.mjs`, modular tooling in `src/tools/test-tooling.ts`, registration and parameter mappings in `src/index.ts`, README tool-surface updates, and `test_mcp_enhancements/phase43_live_proof.mjs`. Context7 docs were used for current GUT CLI flags (`addons/gut/gut_cmdln.gd`, `-gdir`, `-gtest`, `-gexit`, JUnit XML output) and gdUnit4 runner/install conventions. RED first failed with missing `build/tools/test-tooling.js`; a live GUT proof then found a false failure where GUT reported `1/1 passed` but emitted a runner-side GUT loader `SCRIPT ERROR`, so `parseTestRunnerOutput` now records runner warnings without turning an all-passing exit-0 run into a failed test result. Focused `npm run build; node --test tests/test-tooling.test.mjs` passed 5/5, final `npm test` passed 107/107, Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches, and `node test_mcp_enhancements/phase43_live_proof.mjs` listed 271 tools, found all 11 Phase 4.3 tools, detected GUT 9.5.0, discovered 8 GUT test files / 11 tests, executed `test/unit/test_example.gd` through real GUT with exit 0, dry-ran changed-test selection and gdUnit4 helpers, and mapped sample failure output back to `coin.gd`. Startup/live checks left exactly one `build/index.js` listener on `127.0.0.1:6010`, with the open Godot editor PID established to it; callable `session_list` still returned `Transport closed`, so live state was proven through OS facts per `CODEX_STARTUP_WITH_GODOT_MCP.md`.
 
 Acceptance:
 
@@ -541,15 +574,15 @@ Acceptance:
 
 ### 4.4 Add Visual QA And Screenshot Diff Tools
 
-- [ ] Add `screenshot_compare`.
-- [ ] Add `capture_editor_viewport`.
-- [ ] Add `capture_runtime_viewport`.
-- [ ] Add `visual_regression_baseline_create`.
-- [ ] Add `visual_regression_check`.
-- [ ] Add `ui_overlap_check`.
-- [ ] Add `ui_contrast_check`.
-- [ ] Add `sprite_bounds_check`.
-- [ ] Add `camera_framing_check`.
+- [x] Add `screenshot_compare`.
+- [x] Add `capture_editor_viewport`.
+- [x] Add `capture_runtime_viewport`.
+- [x] Add `visual_regression_baseline_create`.
+- [x] Add `visual_regression_check`.
+- [x] Add `ui_overlap_check`.
+- [x] Add `ui_contrast_check`.
+- [x] Add `sprite_bounds_check`.
+- [x] Add `camera_framing_check`.
 
 Implementation notes:
 
@@ -559,41 +592,45 @@ Implementation notes:
 
 Acceptance:
 
-- [ ] Codex can compare a before/after screenshot and report changed regions.
-- [ ] Codex can detect obvious UI overlap or offscreen controls.
+- [x] Codex can compare a before/after screenshot and report changed regions.
+- [x] Codex can detect obvious UI overlap or offscreen controls.
+
+Verification note, 2026-06-09: Phase 4.4 added `docs/superpowers/plans/2026-06-09-phase-4-4-visual-qa.md`, focused RED/GREEN tests in `tests/visual-qa.test.mjs`, modular tooling in `src/tools/visual-qa.ts`, registration and parameter mappings in `src/index.ts`, Godot operation handlers `visual_sprite_bounds_check` and `visual_camera_framing_check` in `src/scripts/godot_operations.gd`, and `test_mcp_enhancements/phase44_live_proof.mjs`. Context7 Godot 4.6 docs were used for viewport capture timing and viewport size APIs. RED first failed with missing `build/tools/visual-qa.js`; focused `npm run build; node --test tests/visual-qa.test.mjs` passed 7/7, final `npm test` passed 114/114, and Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.4 proof script listed 280 tools including all 9 new tools, compared PNG screenshots with a changed-region bounding box, created and checked `.mcp_visual` baselines, ran UI overlap and contrast checks, ran sprite bounds and camera framing checks through real Godot operations, captured a runtime viewport, waited for one live editor session, captured the editor viewport through the live bridge, and cleaned temporary `phase44` artifacts. After connector reload, `mcp__godot_mcp.session_list` reported one connected `test_mcp_enhancements` editor session on `127.0.0.1:6010`, tool discovery exposed all 9 Phase 4.4 tools, and direct calls through the Codex MCP namespace succeeded for screenshot comparison, baseline creation/checking, UI overlap/contrast, sprite bounds, camera framing, runtime capture, and editor capture; temporary `.mcp_visual` artifacts were removed and `project.godot` had no diff afterward.
 
 ### 4.5 Add Asset Pipeline Control Tools
 
-- [ ] Add `asset_import_profile_create`.
-- [ ] Add `asset_import_profile_apply`.
-- [ ] Add `texture_import_settings_get`.
-- [ ] Add `texture_import_settings_set`.
-- [ ] Add `audio_import_settings_get`.
-- [ ] Add `audio_import_settings_set`.
-- [ ] Add `model_import_settings_get`.
-- [ ] Add `model_import_settings_set`.
-- [ ] Add `asset_batch_reimport`.
-- [ ] Add `asset_usage_report`.
-- [ ] Add `asset_size_budget_report`.
-- [ ] Add `asset_license_manifest`.
+- [x] Add `asset_import_profile_create`.
+- [x] Add `asset_import_profile_apply`.
+- [x] Add `texture_import_settings_get`.
+- [x] Add `texture_import_settings_set`.
+- [x] Add `audio_import_settings_get`.
+- [x] Add `audio_import_settings_set`.
+- [x] Add `model_import_settings_get`.
+- [x] Add `model_import_settings_set`.
+- [x] Add `asset_batch_reimport`.
+- [x] Add `asset_usage_report`.
+- [x] Add `asset_size_budget_report`.
+- [x] Add `asset_license_manifest`.
 
 Acceptance:
 
-- [ ] Codex can import a batch of assets, set import flags, reimport them, and report size/license/usage metadata.
+- [x] Codex can import a batch of assets, set import flags, reimport them, and report size/license/usage metadata.
+
+Verification note, 2026-06-10: Phase 4.5 added `docs/superpowers/plans/2026-06-10-phase-4-5-asset-pipeline.md`, focused RED/GREEN tests in `tests/asset-pipeline.test.mjs`, modular tooling in `src/tools/asset-pipeline.ts`, registration from `src/index.ts`, Godot operation handler `asset_batch_reimport` in `src/scripts/godot_operations.gd`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase45_live_proof.mjs`. Context7 Godot 4.6 docs were used for `EditorFileSystem.reimport_files()` and `ConfigFile` import metadata handling. RED first failed with missing `build/tools/asset-pipeline.js`; focused `npm run build; node --test tests/asset-pipeline.test.mjs` passed 6/6, final `npm test` passed 120/120, and Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.5 proof script listed 292 tools, found all 12 new tools, created and applied a project-local import profile across temporary texture/audio/model assets, proved import setting get/set and dry-run behavior, generated usage, size-budget, and license reports, ran selected `asset_batch_reimport` in headless checked mode, and removed temporary `mcp_phase45_*` and `.godot-mcp/phase45_*` proof artifacts. The open GUI live connector still needs reload before direct Codex MCP namespace callability can be tested.
 
 ### 4.6 Add Addon And External Tool Managers
 
-- [ ] Expand existing Asset Library support with `asset_library_get_details`.
-- [ ] Add `asset_library_install_addon`.
-- [ ] Add `asset_library_update_addon`.
-- [ ] Add `asset_library_remove_addon`.
-- [ ] Add `addon_enable`.
-- [ ] Add `addon_disable`.
-- [ ] Add `addon_list`.
-- [ ] Add `addon_health_check`.
-- [ ] Add `external_tool_status`.
-- [ ] Add `external_tool_configure`.
-- [ ] Add adapter definitions for optional tools:
+- [x] Expand existing Asset Library support with `asset_library_get_details`.
+- [x] Add `asset_library_install_addon`.
+- [x] Add `asset_library_update_addon`.
+- [x] Add `asset_library_remove_addon`.
+- [x] Add `addon_enable`.
+- [x] Add `addon_disable`.
+- [x] Add `addon_list`.
+- [x] Add `addon_health_check`.
+- [x] Add `external_tool_status`.
+- [x] Add `external_tool_configure`.
+- [x] Add adapter definitions for optional tools:
   - GUT
   - gdUnit4
   - Godot Jolt
@@ -605,25 +642,27 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Codex can search, install, enable, and verify a plugin in a disposable project.
-- [ ] Codex can explain which optional tools are installed and what MCP tools can use them.
+- [x] Codex can search, install, enable, and verify a plugin in a disposable project.
+- [x] Codex can explain which optional tools are installed and what MCP tools can use them.
+
+Verification note, 2026-06-10: Phase 4.6 added `docs/superpowers/plans/2026-06-10-phase-4-6-addon-tool-managers.md`, focused RED/GREEN tests in `tests/addon-tool-manager.test.mjs`, modular tooling in `src/tools/addon-tool-manager.ts`, registration from `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase46_live_proof.mjs`. Context7 Godot 4.6 docs were used for editor addon/plugin.cfg install and enable-state behavior. RED first failed with missing `build/tools/addon-tool-manager.js`; focused `npm run build; node --test tests/addon-tool-manager.test.mjs` passed 5/5, final `npm test` passed 125/125, and Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.6 proof script listed 302 tools, found all 10 new tools, fetched Asset Library details from a disposable local API fixture, installed/enabled/listed/health-checked/disabled/re-enabled/updated/removed a disposable project-local addon, reported all optional adapter definitions, configured a Blender adapter, verified its executable path, restored `project.godot` and `.godot-mcp/external_tools.json`, and removed temporary `.godot-mcp/phase46_*` and `addons/mcp_phase46_plugin` proof artifacts. Startup checks left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it; callable `mcp__godot_mcp.session_list` still returned `Transport closed`, so direct Codex MCP namespace callability requires connector/editor reload.
 
 ### 4.7 Add LSP/DAP Integration Tools
 
-- [ ] Research Godot LSP and DAP ports and lifecycle in Godot 4.6.
-- [ ] Add `lsp_status`.
-- [ ] Add `lsp_symbols`.
-- [ ] Add `lsp_definition`.
-- [ ] Add `lsp_references`.
-- [ ] Add `lsp_diagnostics`.
-- [ ] Add `lsp_rename_preview`.
-- [ ] Add `dap_status`.
-- [ ] Add `dap_set_breakpoint`.
-- [ ] Add `dap_clear_breakpoint`.
-- [ ] Add `dap_stack_trace`.
-- [ ] Add `dap_variables`.
-- [ ] Add `dap_continue`.
-- [ ] Add `dap_step`.
+- [x] Research Godot LSP and DAP ports and lifecycle in Godot 4.6.
+- [x] Add `lsp_status`.
+- [x] Add `lsp_symbols`.
+- [x] Add `lsp_definition`.
+- [x] Add `lsp_references`.
+- [x] Add `lsp_diagnostics`.
+- [x] Add `lsp_rename_preview`.
+- [x] Add `dap_status`.
+- [x] Add `dap_set_breakpoint`.
+- [x] Add `dap_clear_breakpoint`.
+- [x] Add `dap_stack_trace`.
+- [x] Add `dap_variables`.
+- [x] Add `dap_continue`.
+- [x] Add `dap_step`.
 
 Why this matters:
 
@@ -631,35 +670,39 @@ Why this matters:
 
 Acceptance:
 
-- [ ] Codex can retrieve diagnostics and symbols from the Godot language server.
-- [ ] Codex can attach to a debug session or report why it cannot.
+- [x] Codex can retrieve diagnostics and symbols from the Godot language server.
+- [x] Codex can attach to a debug session or report why it cannot.
+
+Verification note, 2026-06-10: Phase 4.7 added `docs/superpowers/plans/2026-06-10-phase-4-7-lsp-dap-integration.md`, focused RED/GREEN tests in `tests/lsp-dap-integration.test.mjs`, modular tooling in `src/tools/lsp-dap-integration.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase47_live_proof.mjs`. Context7 Godot docs confirmed Godot's external editor defaults: LSP on `6005`, DAP on `6006`, configured under Network > Language Server and Network > Debug Adapter. RED first failed with missing `build/tools/lsp-dap-integration.js`; a live LSP proof then found and fixed byte-inaccurate TCP frame parsing for non-ASCII symbol payloads. Focused `npm run build; node --test tests/lsp-dap-integration.test.mjs` passed 4/4, final `npm test` passed 129/129, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.7 proof script listed 315 tools, found all 13 new tools, retrieved `coin.gd` symbols and diagnostics from the open editor language server, called LSP definition/references/rename preview, and exercised DAP status, breakpoint set/clear, stack trace, variables, continue, and step against port `6006`; `dap_variables` returned a clear `unavailable` status without an active variables reference. `godot_mcp_live` was re-enabled in `project.godot`, but the already-open GUI editor did not hot-connect to `127.0.0.1:6010`; direct Codex MCP namespace callability for the new `lsp_*`/`dap_*` tools still requires connector/editor reload.
 
 ### 4.8 Add Performance, Memory, And Quality Gates
 
-- [ ] Add `performance_budget_create`.
-- [ ] Add `performance_budget_check`.
-- [ ] Add `runtime_profile_capture`.
-- [ ] Add `runtime_profile_compare`.
-- [ ] Add `memory_snapshot`.
-- [ ] Add `node_count_budget_check`.
-- [ ] Add `draw_call_budget_check`.
-- [ ] Add `texture_memory_budget_check`.
-- [ ] Add `export_size_budget_check`.
-- [ ] Add `quality_gate_run`.
+- [x] Add `performance_budget_create`.
+- [x] Add `performance_budget_check`.
+- [x] Add `runtime_profile_capture`.
+- [x] Add `runtime_profile_compare`.
+- [x] Add `memory_snapshot`.
+- [x] Add `node_count_budget_check`.
+- [x] Add `draw_call_budget_check`.
+- [x] Add `texture_memory_budget_check`.
+- [x] Add `export_size_budget_check`.
+- [x] Add `quality_gate_run`.
 
 Acceptance:
 
-- [ ] Codex can run a named quality gate before export and produce pass/fail results with recommendations.
+- [x] Codex can run a named quality gate before export and produce pass/fail results with recommendations.
+
+Verification note, 2026-06-10: Phase 4.8 added `docs/superpowers/plans/2026-06-10-phase-4-8-quality-gates.md`, focused RED/GREEN tests in `tests/quality-gates.test.mjs`, modular tooling in `src/tools/quality-gates.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase48_live_proof.mjs`. Context7 Godot 4.6 docs confirmed `Performance.get_monitor(...)` usage and rendering/video-memory counters such as `RENDER_TOTAL_DRAW_CALLS_IN_FRAME`, `RENDER_VIDEO_MEM_USED`, and `RENDER_TEXTURE_MEM_USED`. RED first failed with missing `build/tools/quality-gates.js`; focused `npm run build && node --test tests/quality-gates.test.mjs` passed 5/5, final `npm test` passed 134/134, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.8 proof script listed 325 tools, found all 10 new tools, created disposable profile/budget/export/scene artifacts, called every new tool successfully, and removed temporary proof artifacts. Startup checks left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it; the Codex MCP namespace still returned `Transport closed`, so direct namespace callability requires connector reload.
 
 ### 4.9 Add Issue Tracker And Task Ledger Tools
 
-- [ ] Add `mcp_task_create`.
-- [ ] Add `mcp_task_update`.
-- [ ] Add `mcp_task_list`.
-- [ ] Add `mcp_task_close`.
-- [ ] Add `mcp_evidence_attach`.
-- [ ] Add `mcp_session_report`.
-- [ ] Add `mcp_changelog_draft`.
+- [x] Add `mcp_task_create`.
+- [x] Add `mcp_task_update`.
+- [x] Add `mcp_task_list`.
+- [x] Add `mcp_task_close`.
+- [x] Add `mcp_evidence_attach`.
+- [x] Add `mcp_session_report`.
+- [x] Add `mcp_changelog_draft`.
 
 Implementation notes:
 
@@ -668,17 +711,19 @@ Implementation notes:
 
 Acceptance:
 
-- [ ] Codex can leave a structured evidence trail of what it changed, tested, and still recommends.
+- [x] Codex can leave a structured evidence trail of what it changed, tested, and still recommends.
+
+Verification note, 2026-06-10: Phase 4.9 added `docs/superpowers/plans/2026-06-10-phase-4-9-task-ledger.md`, focused RED/GREEN tests in `tests/task-ledger.test.mjs`, modular tooling in `src/tools/task-ledger.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase49_live_proof.mjs`. RED first failed with missing `build/tools/task-ledger.js`; focused `npm run build && node --test tests/task-ledger.test.mjs` passed 4/4, final `npm test` passed 138/138, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.9 proof script listed 332 tools, found all 7 new tools, created a disposable project-local task ledger entry, updated/listed/closed it, attached evidence, generated a session report and changelog draft, and restored/remedied temporary `.godot-mcp` proof artifacts. Startup checks before implementation left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it, but the direct Codex MCP namespace returned `Transport closed`; after rebuilding, the current built listener was refreshed at PID 22996 and Godot editor PID 6860 reconnected to it on `127.0.0.1:6010`. Direct Codex MCP namespace callability still needs the Codex MCP connector namespace reloaded.
 
 ### 4.10 Add Safer Autonomous Planning Tools
 
-- [ ] Add `capability_matrix`.
-- [ ] Add `recommend_next_tool`.
-- [ ] Add `plan_feature_implementation`.
-- [ ] Add `plan_test_strategy`.
-- [ ] Add `risk_scan`.
-- [ ] Add `preflight_project_health`.
-- [ ] Add `postchange_verification_plan`.
+- [x] Add `capability_matrix`.
+- [x] Add `recommend_next_tool`.
+- [x] Add `plan_feature_implementation`.
+- [x] Add `plan_test_strategy`.
+- [x] Add `risk_scan`.
+- [x] Add `preflight_project_health`.
+- [x] Add `postchange_verification_plan`.
 
 Why this matters:
 
@@ -686,7 +731,9 @@ Why this matters:
 
 Acceptance:
 
-- [ ] Given a goal like "add a pause menu", MCP can recommend the tool sequence and validation path.
+- [x] Given a goal like "add a pause menu", MCP can recommend the tool sequence and validation path.
+
+Verification note, 2026-06-10: Phase 4.10 added `docs/superpowers/plans/2026-06-10-phase-4-10-safer-planning.md`, focused RED/GREEN tests in `tests/safer-planning.test.mjs`, modular tooling in `src/tools/safer-planning.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list/resource updates, and `test_mcp_enhancements/phase410_live_proof.mjs`. RED first failed with missing `build/tools/safer-planning.js`; focused `npm run build && node --test tests/safer-planning.test.mjs` passed 6/6, full `npm test` passed 144/144, Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches, and `git diff --check` exited 0 with Git CRLF warnings only. The Phase 4.10 proof script listed 339 tools, found all 7 new tools, proved `capability_matrix`, `recommend_next_tool`, `plan_feature_implementation`, `plan_test_strategy`, `risk_scan`, `preflight_project_health`, and `postchange_verification_plan` against `test_mcp_enhancements`, verified the "add a pause menu" sequence included `generate_menu_flow` and visual validation, and removed the temporary smoke log. A temporary current-build listener proved PID 24796 could own `127.0.0.1:6010` and Godot editor PID 6860 could reconnect to it, then that holder was stopped before handoff so it will not block Codex MCP connector reload. Direct Codex MCP namespace callability still needs connector reload because `mcp__godot_mcp.session_list` returns `Transport closed`.
 
 ## Phase 5 - Packaging, Configuration, Documentation, And Distribution
 
@@ -814,10 +861,10 @@ The first milestone should be intentionally small:
 - [x] Add MCP session manager.
 - [x] Add `session_list`.
 - [x] Add `session_activate`.
-- [ ] Add `editor_state`.
-- [ ] Add `selection_get`.
-- [ ] Add `scene_current`.
-- [ ] Add `live_scene_get_hierarchy`.
+- [x] Add `editor_state`.
+- [x] Add `selection_get`.
+- [x] Add `scene_current`.
+- [x] Add `live_scene_get_hierarchy`.
 - [ ] Verify against the currently open `test_mcp_enhancements` Godot 4.6 project.
 
 Done means:

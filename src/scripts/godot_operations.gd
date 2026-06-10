@@ -269,6 +269,54 @@ func _init():
             create_astar_grid(params)
         "setup_navigation_server":
             setup_navigation_server(params)
+        # Phase 4.1: Design-to-scene workflow
+        "design_generate_scene_from_brief":
+            _design_generate_scene_from_brief(params)
+        "design_generate_level_blockout":
+            _design_generate_level_blockout(params)
+        "design_generate_menu_flow":
+            _design_generate_menu_flow(params)
+        "design_generate_hud":
+            _design_generate_hud(params)
+        "design_generate_dialogue_scene":
+            _design_generate_dialogue_scene(params)
+        "design_generate_settings_screen":
+            _design_generate_settings_screen(params)
+        "design_generate_mobile_controls":
+            _design_generate_mobile_controls(params)
+        "design_generate_gameplay_prefab":
+            _design_generate_gameplay_prefab(params)
+        "design_generate_enemy_archetype":
+            _design_generate_enemy_archetype(params)
+        "design_generate_pickup_archetype":
+            _design_generate_pickup_archetype(params)
+        # Phase 4.2: Gameplay loop and state-machine helpers
+        "gameplay_create_state_machine":
+            _gameplay_create_state_machine(params)
+        "gameplay_add_state":
+            _gameplay_add_state(params)
+        "gameplay_connect_state_transition":
+            _gameplay_connect_state_transition(params)
+        "gameplay_generate_character_controller":
+            _gameplay_generate_character_controller(params)
+        "gameplay_generate_interaction_system":
+            _gameplay_generate_interaction_system(params)
+        "gameplay_generate_inventory_system":
+            _gameplay_generate_inventory_system(params)
+        "gameplay_generate_dialogue_controller":
+            _gameplay_generate_dialogue_controller(params)
+        "gameplay_generate_save_load_system":
+            _gameplay_generate_save_load_system(params)
+        "gameplay_generate_settings_persistence":
+            _gameplay_generate_settings_persistence(params)
+        # Phase 4.4: Visual QA and screenshot diff helpers
+        "visual_sprite_bounds_check":
+            visual_sprite_bounds_check(params)
+        "visual_camera_framing_check":
+            visual_camera_framing_check(params)
+        # Phase 4.5: Asset pipeline control
+        "asset_batch_reimport":
+            asset_batch_reimport(params)
         _:
             log_error("Unknown operation: " + operation)
             quit(1)
@@ -7339,6 +7387,216 @@ func _camera_is_current(camera: Node) -> bool:
     return false
 
 
+# --- Phase 4.4: Visual QA helpers ---
+
+func visual_sprite_bounds_check(params: Dictionary) -> void:
+    log_info("Starting visual_sprite_bounds_check operation")
+    var scene_path: String = params.get("scene_path", "")
+    if scene_path.is_empty():
+        log_error("scene_path is required")
+        return
+    var loaded = _load_scene_for_edit(scene_path)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var viewport_size = _parse_vector2(params.get("viewport_size", [1152, 648]), Vector2(1152, 648))
+    var margin = float(params.get("margin", 0.0))
+    var include_hidden = bool(params.get("include_hidden", false))
+    var viewport_rect = _visual_grow_rect(Rect2(Vector2.ZERO, viewport_size), margin)
+    var sprites = []
+    var issues = []
+    _visual_collect_sprite_bounds(scene_root, scene_root, viewport_rect, include_hidden, sprites, issues)
+    scene_root.free()
+    print(JSON.stringify({
+        "success": true,
+        "scene_path": _to_res_path(scene_path),
+        "viewport_size": [viewport_size.x, viewport_size.y],
+        "margin": margin,
+        "valid": issues.is_empty(),
+        "sprite_count": sprites.size(),
+        "sprites": sprites,
+        "issue_count": issues.size(),
+        "issues": issues
+    }))
+    log_info("visual_sprite_bounds_check completed successfully")
+
+
+func visual_camera_framing_check(params: Dictionary) -> void:
+    log_info("Starting visual_camera_framing_check operation")
+    var loaded = _camera_load_scene_with_camera(params)
+    if loaded.is_empty():
+        return
+    var scene_root: Node = loaded["scene_root"]
+    var camera: Node = loaded["camera"]
+    if not (camera is Camera2D):
+        log_error("camera_path must point to a Camera2D")
+        scene_root.free()
+        return
+    var viewport_size = _parse_vector2(params.get("viewport_size", [1152, 648]), Vector2(1152, 648))
+    var margin = float(params.get("margin", 0.0))
+    var bounds = _camera_2d_bounds_dict(camera, viewport_size)
+    var bounds_rect = Rect2(
+        Vector2(float(bounds.get("x", 0.0)), float(bounds.get("y", 0.0))),
+        Vector2(float(bounds.get("width", 0.0)), float(bounds.get("height", 0.0)))
+    )
+    var framing_rect = _visual_inset_rect(bounds_rect, margin)
+    var target_paths_param = params.get("target_paths", [])
+    var target_paths: Array = target_paths_param if target_paths_param is Array else []
+    var targets = []
+    var issues = []
+    for target_path_value in target_paths:
+        var target_path := str(target_path_value)
+        var target = _get_edit_parent(scene_root, target_path)
+        if target == null:
+            issues.append({
+                "kind": "target_missing",
+                "path": target_path,
+                "message": "Target node was not found."
+            })
+            continue
+        if not (target is Node2D):
+            issues.append({
+                "kind": "target_not_node2d",
+                "path": target_path,
+                "type": target.get_class(),
+                "message": "Camera framing check currently supports Node2D targets."
+            })
+            continue
+        var target_2d: Node2D = target
+        var point = target_2d.global_position
+        var inside = framing_rect.has_point(point)
+        targets.append({
+            "path": target_path,
+            "type": target.get_class(),
+            "position": [point.x, point.y],
+            "inside": inside
+        })
+        if not inside:
+            issues.append({
+                "kind": "target_outside_camera",
+                "path": target_path,
+                "type": target.get_class(),
+                "position": [point.x, point.y],
+                "camera_bounds": _visual_rect_dict(bounds_rect),
+                "framing_bounds": _visual_rect_dict(framing_rect),
+                "message": "Target position is outside the Camera2D framing bounds."
+            })
+    scene_root.free()
+    print(JSON.stringify({
+        "success": true,
+        "scene_path": _to_res_path(params.get("scene_path", "")),
+        "camera_path": params.get("camera_path", ""),
+        "viewport_size": [viewport_size.x, viewport_size.y],
+        "margin": margin,
+        "camera_bounds": bounds,
+        "framing_bounds": _visual_rect_dict(framing_rect),
+        "valid": issues.is_empty(),
+        "target_count": targets.size(),
+        "targets": targets,
+        "issue_count": issues.size(),
+        "issues": issues
+    }))
+    log_info("visual_camera_framing_check completed successfully")
+
+
+func _visual_collect_sprite_bounds(scene_root: Node, node: Node, viewport_rect: Rect2, include_hidden: bool, sprites: Array, issues: Array) -> void:
+    if node is Sprite2D:
+        var sprite: Sprite2D = node
+        if include_hidden or sprite.visible:
+            var sprite_info = _visual_sprite_summary(scene_root, sprite, viewport_rect)
+            sprites.append(sprite_info)
+            for issue in sprite_info.get("issues", []):
+                issues.append(issue)
+    for child in node.get_children():
+        if child is Node:
+            _visual_collect_sprite_bounds(scene_root, child, viewport_rect, include_hidden, sprites, issues)
+
+
+func _visual_sprite_summary(scene_root: Node, sprite: Sprite2D, viewport_rect: Rect2) -> Dictionary:
+    var path = "." if sprite == scene_root else str(scene_root.get_path_to(sprite))
+    var rect = _visual_sprite_global_rect(sprite)
+    var issues = []
+    if sprite.texture == null:
+        issues.append({
+            "kind": "sprite_missing_texture",
+            "path": path,
+            "type": sprite.get_class(),
+            "message": "Sprite2D has no texture assigned."
+        })
+    elif rect.size.x <= 0.0 or rect.size.y <= 0.0:
+        issues.append({
+            "kind": "sprite_empty_bounds",
+            "path": path,
+            "type": sprite.get_class(),
+            "rect": _visual_rect_dict(rect),
+            "message": "Sprite2D texture bounds are empty."
+        })
+    elif not _visual_rects_intersect(viewport_rect, rect):
+        issues.append({
+            "kind": "sprite_outside_viewport",
+            "path": path,
+            "type": sprite.get_class(),
+            "rect": _visual_rect_dict(rect),
+            "message": "Sprite2D bounds are outside the viewport plus margin."
+        })
+    return {
+        "path": path,
+        "name": sprite.name,
+        "type": sprite.get_class(),
+        "visible": sprite.visible,
+        "texture_path": sprite.texture.resource_path if sprite.texture != null else "",
+        "rect": _visual_rect_dict(rect),
+        "issues": issues
+    }
+
+
+func _visual_sprite_global_rect(sprite: Sprite2D) -> Rect2:
+    var local_rect = sprite.get_rect()
+    var corners = [
+        local_rect.position,
+        local_rect.position + Vector2(local_rect.size.x, 0),
+        local_rect.position + Vector2(0, local_rect.size.y),
+        local_rect.position + local_rect.size
+    ]
+    var min_x = INF
+    var min_y = INF
+    var max_x = -INF
+    var max_y = -INF
+    for corner in corners:
+        var point = sprite.to_global(corner)
+        min_x = min(min_x, point.x)
+        min_y = min(min_y, point.y)
+        max_x = max(max_x, point.x)
+        max_y = max(max_y, point.y)
+    return Rect2(Vector2(min_x, min_y), Vector2(max_x - min_x, max_y - min_y))
+
+
+func _visual_rects_intersect(a: Rect2, b: Rect2) -> bool:
+    return a.position.x < b.position.x + b.size.x and a.position.x + a.size.x > b.position.x and a.position.y < b.position.y + b.size.y and a.position.y + a.size.y > b.position.y
+
+
+func _visual_grow_rect(rect: Rect2, margin: float) -> Rect2:
+    return Rect2(rect.position - Vector2(margin, margin), rect.size + Vector2(margin * 2.0, margin * 2.0))
+
+
+func _visual_inset_rect(rect: Rect2, margin: float) -> Rect2:
+    var inset_size = rect.size - Vector2(margin * 2.0, margin * 2.0)
+    if inset_size.x < 0.0:
+        inset_size.x = 0.0
+    if inset_size.y < 0.0:
+        inset_size.y = 0.0
+    return Rect2(rect.position + Vector2(margin, margin), inset_size)
+
+
+func _visual_rect_dict(rect: Rect2) -> Dictionary:
+    return {
+        "x": rect.position.x,
+        "y": rect.position.y,
+        "width": rect.size.x,
+        "height": rect.size.y
+    }
+
+
 func _camera_position_array(camera: Node) -> Array:
     if camera is Node3D:
         return [camera.position.x, camera.position.y, camera.position.z]
@@ -10439,3 +10697,1652 @@ func setup_navigation_server(params: Dictionary) -> void:
     }
     print(JSON.stringify(result))
     log_info("setup_navigation_server completed successfully")
+
+
+# Phase 4.1: Design-to-scene workflow helpers
+
+func _design_required_output_path(params: Dictionary) -> String:
+    return str(params.get("output_path", "")).strip_edges()
+
+
+func _design_dry_run(params: Dictionary) -> bool:
+    return bool(params.get("dry_run", false)) or bool(params.get("recipe_only", false))
+
+
+func _design_pascal(value: String) -> String:
+    var result := ""
+    var capitalize_next := true
+    for character in value:
+        if character == " " or character == "_" or character == "-" or character == "/":
+            capitalize_next = true
+            continue
+        if capitalize_next:
+            result += character.to_upper()
+            capitalize_next = false
+        else:
+            result += character.to_lower()
+    return result
+
+
+func _design_path_to_script(path: String) -> String:
+    var base := path.get_basename()
+    if base.ends_with(".tscn"):
+        base = base.substr(0, base.length() - 5)
+    return base + ".gd"
+
+
+func _design_normalize_size(value, fallback := Vector2(1152, 648)) -> Vector2:
+    if value is Vector2:
+        return value
+    if value is Array and value.size() >= 2:
+        return Vector2(float(value[0]), float(value[1]))
+    if value is Dictionary and value.has("x") and value.has("y"):
+        return Vector2(float(value["x"]), float(value["y"]))
+    return fallback
+
+
+func _design_safe_manifest(manifest: Dictionary) -> Dictionary:
+    if not manifest.has("created_files"):
+        manifest["created_files"] = []
+    if not manifest.has("validation_commands"):
+        manifest["validation_commands"] = []
+    if not manifest.has("preview_summary"):
+        manifest["preview_summary"] = {}
+    if not manifest.has("dry_run"):
+        manifest["dry_run"] = false
+    if not manifest.has("recipe_only"):
+        manifest["recipe_only"] = false
+    return manifest
+
+
+func _design_print_success(operation: String, manifest: Dictionary) -> void:
+    var payload := {
+        "success": true,
+        "operation": operation,
+        "manifest": _design_safe_manifest(manifest),
+    }
+    print(JSON.stringify(payload))
+
+
+func _design_validation_commands(entries: Array) -> Array:
+    var commands: Array = []
+    for entry in entries:
+        if not (entry is Dictionary):
+            continue
+        var kind: String = str(entry.get("kind", "scene"))
+        var res_path: String = str(entry.get("path", ""))
+        if res_path.is_empty():
+            continue
+        var tool_path: String = res_path.substr(6) if res_path.begins_with("res://") else res_path
+        if kind == "script":
+            commands.append({
+                "tool": "validate_script",
+                "args": {
+                    "projectPath": "<self>",
+                    "scriptPath": tool_path,
+                },
+            })
+        else:
+            commands.append({
+                "tool": "validate_scene",
+                "args": {
+                    "project_path": "<self>",
+                    "scene_path": tool_path,
+                },
+            })
+    return commands
+
+
+func _design_write_text_file(res_path: String, body: String) -> bool:
+    var absolute := ProjectSettings.globalize_path(res_path)
+    var dir_path := absolute.get_base_dir()
+    if not DirAccess.dir_exists_absolute(dir_path):
+        var mkdir_err := DirAccess.make_dir_recursive_absolute(dir_path)
+        if mkdir_err != OK:
+            log_error("Failed to create directory: " + dir_path + " error=" + str(mkdir_err))
+            return false
+    var file := FileAccess.open(res_path, FileAccess.WRITE)
+    if file == null:
+        log_error("Failed to open for write: " + res_path)
+        return false
+    file.store_string(body)
+    file.close()
+    return true
+
+
+func _design_build_blockout_2d(grid_size, spawn_position, include_physics: bool) -> Node:
+    var grid := _design_normalize_size(grid_size, Vector2(16, 12))
+    var spawn := Vector2.ZERO
+    if spawn_position is Array and spawn_position.size() >= 2:
+        spawn = Vector2(float(spawn_position[0]), float(spawn_position[1]))
+    elif spawn_position is Vector2:
+        spawn = spawn_position
+    var root := Node2D.new()
+    root.name = "Blockout"
+    var tile_size := Vector2(64, 64)
+    var ground := StaticBody2D.new()
+    ground.name = "Ground"
+    ground.position = Vector2((grid.x * tile_size.x) * 0.5, grid.y * tile_size.y - 32.0)
+    var ground_color := ColorRect.new()
+    ground_color.name = "GroundColor"
+    ground_color.color = Color(0.18, 0.20, 0.24, 1.0)
+    ground_color.size = Vector2(grid.x * tile_size.x, 64.0)
+    ground_color.position = Vector2(-ground_color.size.x * 0.5, -32.0)
+    ground.add_child(ground_color)
+    if include_physics:
+        var ground_shape := CollisionShape2D.new()
+        ground_shape.name = "GroundShape"
+        var rect := RectangleShape2D.new()
+        rect.size = Vector2(grid.x * tile_size.x, 64.0)
+        ground_shape.shape = rect
+        ground.add_child(ground_shape)
+    root.add_child(ground)
+
+    var left_wall := StaticBody2D.new()
+    left_wall.name = "LeftWall"
+    left_wall.position = Vector2(-32.0, (grid.y * tile_size.y) * 0.5)
+    var left_color := ColorRect.new()
+    left_color.name = "LeftColor"
+    left_color.color = Color(0.25, 0.27, 0.32, 1.0)
+    left_color.size = Vector2(64.0, grid.y * tile_size.y)
+    left_color.position = Vector2(-32.0, -left_color.size.y * 0.5)
+    left_wall.add_child(left_color)
+    if include_physics:
+        var left_shape := CollisionShape2D.new()
+        left_shape.name = "LeftShape"
+        var lrect := RectangleShape2D.new()
+        lrect.size = Vector2(64.0, grid.y * tile_size.y)
+        left_shape.shape = lrect
+        left_wall.add_child(left_shape)
+    root.add_child(left_wall)
+
+    var right_wall := StaticBody2D.new()
+    right_wall.name = "RightWall"
+    right_wall.position = Vector2(grid.x * tile_size.x + 32.0, (grid.y * tile_size.y) * 0.5)
+    var right_color := ColorRect.new()
+    right_color.name = "RightColor"
+    right_color.color = Color(0.25, 0.27, 0.32, 1.0)
+    right_color.size = Vector2(64.0, grid.y * tile_size.y)
+    right_color.position = Vector2(-32.0, -right_color.size.y * 0.5)
+    right_wall.add_child(right_color)
+    if include_physics:
+        var right_shape := CollisionShape2D.new()
+        right_shape.name = "RightShape"
+        var rrect := RectangleShape2D.new()
+        rrect.size = Vector2(64.0, grid.y * tile_size.y)
+        right_shape.shape = rrect
+        right_wall.add_child(right_shape)
+    root.add_child(right_wall)
+
+    var marker := Marker2D.new()
+    marker.name = "PlayerSpawn"
+    marker.position = spawn
+    root.add_child(marker)
+    return root
+
+
+func _design_blockout_blocks_summary(grid_size) -> Dictionary:
+    var grid := _design_normalize_size(grid_size, Vector2(16, 12))
+    return {
+        "grid_size": [grid.x, grid.y],
+        "tile_size": [64, 64],
+        "blocks": ["ground", "left_wall", "right_wall", "player_spawn"],
+    }
+
+
+func _design_build_hud_scene(root_size: Vector2) -> Node:
+    var root := CanvasLayer.new()
+    root.name = "HudLayer"
+    var panel := Control.new()
+    panel.name = "Hud"
+    panel.custom_minimum_size = root_size
+    panel.size = root_size
+    _design_apply_full_rect(panel)
+    root.add_child(panel)
+
+    var score := Label.new()
+    score.name = "ScoreLabel"
+    score.text = "Score: 0"
+    score.position = Vector2(24, 18)
+    score.custom_minimum_size = Vector2(220, 32)
+    panel.add_child(score)
+
+    var health := Label.new()
+    health.name = "HealthLabel"
+    health.text = "Health: 100"
+    health.position = Vector2(root_size.x - 224, 18)
+    health.custom_minimum_size = Vector2(200, 32)
+    health.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    panel.add_child(health)
+
+    var time := Label.new()
+    time.name = "TimeLabel"
+    time.text = "0:00"
+    time.position = Vector2(root_size.x * 0.5 - 60, 18)
+    time.custom_minimum_size = Vector2(120, 32)
+    time.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    panel.add_child(time)
+
+    var pause := Button.new()
+    pause.name = "PauseButton"
+    pause.text = "Pause"
+    pause.position = Vector2(root_size.x - 124, root_size.y - 72)
+    pause.custom_minimum_size = Vector2(100, 44)
+    panel.add_child(pause)
+    return root
+
+
+func _design_apply_full_rect(control: Control) -> void:
+    control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE)
+
+
+func _design_menu_panel_spec(
+    title: String, subtitle: String, buttons: Array
+) -> Dictionary:
+    var button_specs: Array = []
+    for idx in range(buttons.size()):
+        button_specs.append({
+            "type": "Button",
+            "name": "Button" + str(idx + 1),
+            "text": buttons[idx],
+            "custom_minimum_size": [240, 48]
+        })
+
+    return {
+        "type": "PanelContainer",
+        "name": "MenuPanel",
+        "anchor_preset": "center",
+        "offsets": {"left": -200, "top": -180, "right": 200, "bottom": 180},
+        "children": [
+            {
+                "type": "VBoxContainer",
+                "name": "MenuStack",
+                "anchor_preset": "full_rect",
+                "offsets": {"left": 24, "top": 24, "right": -24, "bottom": -24},
+                "separation": 16,
+                "children": [
+                    {
+                        "type": "Label",
+                        "name": "TitleLabel",
+                        "text": title,
+                        "horizontal_alignment": 1,
+                        "custom_minimum_size": [320, 48]
+                    },
+                    {
+                        "type": "Label",
+                        "name": "SubtitleLabel",
+                        "text": subtitle,
+                        "horizontal_alignment": 1,
+                        "custom_minimum_size": [320, 28]
+                    }
+                ] + button_specs
+            }
+        ]
+    }
+
+
+func _design_build_ui_layout(root_name: String, root_size: Vector2, controls: Array) -> Control:
+    var root := Control.new()
+    root.name = root_name
+    root.custom_minimum_size = root_size
+    root.size = root_size
+    _design_apply_full_rect(root)
+    for spec in controls:
+        if not (spec is Dictionary):
+            continue
+        _design_add_control_spec(root, root, spec, root_size)
+    return root
+
+
+func _design_add_control_spec(scene_root: Node, parent: Node, spec: Dictionary, viewport_size: Vector2) -> Node:
+    var type_name: String = str(spec.get("type", "Control"))
+    if not ClassDB.class_exists(type_name):
+        type_name = "Control"
+    var node = ClassDB.instantiate(type_name)
+    if node == null:
+        return null
+    node.name = str(spec.get("name", type_name))
+    if node is Control:
+        var control := node as Control
+        var preset: String = str(spec.get("anchor_preset", ""))
+        if not preset.is_empty():
+            _design_apply_anchor(control, preset)
+        var offsets = spec.get("offsets", {})
+        if offsets is Dictionary and not offsets.is_empty():
+            _design_apply_offsets(control, offsets)
+        if spec.has("text"):
+            control.set("text", str(spec.get("text", "")))
+        if spec.has("columns"):
+            control.set("columns", int(spec.get("columns", 1)))
+        if spec.has("separation"):
+            control.set("separation", int(spec.get("separation", 8)))
+        if spec.has("horizontal_alignment"):
+            control.set("horizontal_alignment", int(spec.get("horizontal_alignment", 0)))
+        var min_size = spec.get("custom_minimum_size")
+        if min_size is Array and min_size.size() >= 2:
+            control.custom_minimum_size = Vector2(float(min_size[0]), float(min_size[1]))
+    parent.add_child(node)
+    for child_spec in spec.get("children", []):
+        if child_spec is Dictionary:
+            _design_add_control_spec(scene_root, node, child_spec, viewport_size)
+    return node
+
+
+func _design_apply_anchor(control: Control, preset: String) -> void:
+    var preset_id := -1
+    match preset:
+        "full_rect": preset_id = Control.PRESET_FULL_RECT
+        "top_left": preset_id = Control.PRESET_TOP_LEFT
+        "top_right": preset_id = Control.PRESET_TOP_RIGHT
+        "bottom_left": preset_id = Control.PRESET_BOTTOM_LEFT
+        "bottom_right": preset_id = Control.PRESET_BOTTOM_RIGHT
+        "center": preset_id = Control.PRESET_CENTER
+        "top_wide": preset_id = Control.PRESET_TOP_WIDE
+        "bottom_wide": preset_id = Control.PRESET_BOTTOM_WIDE
+        "left_wide": preset_id = Control.PRESET_LEFT_WIDE
+        "right_wide": preset_id = Control.PRESET_RIGHT_WIDE
+        "vcenter_wide": preset_id = Control.PRESET_VCENTER_WIDE
+        "hcenter_wide": preset_id = Control.PRESET_HCENTER_WIDE
+    if preset_id >= 0:
+        control.set_anchors_and_offsets_preset(preset_id, Control.PRESET_MODE_KEEP_SIZE)
+
+
+func _design_apply_offsets(control: Control, offsets: Dictionary) -> void:
+    if offsets.has("left"): control.offset_left = float(offsets["left"])
+    if offsets.has("top"): control.offset_top = float(offsets["top"])
+    if offsets.has("right"): control.offset_right = float(offsets["right"])
+    if offsets.has("bottom"): control.offset_bottom = float(offsets["bottom"])
+
+
+func _design_save_scene(scene: Node, full_path: String) -> bool:
+    if not _ensure_resource_dir(full_path):
+        return false
+    return _save_scene_root(scene, full_path)
+
+
+func _design_persist_script(path: String, script_class_name: String, body: String) -> bool:
+    var content := body
+    if not script_class_name.is_empty() and not content.contains("\nclass_name ") and not content.begins_with("class_name "):
+        content = "class_name " + script_class_name + "\n\n" + content
+    return _design_write_text_file(path, content)
+
+
+func _design_script_path_for(scene_path: String) -> String:
+    return _design_path_to_script(_to_res_path(scene_path))
+
+
+func _design_generate_scene_from_brief(params: Dictionary) -> void:
+    log_info("Starting design_generate_scene_from_brief operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var brief: String = str(params.get("brief", "")).strip_edges()
+    if brief.is_empty():
+        log_error("brief is required")
+        return
+    var include_hud := bool(params.get("include_hud", true))
+    var include_menu := bool(params.get("include_menu", true))
+    var include_settings := bool(params.get("include_settings", false))
+    var include_dialogue := bool(params.get("include_dialogue", false))
+    var include_mobile := bool(params.get("include_mobile_controls", false))
+    var include_blockout := bool(params.get("include_blockout", false))
+    var dry_run := _design_dry_run(params)
+    var files: Array = []
+    files.append({"path": _to_res_path(output_path), "kind": "scene"})
+
+    if include_hud:
+        files.append({"path": "res://scenes/mcp_design_hud.tscn", "kind": "scene"})
+        files.append({"path": "res://scripts/mcp_design_hud_controller.gd", "kind": "script"})
+    if include_menu:
+        files.append({"path": "res://scenes/mcp_design_menu.tscn", "kind": "scene"})
+        files.append({"path": "res://scripts/mcp_design_menu_controller.gd", "kind": "script"})
+    if include_settings:
+        files.append({"path": "res://scenes/mcp_design_settings.tscn", "kind": "scene"})
+    if include_dialogue:
+        files.append({"path": "res://scenes/mcp_design_dialogue.tscn", "kind": "scene"})
+        files.append({"path": "res://scripts/mcp_design_dialogue_line.gd", "kind": "script"})
+    if include_mobile:
+        files.append({"path": "res://scenes/mcp_design_mobile_controls.tscn", "kind": "scene"})
+    if include_blockout:
+        files.append({"path": "res://scenes/mcp_design_blockout.tscn", "kind": "scene"})
+
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "brief": brief,
+            "scene_count": files.filter(func(f): return f.get("kind", "") == "scene").size(),
+            "script_count": files.filter(func(f): return f.get("kind", "") == "script").size(),
+            "feature_flags": {
+                "hud": include_hud,
+                "menu": include_menu,
+                "settings": include_settings,
+                "dialogue": include_dialogue,
+                "mobile_controls": include_mobile,
+                "blockout": include_blockout,
+            },
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+
+    if not dry_run:
+        var full_scene := _to_res_path(output_path)
+        var layout := _design_build_ui_layout("McpDesignRoot", _design_normalize_size(params.get("root_size", [1152, 648])), [])
+        if not _design_save_scene(layout, full_scene):
+            log_error("Failed to save brief scene: " + full_scene)
+            return
+        layout.free()
+
+        if include_hud:
+            var hud := _design_build_hud_scene(_design_normalize_size(params.get("root_size", [1152, 648])))
+            if not _design_save_scene(hud, "res://scenes/mcp_design_hud.tscn"):
+                log_error("Failed to save HUD scene")
+                return
+            hud.free()
+            var hud_body := "extends Node\n\n@export var score: int = 0\n@export var health: int = 100\n\nfunc _ready() -> void:\n    pass\n"
+            if not _design_persist_script("res://scripts/mcp_design_hud_controller.gd", "McpDesignHudController", hud_body):
+                return
+
+        if include_menu:
+            var menu_specs := [_design_menu_panel_spec("Brief Menu", brief, ["Play", "Settings", "Quit"])]
+            var menu_root := _design_build_ui_layout("McpDesignMenu", _design_normalize_size(params.get("root_size", [1152, 648])), menu_specs)
+            if not _design_save_scene(menu_root, "res://scenes/mcp_design_menu.tscn"):
+                log_error("Failed to save menu scene")
+                return
+            menu_root.free()
+            var menu_body := "extends Node\n\nsignal play_pressed\nsignal settings_pressed\nsignal quit_pressed\n\nfunc _ready() -> void:\n    pass\n"
+            if not _design_persist_script("res://scripts/mcp_design_menu_controller.gd", "McpDesignMenuController", menu_body):
+                return
+
+        if include_settings:
+            var settings_specs := [_design_menu_panel_spec("Settings", "", ["Audio", "Video", "Controls", "Back"])]
+            var settings_root := _design_build_ui_layout("McpDesignSettings", _design_normalize_size(params.get("root_size", [1152, 648])), settings_specs)
+            if not _design_save_scene(settings_root, "res://scenes/mcp_design_settings.tscn"):
+                log_error("Failed to save settings scene")
+                return
+            settings_root.free()
+
+        if include_dialogue:
+            var dialogue_specs := [
+                {"type": "PanelContainer", "name": "DialoguePanel", "anchor_preset": "bottom_wide", "offsets": {"left": 48, "top": -200, "right": -48, "bottom": -32}, "children": [
+                    {"type": "VBoxContainer", "name": "DialogueStack", "anchor_preset": "full_rect", "offsets": {"left": 24, "top": 20, "right": -24, "bottom": -20}, "separation": 8, "children": [
+                        {"type": "Label", "name": "SpeakerLabel", "text": "Speaker", "custom_minimum_size": [240, 32]},
+                        {"type": "Label", "name": "DialogueLabel", "text": brief, "custom_minimum_size": [420, 72]},
+                        {"type": "Button", "name": "ContinueButton", "text": "Continue", "custom_minimum_size": [160, 48]},
+                    ]},
+                ]}
+            ]
+            var dialogue_root := _design_build_ui_layout("McpDesignDialogue", _design_normalize_size(params.get("root_size", [1152, 648])), dialogue_specs)
+            if not _design_save_scene(dialogue_root, "res://scenes/mcp_design_dialogue.tscn"):
+                log_error("Failed to save dialogue scene")
+                return
+            dialogue_root.free()
+            var line_body := "extends RefCounted\n\nclass_name McpDesignDialogueLine\n\n@export var speaker: String = \"\"\n@export var text: String = \"\"\n"
+            if not _design_persist_script("res://scripts/mcp_design_dialogue_line.gd", "McpDesignDialogueLine", line_body):
+                return
+
+        if include_mobile:
+            var mobile_specs := [
+                {"type": "TouchScreenButton", "name": "JoystickBase", "anchor_preset": "bottom_left", "offsets": {"left": 40, "top": -200, "right": 200, "bottom": -40}},
+                {"type": "Button", "name": "ActionButtonA", "text": "A", "anchor_preset": "bottom_right", "offsets": {"left": -180, "top": -140, "right": -88, "bottom": -48}, "custom_minimum_size": [88, 88]},
+                {"type": "Button", "name": "ActionButtonB", "text": "B", "anchor_preset": "bottom_right", "offsets": {"left": -90, "top": -232, "right": -2, "bottom": -140}, "custom_minimum_size": [88, 88]},
+            ]
+            var mobile_root := _design_build_ui_layout("McpDesignMobileControls", _design_normalize_size(params.get("root_size", [720, 1280])), mobile_specs)
+            if not _design_save_scene(mobile_root, "res://scenes/mcp_design_mobile_controls.tscn"):
+                log_error("Failed to save mobile controls scene")
+                return
+            mobile_root.free()
+
+        if include_blockout:
+            var blockout := _design_build_blockout_2d(params.get("grid_size", [16, 12]), params.get("spawn_position", [0, 0]), true)
+            if not _design_save_scene(blockout, "res://scenes/mcp_design_blockout.tscn"):
+                log_error("Failed to save blockout scene")
+                return
+            blockout.free()
+
+    _design_print_success("design_generate_scene_from_brief", manifest)
+    log_info("design_generate_scene_from_brief completed successfully")
+
+
+func _design_generate_level_blockout(params: Dictionary) -> void:
+    log_info("Starting design_generate_level_blockout operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var kind: String = str(params.get("kind", "2d")).to_lower()
+    var dry_run := _design_dry_run(params)
+    var grid_size = params.get("grid_size", [16, 12])
+    var spawn = params.get("spawn_position", [0, 0])
+    var include_physics := bool(params.get("include_physics", true))
+    var files: Array = [{"path": _to_res_path(output_path), "kind": "scene"}]
+    var summary := _design_blockout_blocks_summary(grid_size)
+    summary["kind"] = kind
+    summary["include_physics"] = include_physics
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": summary,
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        if kind == "3d":
+            log_error("3D blockout is not yet supported; using 2D blockout")
+        var blockout := _design_build_blockout_2d(grid_size, spawn, include_physics)
+        if not _design_save_scene(blockout, _to_res_path(output_path)):
+            log_error("Failed to save blockout scene")
+            return
+        blockout.free()
+    _design_print_success("design_generate_level_blockout", manifest)
+    log_info("design_generate_level_blockout completed successfully")
+
+
+func _design_generate_menu_flow(params: Dictionary) -> void:
+    log_info("Starting design_generate_menu_flow operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var title: String = str(params.get("title", "Main Menu"))
+    var subtitle: String = str(params.get("subtitle", ""))
+    var buttons = params.get("buttons", ["Play", "Settings", "Quit"])
+    if not (buttons is Array):
+        buttons = ["Play", "Settings", "Quit"]
+    var include_settings := bool(params.get("include_settings", false))
+    var dry_run := _design_dry_run(params)
+    var files: Array = [{"path": _to_res_path(output_path), "kind": "scene"}]
+    if include_settings:
+        files.append({"path": "res://scenes/mcp_design_menu_settings.tscn", "kind": "scene"})
+    var root_size := _design_normalize_size(params.get("root_size", [1152, 648]))
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "title": title,
+            "button_count": buttons.size(),
+            "include_settings": include_settings,
+            "transitions": _design_menu_transitions(buttons, include_settings),
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        var menu := _design_build_ui_layout("McpDesignMenu", root_size, [_design_menu_panel_spec(title, subtitle, buttons)])
+        if not _design_save_scene(menu, _to_res_path(output_path)):
+            log_error("Failed to save menu scene")
+            return
+        menu.free()
+        if include_settings:
+            var settings_panel := _design_build_ui_layout("McpDesignMenuSettings", root_size, [_design_menu_panel_spec("Settings", "", ["Audio", "Video", "Controls", "Back"])])
+            if not _design_save_scene(settings_panel, "res://scenes/mcp_design_menu_settings.tscn"):
+                log_error("Failed to save menu settings scene")
+                return
+            settings_panel.free()
+    _design_print_success("design_generate_menu_flow", manifest)
+    log_info("design_generate_menu_flow completed successfully")
+
+
+func _design_menu_transitions(buttons: Array, include_settings: bool) -> Array:
+    var transitions: Array = []
+    for label in buttons:
+        var text: String = str(label).to_lower()
+        if text == "play" or text == "resume":
+            transitions.append({"from": "Menu", "button": label, "to": "GameScene"})
+        elif text == "settings":
+            transitions.append({"from": "Menu", "button": label, "to": "Settings"})
+        elif text == "quit":
+            transitions.append({"from": "Menu", "button": label, "to": "QuitApp"})
+        elif text == "back":
+            transitions.append({"from": "Settings", "button": label, "to": "Menu"})
+        else:
+            transitions.append({"from": "Menu", "button": label, "to": text.capitalize()})
+    if not include_settings:
+        var had_settings := false
+        for transition in transitions:
+            if str(transition.get("to", "")) == "Settings":
+                had_settings = true
+                break
+        if not had_settings:
+            return transitions
+    return transitions
+
+
+func _design_generate_hud(params: Dictionary) -> void:
+    log_info("Starting design_generate_hud operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var root_size := _design_normalize_size(params.get("root_size", [1152, 648]))
+    var follows_player := bool(params.get("follows_player", false))
+    var dry_run := _design_dry_run(params)
+    var script_path := _design_script_path_for(output_path)
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": script_path, "kind": "script"},
+    ]
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "control_count": 4,
+            "labels": ["Score", "Health", "Time"],
+            "buttons": ["Pause"],
+            "follows_player": follows_player,
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        var hud := _design_build_hud_scene(root_size)
+        if not _design_save_scene(hud, _to_res_path(output_path)):
+            log_error("Failed to save HUD scene")
+            return
+        hud.free()
+        var script_class_name := "McpHudController"
+        var body := "extends Node\n\n@export var follow_path: NodePath\n@export var follows_player: bool = " + str(follows_player).to_lower() + "\n\nfunc _ready() -> void:\n    pass\n\nfunc set_score(value: int) -> void:\n    var label := get_node_or_null(\"Hud/ScoreLabel\") as Label\n    if label:\n        label.text = \"Score: %d\" % value\n"
+        if not _design_persist_script(script_path, script_class_name, body):
+            return
+    _design_print_success("design_generate_hud", manifest)
+    log_info("design_generate_hud completed successfully")
+
+
+func _design_generate_dialogue_scene(params: Dictionary) -> void:
+    log_info("Starting design_generate_dialogue_scene operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var title: String = str(params.get("title", "Speaker"))
+    var subtitle: String = str(params.get("subtitle", "Dialogue text"))
+    var dry_run := _design_dry_run(params)
+    var script_path := _design_script_path_for(output_path)
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": script_path, "kind": "script"},
+    ]
+    var specs := [
+        {"type": "PanelContainer", "name": "DialoguePanel", "anchor_preset": "bottom_wide", "offsets": {"left": 48, "top": -200, "right": -48, "bottom": -32}, "children": [
+            {"type": "VBoxContainer", "name": "DialogueStack", "anchor_preset": "full_rect", "offsets": {"left": 24, "top": 20, "right": -24, "bottom": -20}, "separation": 8, "children": [
+                {"type": "Label", "name": "SpeakerLabel", "text": title, "custom_minimum_size": [240, 32]},
+                {"type": "Label", "name": "DialogueLabel", "text": subtitle, "custom_minimum_size": [420, 72]},
+                {"type": "Button", "name": "ContinueButton", "text": "Continue", "custom_minimum_size": [160, 48]},
+            ]},
+        ]}
+    ]
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {"speaker": title, "lines": 1, "scene_kind": "dialogue_box"},
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        var root := _design_build_ui_layout("McpDesignDialogue", _design_normalize_size(params.get("root_size", [1152, 648])), specs)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            log_error("Failed to save dialogue scene")
+            return
+        root.free()
+        var body := "extends Node\n\n@export var speaker: String = \"" + title + "\"\n@export_multiline var text: String = \"" + subtitle + "\"\n\nfunc _ready() -> void:\n    pass\n"
+        if not _design_persist_script(script_path, "McpDialogueLine", body):
+            return
+    _design_print_success("design_generate_dialogue_scene", manifest)
+    log_info("design_generate_dialogue_scene completed successfully")
+
+
+func _design_generate_settings_screen(params: Dictionary) -> void:
+    log_info("Starting design_generate_settings_screen operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var title: String = str(params.get("title", "Settings"))
+    var options = params.get("options", {"audio": true, "video": true, "controls": true})
+    if not (options is Dictionary):
+        options = {"audio": true, "video": true, "controls": true}
+    var dry_run := _design_dry_run(params)
+    var script_path := _design_script_path_for(output_path)
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": script_path, "kind": "script"},
+    ]
+    var children: Array = []
+    for section in ["audio", "video", "controls"]:
+        if bool(options.get(section, true)):
+            children.append({"type": "Button", "name": section.capitalize() + "Button", "text": section.capitalize(), "custom_minimum_size": [240, 48]})
+    children.append({"type": "Button", "name": "BackButton", "text": "Back", "custom_minimum_size": [240, 48]})
+    var specs := [
+        {"type": "PanelContainer", "name": "SettingsPanel", "anchor_preset": "center", "offsets": {"left": -200, "top": -200, "right": 200, "bottom": 200}, "children": [
+            {"type": "VBoxContainer", "name": "SettingsStack", "anchor_preset": "full_rect", "offsets": {"left": 24, "top": 24, "right": -24, "bottom": -24}, "separation": 12, "children": [
+                {"type": "Label", "name": "TitleLabel", "text": title, "horizontal_alignment": 1, "custom_minimum_size": [320, 48]},
+            ] + children}
+        ]}
+    ]
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "sections": options.keys(),
+            "button_count": children.size(),
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        var root := _design_build_ui_layout("McpDesignSettings", _design_normalize_size(params.get("root_size", [1152, 648])), specs)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            log_error("Failed to save settings scene")
+            return
+        root.free()
+        var body := "extends Node\n\n@export var audio_volume: float = 0.0\n@export var music_volume: float = 0.0\n@export var fullscreen: bool = false\n\nfunc _ready() -> void:\n    pass\n"
+        if not _design_persist_script(script_path, "McpSettingsController", body):
+            return
+    _design_print_success("design_generate_settings_screen", manifest)
+    log_info("design_generate_settings_screen completed successfully")
+
+
+func _design_generate_mobile_controls(params: Dictionary) -> void:
+    log_info("Starting design_generate_mobile_controls operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var root_size := _design_normalize_size(params.get("root_size", [720, 1280]))
+    var dry_run := _design_dry_run(params)
+    var script_path := _design_script_path_for(output_path)
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": script_path, "kind": "script"},
+    ]
+    var specs := [
+        {"type": "TouchScreenButton", "name": "JoystickBase", "anchor_preset": "bottom_left", "offsets": {"left": 40, "top": -240, "right": 240, "bottom": -40}},
+        {"type": "Label", "name": "JoystickLabel", "text": "Move", "anchor_preset": "bottom_left", "offsets": {"left": 100, "top": -130, "right": 180, "bottom": -100}},
+        {"type": "Button", "name": "ActionButtonA", "text": "A", "anchor_preset": "bottom_right", "offsets": {"left": -200, "top": -160, "right": -100, "bottom": -60}, "custom_minimum_size": [96, 96]},
+        {"type": "Button", "name": "ActionButtonB", "text": "B", "anchor_preset": "bottom_right", "offsets": {"left": -100, "top": -260, "right": 0, "bottom": -160}, "custom_minimum_size": [96, 96]},
+    ]
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "joystick_count": 1,
+            "action_buttons": 2,
+            "root_size": [root_size.x, root_size.y],
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        var root := _design_build_ui_layout("McpDesignMobileControls", root_size, specs)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            log_error("Failed to save mobile controls scene")
+            return
+        root.free()
+        var body := "extends Node\n\n@export var move_strength: float = 1.0\n@export var action_a: String = \"action_a\"\n@export var action_b: String = \"action_b\"\n\nfunc _ready() -> void:\n    pass\n"
+        if not _design_persist_script(script_path, "McpMobileControls", body):
+            return
+    _design_print_success("design_generate_mobile_controls", manifest)
+    log_info("design_generate_mobile_controls completed successfully")
+
+
+func _design_generate_gameplay_prefab(params: Dictionary) -> void:
+    log_info("Starting design_generate_gameplay_prefab operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var kind: String = str(params.get("kind", "projectile")).to_lower()
+    var speed := float(params.get("speed", 240.0))
+    var damage := int(params.get("damage", 0))
+    var health := int(params.get("health", 100))
+    var script_class_name := str(params.get("class_name", "")).strip_edges()
+    var dry_run := _design_dry_run(params)
+    var script_path := _design_script_path_for(output_path)
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": script_path, "kind": "script"},
+    ]
+    var root: Node
+    match kind:
+        "player":
+            root = _design_prefab_player(speed, health)
+        "enemy":
+            root = _design_prefab_enemy(speed, health)
+        _:
+            root = _design_prefab_projectile(speed, damage)
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "kind": kind,
+            "speed": speed,
+            "damage": damage,
+            "health": health,
+            "script_class": script_class_name,
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            log_error("Failed to save prefab scene")
+            return
+        root.free()
+        var body := "extends Node2D\n\n@export var speed: float = " + str(speed) + "\n@export var damage: int = " + str(damage) + "\n@export var health: int = " + str(health) + "\n\nfunc _ready() -> void:\n    pass\n"
+        var class_declaration := "McpPrefab_" + _design_pascal(kind)
+        if not script_class_name.is_empty():
+            class_declaration = script_class_name
+        if not _design_persist_script(script_path, class_declaration, body):
+            return
+    _design_print_success("design_generate_gameplay_prefab", manifest)
+    log_info("design_generate_gameplay_prefab completed successfully")
+
+
+func _design_prefab_player(speed: float, health: int) -> Node:
+    var root := CharacterBody2D.new()
+    root.name = "PrefabPlayer"
+    var sprite := Sprite2D.new()
+    sprite.name = "Sprite"
+    root.add_child(sprite)
+    var shape := CollisionShape2D.new()
+    shape.name = "Collision"
+    var rect := RectangleShape2D.new()
+    rect.size = Vector2(48, 64)
+    shape.shape = rect
+    root.add_child(shape)
+    return root
+
+
+func _design_prefab_enemy(speed: float, health: int) -> Node:
+    var root := CharacterBody2D.new()
+    root.name = "PrefabEnemy"
+    var sprite := Sprite2D.new()
+    sprite.name = "Sprite"
+    root.add_child(sprite)
+    var shape := CollisionShape2D.new()
+    shape.name = "Collision"
+    var rect := RectangleShape2D.new()
+    rect.size = Vector2(40, 40)
+    shape.shape = rect
+    root.add_child(shape)
+    return root
+
+
+func _design_prefab_projectile(speed: float, damage: int) -> Node:
+    var root := Area2D.new()
+    root.name = "PrefabProjectile"
+    var sprite := Sprite2D.new()
+    sprite.name = "Sprite"
+    root.add_child(sprite)
+    var shape := CollisionShape2D.new()
+    shape.name = "Collision"
+    var circle := CircleShape2D.new()
+    circle.radius = 8.0
+    shape.shape = circle
+    root.add_child(shape)
+    return root
+
+
+func _design_generate_enemy_archetype(params: Dictionary) -> void:
+    log_info("Starting design_generate_enemy_archetype operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var archetype: String = str(params.get("archetype", "enemy")).strip_edges()
+    if archetype.is_empty():
+        log_error("archetype is required")
+        return
+    var health := int(params.get("health", 30))
+    var speed := float(params.get("speed", 80.0))
+    var damage := int(params.get("damage", 5))
+    var include_ai := bool(params.get("include_ai", true))
+    var script_class_name := str(params.get("class_name", "")).strip_edges()
+    var dry_run := _design_dry_run(params)
+    var script_path := _design_script_path_for(output_path)
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": script_path, "kind": "script"},
+    ]
+    var root := _design_archetype_enemy_node(_design_pascal(archetype))
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "archetype": archetype,
+            "health": health,
+            "speed": speed,
+            "damage": damage,
+            "include_ai": include_ai,
+            "script_class": script_class_name,
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            log_error("Failed to save enemy scene")
+            return
+        root.free()
+        var body := "extends CharacterBody2D\n\n@export var max_health: int = " + str(health) + "\n@export var move_speed: float = " + str(speed) + "\n@export var contact_damage: int = " + str(damage) + "\n\nvar health: int = " + str(health) + "\n\nfunc _ready() -> void:\n    pass\n"
+        if include_ai:
+            body += "\nfunc patrol(targets: Array) -> void:\n    pass\n\nfunc chase(player: Node2D) -> void:\n    pass\n\nfunc idle() -> void:\n    pass\n"
+        var class_declaration := "McpEnemy_" + _design_pascal(archetype)
+        if not script_class_name.is_empty():
+            class_declaration = script_class_name
+        if not _design_persist_script(script_path, class_declaration, body):
+            return
+    _design_print_success("design_generate_enemy_archetype", manifest)
+    log_info("design_generate_enemy_archetype completed successfully")
+
+
+func _design_archetype_enemy_node(name_root: String) -> Node:
+    var root := CharacterBody2D.new()
+    root.name = name_root
+    var sprite := Sprite2D.new()
+    sprite.name = "Sprite"
+    root.add_child(sprite)
+    var shape := CollisionShape2D.new()
+    shape.name = "Collision"
+    var rect := RectangleShape2D.new()
+    rect.size = Vector2(40, 40)
+    shape.shape = rect
+    root.add_child(shape)
+    var marker := Marker2D.new()
+    marker.name = "PatrolPoint"
+    marker.position = Vector2(0, -48)
+    root.add_child(marker)
+    return root
+
+
+func _design_generate_pickup_archetype(params: Dictionary) -> void:
+    log_info("Starting design_generate_pickup_archetype operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var archetype: String = str(params.get("archetype", "pickup")).strip_edges()
+    if archetype.is_empty():
+        log_error("archetype is required")
+        return
+    var pickup_value := int(params.get("pickup_value", 1))
+    var respawn_time := float(params.get("respawn_time", 0.0))
+    var include_physics := bool(params.get("include_physics", true))
+    var script_class_name := str(params.get("class_name", "")).strip_edges()
+    var dry_run := _design_dry_run(params)
+    var script_path := _design_script_path_for(output_path)
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": script_path, "kind": "script"},
+    ]
+    var root := _design_archetype_pickup_node(_design_pascal(archetype), include_physics)
+    var manifest := {
+        "created_files": files,
+        "validation_commands": _design_validation_commands(files),
+        "preview_summary": {
+            "archetype": archetype,
+            "pickup_value": pickup_value,
+            "respawn_time": respawn_time,
+            "include_physics": include_physics,
+            "script_class": script_class_name,
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not dry_run:
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            log_error("Failed to save pickup scene")
+            return
+        root.free()
+        var body := "extends Area2D\n\n@export var pickup_value: int = " + str(pickup_value) + "\n@export var respawn_time: float = " + str(respawn_time) + "\n\nsignal collected(by: Node2D)\n\nfunc _ready() -> void:\n    pass\n\nfunc collect(by: Node2D) -> void:\n    emit_signal(\"collected\", by)\n    if respawn_time > 0.0:\n        set_deferred(\"monitoring\", false)\n        visible = false\n        await get_tree().create_timer(respawn_time).timeout\n        set_deferred(\"monitoring\", true)\n        visible = true\n"
+        var class_declaration := "McpPickup_" + _design_pascal(archetype)
+        if not script_class_name.is_empty():
+            class_declaration = script_class_name
+        if not _design_persist_script(script_path, class_declaration, body):
+            return
+    _design_print_success("design_generate_pickup_archetype", manifest)
+    log_info("design_generate_pickup_archetype completed successfully")
+
+
+func _design_archetype_pickup_node(name_root: String, include_physics: bool) -> Node:
+    var root: Node
+    if include_physics:
+        root = Area2D.new()
+    else:
+        root = Node2D.new()
+    root.name = name_root
+    var sprite := Sprite2D.new()
+    sprite.name = "Sprite"
+    root.add_child(sprite)
+    if include_physics:
+        var shape := CollisionShape2D.new()
+        shape.name = "Collision"
+        var circle := CircleShape2D.new()
+        circle.radius = 12.0
+        shape.shape = circle
+        root.add_child(shape)
+    return root
+
+
+# Phase 4.2: Gameplay loop and state-machine helper operations
+
+func _gameplay_dry_run(params: Dictionary) -> bool:
+    return bool(params.get("dry_run", false)) or bool(params.get("recipe_only", false))
+
+
+func _gameplay_safe_manifest(manifest: Dictionary) -> Dictionary:
+    if not manifest.has("created_files"):
+        manifest["created_files"] = []
+    if not manifest.has("changed_files"):
+        manifest["changed_files"] = []
+    if not manifest.has("validation_commands"):
+        manifest["validation_commands"] = []
+    if not manifest.has("preview_summary"):
+        manifest["preview_summary"] = {}
+    if not manifest.has("dry_run"):
+        manifest["dry_run"] = false
+    if not manifest.has("recipe_only"):
+        manifest["recipe_only"] = false
+    return manifest
+
+
+func _gameplay_print_success(operation: String, manifest: Dictionary) -> void:
+    print(JSON.stringify({
+        "success": true,
+        "operation": operation,
+        "manifest": _gameplay_safe_manifest(manifest),
+    }))
+
+
+func _gameplay_validation_commands(entries: Array) -> Array:
+    var commands: Array = []
+    for entry in entries:
+        if not (entry is Dictionary):
+            continue
+        var kind: String = str(entry.get("kind", "scene"))
+        var res_path: String = str(entry.get("path", ""))
+        if res_path.is_empty():
+            continue
+        var tool_path: String = res_path.substr(6) if res_path.begins_with("res://") else res_path
+        if kind == "script" or kind == "test":
+            commands.append({
+                "tool": "validate_script",
+                "args": {
+                    "projectPath": "<self>",
+                    "scriptPath": tool_path,
+                },
+            })
+        elif kind == "scene":
+            commands.append({
+                "tool": "validate_scene",
+                "args": {
+                    "project_path": "<self>",
+                    "scene_path": tool_path,
+                },
+            })
+    return commands
+
+
+func _gameplay_prepare_scene(root: Node) -> void:
+    for child in root.get_children():
+        child.owner = root
+        _gameplay_set_owner_recursive(child, root)
+
+
+func _gameplay_set_owner_recursive(node: Node, scene_owner: Node) -> void:
+    for child in node.get_children():
+        child.owner = scene_owner
+        _gameplay_set_owner_recursive(child, scene_owner)
+
+
+func _gameplay_slug(value: String) -> String:
+    var result := ""
+    var last_was_separator := false
+    for character in value:
+        var lower := character.to_lower()
+        var is_allowed := (lower >= "a" and lower <= "z") or (lower >= "0" and lower <= "9")
+        if is_allowed:
+            result += lower
+            last_was_separator = false
+        elif not last_was_separator:
+            result += "_"
+            last_was_separator = true
+    result = result.strip_edges().trim_prefix("_").trim_suffix("_")
+    if result.is_empty():
+        return "generated"
+    return result
+
+
+func _gameplay_default_class(path: String, suffix: String) -> String:
+    return _design_pascal(_to_res_path(path).get_file().get_basename()) + suffix
+
+
+func _gameplay_test_path(subject_path: String) -> String:
+    return "res://test/test_" + _gameplay_slug(_to_res_path(subject_path).get_file().get_basename()) + ".gd"
+
+
+func _gameplay_state_script_path(state_machine_path: String, state_name: String) -> String:
+    return _to_res_path(state_machine_path).get_base_dir() + "/" + _gameplay_slug(state_name) + "_state.gd"
+
+
+func _gameplay_quote(value: String) -> String:
+    return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+
+func _gameplay_string_array(values: Array) -> String:
+    var quoted: Array = []
+    for value in values:
+        quoted.append(_gameplay_quote(str(value)))
+    return "[" + ", ".join(quoted) + "]"
+
+
+func _gameplay_scene_manifest(output_path: String, script_path: String, test_path: String, preview: Dictionary, params: Dictionary, extra_files := []) -> Dictionary:
+    var files: Array = [
+        {"path": _to_res_path(output_path), "kind": "scene"},
+        {"path": _to_res_path(script_path), "kind": "script"},
+    ]
+    for entry in extra_files:
+        files.append(entry)
+    if bool(params.get("include_tests", true)) and not test_path.is_empty():
+        files.append({"path": _to_res_path(test_path), "kind": "test"})
+    return {
+        "created_files": files,
+        "changed_files": [],
+        "validation_commands": _gameplay_validation_commands(files),
+        "preview_summary": preview,
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+
+
+func _gameplay_write_smoke_test(test_path: String, scene_path: String, root_name: String) -> bool:
+    var body := "extends GutTest\n\nfunc test_generated_scene_loads() -> void:\n    var packed := load(\"" + _to_res_path(scene_path) + "\") as PackedScene\n    assert_not_null(packed)\n    var node := packed.instantiate()\n    assert_not_null(node)\n    assert_eq(node.name, \"" + root_name + "\")\n    node.free()\n"
+    return _design_write_text_file(_to_res_path(test_path), body)
+
+
+func _gameplay_create_state_node(state_name: String) -> Node:
+    var state := Node.new()
+    state.name = _design_pascal(state_name) + "State"
+    state.set_meta("state_name", state_name)
+    return state
+
+
+func _gameplay_state_machine_script_body(initial_state: String) -> String:
+    return "extends Node\n\n@export var initial_state: String = \"" + initial_state + "\"\nvar current_state: String = \"\"\nvar transitions: Dictionary = {}\n\nsignal state_changed(from_state: String, to_state: String)\n\nfunc _ready() -> void:\n    if current_state.is_empty():\n        current_state = initial_state\n\nfunc add_transition(from_state: String, to_state: String, condition: String = \"\") -> void:\n    if not transitions.has(from_state):\n        transitions[from_state] = []\n    transitions[from_state].append({\"to\": to_state, \"condition\": condition})\n\nfunc can_transition(to_state: String) -> bool:\n    for transition in transitions.get(current_state, []):\n        if str(transition.get(\"to\", \"\")) == to_state:\n            return true\n    return false\n\nfunc change_state(to_state: String) -> bool:\n    var from_state := current_state\n    current_state = to_state\n    emit_signal(\"state_changed\", from_state, to_state)\n    return true\n"
+
+
+func _gameplay_state_script_body(state_name: String) -> String:
+    return "extends Node\n\n@export var state_name: String = \"" + state_name + "\"\n\nfunc enter(_previous_state: String = \"\") -> void:\n    pass\n\nfunc exit(_next_state: String = \"\") -> void:\n    pass\n\nfunc tick(_delta: float) -> void:\n    pass\n"
+
+
+func _gameplay_create_state_machine(params: Dictionary) -> void:
+    log_info("Starting gameplay_create_state_machine operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var state_names_param = params.get("state_names", ["Idle"])
+    var state_names: Array = state_names_param if state_names_param is Array else ["Idle"]
+    if state_names.is_empty():
+        state_names = ["Idle"]
+    var initial_state := str(state_names[0])
+    var script_path := _design_script_path_for(output_path)
+    var test_path := _gameplay_test_path(output_path)
+    var script_class_name: String = str(params.get("class_name", "")).strip_edges()
+    if script_class_name.is_empty():
+        script_class_name = _gameplay_default_class(output_path, "StateMachine")
+    var preview := {
+        "state_count": state_names.size(),
+        "states": state_names,
+        "script_class": script_class_name,
+        "test_path": test_path,
+    }
+    var manifest := _gameplay_scene_manifest(output_path, script_path, test_path, preview, params)
+    if not _gameplay_dry_run(params):
+        if not _design_persist_script(script_path, script_class_name, _gameplay_state_machine_script_body(initial_state)):
+            return
+        var root := Node.new()
+        root.name = _gameplay_default_class(output_path, "")
+        var script = load(script_path)
+        if script != null:
+            root.set_script(script)
+        var states := Node.new()
+        states.name = "States"
+        root.add_child(states)
+        for state_name in state_names:
+            states.add_child(_gameplay_create_state_node(str(state_name)))
+        var transitions := Node.new()
+        transitions.name = "Transitions"
+        root.add_child(transitions)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, output_path, _gameplay_default_class(output_path, "")):
+                return
+    _gameplay_print_success("gameplay_create_state_machine", manifest)
+    log_info("gameplay_create_state_machine completed successfully")
+
+
+func _gameplay_add_state(params: Dictionary) -> void:
+    log_info("Starting gameplay_add_state operation")
+    var state_machine_path := str(params.get("state_machine_path", "")).strip_edges()
+    var state_name := str(params.get("state_name", "")).strip_edges()
+    if state_machine_path.is_empty():
+        log_error("state_machine_path is required")
+        return
+    if state_name.is_empty():
+        log_error("state_name is required")
+        return
+    var script_path := _gameplay_state_script_path(state_machine_path, state_name)
+    var test_path := _gameplay_test_path(state_machine_path)
+    var changed_files: Array = [{"path": _to_res_path(state_machine_path), "kind": "scene"}]
+    var created_files: Array = [{"path": script_path, "kind": "script"}]
+    if bool(params.get("include_tests", true)):
+        created_files.append({"path": test_path, "kind": "test"})
+    var manifest := {
+        "created_files": created_files,
+        "changed_files": changed_files,
+        "validation_commands": _gameplay_validation_commands(created_files + changed_files),
+        "preview_summary": {
+            "state_name": state_name,
+            "state_script": script_path,
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not _gameplay_dry_run(params):
+        if not _design_persist_script(script_path, str(params.get("class_name", "")).strip_edges(), _gameplay_state_script_body(state_name)):
+            return
+        var loaded := _load_scene_for_edit(state_machine_path)
+        if loaded.is_empty():
+            return
+        var root: Node = loaded["scene_root"]
+        var states := root.get_node_or_null("States")
+        if states == null:
+            states = Node.new()
+            states.name = "States"
+            root.add_child(states)
+        var node_name := _design_pascal(state_name) + "State"
+        var state_node := states.get_node_or_null(NodePath(node_name))
+        if state_node == null:
+            state_node = _gameplay_create_state_node(state_name)
+            states.add_child(state_node)
+        var script = load(script_path)
+        if script != null:
+            state_node.set_script(script)
+        var root_name := root.name
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(state_machine_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, state_machine_path, root_name):
+                return
+    _gameplay_print_success("gameplay_add_state", manifest)
+    log_info("gameplay_add_state completed successfully")
+
+
+func _gameplay_connect_state_transition(params: Dictionary) -> void:
+    log_info("Starting gameplay_connect_state_transition operation")
+    var state_machine_path := str(params.get("state_machine_path", "")).strip_edges()
+    var from_state := str(params.get("from_state", "")).strip_edges()
+    var to_state := str(params.get("to_state", "")).strip_edges()
+    var condition := str(params.get("condition", "")).strip_edges()
+    if state_machine_path.is_empty():
+        log_error("state_machine_path is required")
+        return
+    if from_state.is_empty() or to_state.is_empty():
+        log_error("from_state and to_state are required")
+        return
+    var changed_files: Array = [{"path": _to_res_path(state_machine_path), "kind": "scene"}]
+    var manifest := {
+        "created_files": [],
+        "changed_files": changed_files,
+        "validation_commands": _gameplay_validation_commands(changed_files),
+        "preview_summary": {
+            "from_state": from_state,
+            "to_state": to_state,
+            "condition": condition,
+        },
+        "dry_run": bool(params.get("dry_run", false)),
+        "recipe_only": bool(params.get("recipe_only", false)),
+    }
+    if not _gameplay_dry_run(params):
+        var loaded := _load_scene_for_edit(state_machine_path)
+        if loaded.is_empty():
+            return
+        var root: Node = loaded["scene_root"]
+        var transitions := root.get_node_or_null("Transitions")
+        if transitions == null:
+            transitions = Node.new()
+            transitions.name = "Transitions"
+            root.add_child(transitions)
+        var transition_name := _design_pascal(from_state) + "To" + _design_pascal(to_state)
+        var transition_node := transitions.get_node_or_null(NodePath(transition_name))
+        if transition_node == null:
+            transition_node = Node.new()
+            transition_node.name = transition_name
+            transitions.add_child(transition_node)
+        transition_node.set_meta("from_state", from_state)
+        transition_node.set_meta("to_state", to_state)
+        transition_node.set_meta("condition", condition)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(state_machine_path)):
+            root.free()
+            return
+        root.free()
+    _gameplay_print_success("gameplay_connect_state_transition", manifest)
+    log_info("gameplay_connect_state_transition completed successfully")
+
+
+func _gameplay_character_controller_script(params: Dictionary) -> String:
+    var controller_type := str(params.get("controller_type", "top_down_2d"))
+    var movement_speed := float(params.get("movement_speed", 240.0))
+    var jump_velocity := float(params.get("jump_velocity", -420.0))
+    var gravity := float(params.get("gravity", 980.0))
+    return "extends CharacterBody2D\n\n@export_enum(\"top_down_2d\", \"platformer_2d\") var controller_type: String = \"" + controller_type + "\"\n@export var movement_speed: float = " + str(movement_speed) + "\n@export var jump_velocity: float = " + str(jump_velocity) + "\n@export var gravity: float = " + str(gravity) + "\n\nfunc _physics_process(delta: float) -> void:\n    if controller_type == \"platformer_2d\":\n        var axis := Input.get_axis(\"ui_left\", \"ui_right\")\n        velocity.x = axis * movement_speed\n        if not is_on_floor():\n            velocity.y += gravity * delta\n        if Input.is_action_just_pressed(\"ui_accept\") and is_on_floor():\n            velocity.y = jump_velocity\n    else:\n        var direction := Input.get_vector(\"ui_left\", \"ui_right\", \"ui_up\", \"ui_down\")\n        velocity = direction * movement_speed\n    move_and_slide()\n"
+
+
+func _gameplay_generate_character_controller(params: Dictionary) -> void:
+    log_info("Starting gameplay_generate_character_controller operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var script_path := _design_script_path_for(output_path)
+    var test_path := _gameplay_test_path(output_path)
+    var script_class_name: String = str(params.get("class_name", "")).strip_edges()
+    if script_class_name.is_empty():
+        script_class_name = _gameplay_default_class(output_path, "Controller")
+    var preview := {
+        "controller_type": str(params.get("controller_type", "top_down_2d")),
+        "movement_speed": float(params.get("movement_speed", 240.0)),
+        "jump_velocity": float(params.get("jump_velocity", -420.0)),
+        "gravity": float(params.get("gravity", 980.0)),
+        "script_class": script_class_name,
+    }
+    var manifest := _gameplay_scene_manifest(output_path, script_path, test_path, preview, params)
+    if not _gameplay_dry_run(params):
+        if not _design_persist_script(script_path, script_class_name, _gameplay_character_controller_script(params)):
+            return
+        var root := CharacterBody2D.new()
+        root.name = _gameplay_default_class(output_path, "")
+        var script = load(script_path)
+        if script != null:
+            root.set_script(script)
+        var sprite := Sprite2D.new()
+        sprite.name = "Sprite"
+        root.add_child(sprite)
+        var shape := CollisionShape2D.new()
+        shape.name = "Collision"
+        var capsule := CapsuleShape2D.new()
+        capsule.radius = 12.0
+        capsule.height = 36.0
+        shape.shape = capsule
+        root.add_child(shape)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, output_path, _gameplay_default_class(output_path, "")):
+                return
+    _gameplay_print_success("gameplay_generate_character_controller", manifest)
+    log_info("gameplay_generate_character_controller completed successfully")
+
+
+func _gameplay_generate_interaction_system(params: Dictionary) -> void:
+    log_info("Starting gameplay_generate_interaction_system operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var script_path := _design_script_path_for(output_path)
+    var test_path := _gameplay_test_path(output_path)
+    var action := str(params.get("interaction_action", "interact"))
+    var script_class_name: String = str(params.get("class_name", "")).strip_edges()
+    if script_class_name.is_empty():
+        script_class_name = _gameplay_default_class(output_path, "InteractionSystem")
+    var manifest := _gameplay_scene_manifest(output_path, script_path, test_path, {"interaction_action": action, "script_class": script_class_name}, params)
+    if not _gameplay_dry_run(params):
+        var body := "extends Area2D\n\n@export var interaction_action: String = \"" + action + "\"\nvar current_target: Node = null\n\nsignal interacted(target: Node)\n\nfunc _ready() -> void:\n    body_entered.connect(_on_body_entered)\n    body_exited.connect(_on_body_exited)\n\nfunc _unhandled_input(event: InputEvent) -> void:\n    if event.is_action_pressed(interaction_action) and current_target != null:\n        emit_signal(\"interacted\", current_target)\n\nfunc _on_body_entered(body: Node) -> void:\n    current_target = body\n\nfunc _on_body_exited(body: Node) -> void:\n    if current_target == body:\n        current_target = null\n"
+        if not _design_persist_script(script_path, script_class_name, body):
+            return
+        var root := Area2D.new()
+        root.name = _gameplay_default_class(output_path, "")
+        var script = load(script_path)
+        if script != null:
+            root.set_script(script)
+        var shape := CollisionShape2D.new()
+        shape.name = "InteractionRange"
+        var circle := CircleShape2D.new()
+        circle.radius = 72.0
+        shape.shape = circle
+        root.add_child(shape)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, output_path, _gameplay_default_class(output_path, "")):
+                return
+    _gameplay_print_success("gameplay_generate_interaction_system", manifest)
+    log_info("gameplay_generate_interaction_system completed successfully")
+
+
+func _gameplay_generate_inventory_system(params: Dictionary) -> void:
+    log_info("Starting gameplay_generate_inventory_system operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var script_path := _design_script_path_for(output_path)
+    var item_path := _to_res_path(output_path).get_base_dir() + "/" + _gameplay_slug(_to_res_path(output_path).get_file().get_basename()) + "_item.gd"
+    var test_path := _gameplay_test_path(output_path)
+    var inventory_size := int(params.get("inventory_size", 16))
+    var script_class_name: String = str(params.get("class_name", "")).strip_edges()
+    if script_class_name.is_empty():
+        script_class_name = _gameplay_default_class(output_path, "Inventory")
+    var item_class_name := script_class_name + "Item"
+    var extra_files := [{"path": item_path, "kind": "script"}]
+    var manifest := _gameplay_scene_manifest(output_path, script_path, test_path, {"inventory_size": inventory_size, "script_class": script_class_name, "item_class": item_class_name}, params, extra_files)
+    if not _gameplay_dry_run(params):
+        var body := "extends Node\n\n@export var inventory_size: int = " + str(inventory_size) + "\nvar items: Array = []\n\nsignal inventory_changed(items: Array)\n\nfunc add_item(item) -> bool:\n    if items.size() >= inventory_size:\n        return false\n    items.append(item)\n    emit_signal(\"inventory_changed\", items)\n    return true\n\nfunc remove_item(item) -> bool:\n    var index := items.find(item)\n    if index < 0:\n        return false\n    items.remove_at(index)\n    emit_signal(\"inventory_changed\", items)\n    return true\n\nfunc has_item(item) -> bool:\n    return items.has(item)\n\nfunc clear() -> void:\n    items.clear()\n    emit_signal(\"inventory_changed\", items)\n"
+        var item_body := "extends Resource\n\n@export var id: String = \"item\"\n@export var display_name: String = \"Item\"\n@export var stack_size: int = 1\n"
+        if not _design_persist_script(script_path, script_class_name, body):
+            return
+        if not _design_persist_script(item_path, item_class_name, item_body):
+            return
+        var root := Node.new()
+        root.name = _gameplay_default_class(output_path, "")
+        var script = load(script_path)
+        if script != null:
+            root.set_script(script)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, output_path, _gameplay_default_class(output_path, "")):
+                return
+    _gameplay_print_success("gameplay_generate_inventory_system", manifest)
+    log_info("gameplay_generate_inventory_system completed successfully")
+
+
+func _gameplay_generate_dialogue_controller(params: Dictionary) -> void:
+    log_info("Starting gameplay_generate_dialogue_controller operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var script_path := _design_script_path_for(output_path)
+    var test_path := _gameplay_test_path(output_path)
+    var lines_param = params.get("dialogue_lines", ["Hello"])
+    var dialogue_lines: Array = lines_param if lines_param is Array else ["Hello"]
+    if dialogue_lines.is_empty():
+        dialogue_lines = ["Hello"]
+    var script_class_name: String = str(params.get("class_name", "")).strip_edges()
+    if script_class_name.is_empty():
+        script_class_name = _gameplay_default_class(output_path, "DialogueController")
+    var manifest := _gameplay_scene_manifest(output_path, script_path, test_path, {"line_count": dialogue_lines.size(), "script_class": script_class_name}, params)
+    if not _gameplay_dry_run(params):
+        var body := "extends CanvasLayer\n\n@export var dialogue_lines: Array[String] = " + _gameplay_string_array(dialogue_lines) + "\nvar current_index: int = -1\n\nsignal dialogue_started\nsignal dialogue_finished\nsignal line_changed(line: String, index: int)\n\nfunc start() -> void:\n    current_index = -1\n    emit_signal(\"dialogue_started\")\n    show_next_line()\n\nfunc show_next_line() -> bool:\n    current_index += 1\n    if current_index >= dialogue_lines.size():\n        emit_signal(\"dialogue_finished\")\n        return false\n    emit_signal(\"line_changed\", dialogue_lines[current_index], current_index)\n    return true\n"
+        if not _design_persist_script(script_path, script_class_name, body):
+            return
+        var root := CanvasLayer.new()
+        root.name = _gameplay_default_class(output_path, "")
+        var script = load(script_path)
+        if script != null:
+            root.set_script(script)
+        var panel := PanelContainer.new()
+        panel.name = "DialoguePanel"
+        var label := Label.new()
+        label.name = "DialogueText"
+        label.text = str(dialogue_lines[0])
+        panel.add_child(label)
+        root.add_child(panel)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, output_path, _gameplay_default_class(output_path, "")):
+                return
+    _gameplay_print_success("gameplay_generate_dialogue_controller", manifest)
+    log_info("gameplay_generate_dialogue_controller completed successfully")
+
+
+func _gameplay_generate_save_load_system(params: Dictionary) -> void:
+    log_info("Starting gameplay_generate_save_load_system operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var script_path := _design_script_path_for(output_path)
+    var test_path := _gameplay_test_path(output_path)
+    var save_slots := int(params.get("save_slots", 3))
+    var script_class_name: String = str(params.get("class_name", "")).strip_edges()
+    if script_class_name.is_empty():
+        script_class_name = _gameplay_default_class(output_path, "SaveLoad")
+    var manifest := _gameplay_scene_manifest(output_path, script_path, test_path, {"save_slots": save_slots, "script_class": script_class_name}, params)
+    if not _gameplay_dry_run(params):
+        var body := "extends Node\n\n@export var save_slots: int = " + str(save_slots) + "\n\nfunc _slot_path(slot: int) -> String:\n    return \"user://save_slot_%d.json\" % clamp(slot, 0, max(save_slots - 1, 0))\n\nfunc save_game(slot: int, data: Dictionary) -> bool:\n    var file := FileAccess.open(_slot_path(slot), FileAccess.WRITE)\n    if file == null:\n        return false\n    file.store_string(JSON.stringify(data))\n    file.close()\n    return true\n\nfunc load_game(slot: int) -> Dictionary:\n    var path := _slot_path(slot)\n    if not FileAccess.file_exists(path):\n        return {}\n    var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))\n    if parsed is Dictionary:\n        return parsed\n    return {}\n"
+        if not _design_persist_script(script_path, script_class_name, body):
+            return
+        var root := Node.new()
+        root.name = _gameplay_default_class(output_path, "")
+        var script = load(script_path)
+        if script != null:
+            root.set_script(script)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, output_path, _gameplay_default_class(output_path, "")):
+                return
+    _gameplay_print_success("gameplay_generate_save_load_system", manifest)
+    log_info("gameplay_generate_save_load_system completed successfully")
+
+
+func _gameplay_generate_settings_persistence(params: Dictionary) -> void:
+    log_info("Starting gameplay_generate_settings_persistence operation")
+    var output_path := _design_required_output_path(params)
+    if output_path.is_empty():
+        log_error("output_path is required")
+        return
+    var script_path := _design_script_path_for(output_path)
+    var test_path := _gameplay_test_path(output_path)
+    var keys_param = params.get("settings_keys", ["master_volume", "fullscreen"])
+    var settings_keys: Array = keys_param if keys_param is Array else ["master_volume", "fullscreen"]
+    if settings_keys.is_empty():
+        settings_keys = ["master_volume", "fullscreen"]
+    var script_class_name: String = str(params.get("class_name", "")).strip_edges()
+    if script_class_name.is_empty():
+        script_class_name = _gameplay_default_class(output_path, "SettingsPersistence")
+    var manifest := _gameplay_scene_manifest(output_path, script_path, test_path, {"settings_keys": settings_keys, "script_class": script_class_name}, params)
+    if not _gameplay_dry_run(params):
+        var body := "extends Node\n\nconst CONFIG_PATH := \"user://settings.cfg\"\n@export var settings_keys: Array[String] = " + _gameplay_string_array(settings_keys) + "\nvar config := ConfigFile.new()\n\nfunc _ready() -> void:\n    load_settings()\n\nfunc set_setting(key: String, value) -> void:\n    config.set_value(\"settings\", key, value)\n\nfunc get_setting(key: String, default_value = null):\n    return config.get_value(\"settings\", key, default_value)\n\nfunc load_settings() -> bool:\n    var err := config.load(CONFIG_PATH)\n    return err == OK or err == ERR_FILE_NOT_FOUND\n\nfunc save_settings() -> bool:\n    return config.save(CONFIG_PATH) == OK\n"
+        if not _design_persist_script(script_path, script_class_name, body):
+            return
+        var root := Node.new()
+        root.name = _gameplay_default_class(output_path, "")
+        var script = load(script_path)
+        if script != null:
+            root.set_script(script)
+        _gameplay_prepare_scene(root)
+        if not _design_save_scene(root, _to_res_path(output_path)):
+            root.free()
+            return
+        root.free()
+        if bool(params.get("include_tests", true)):
+            if not _gameplay_write_smoke_test(test_path, output_path, _gameplay_default_class(output_path, "")):
+                return
+    _gameplay_print_success("gameplay_generate_settings_persistence", manifest)
+    log_info("gameplay_generate_settings_persistence completed successfully")
+
+
+# --- Phase 4.5: Asset pipeline helpers ---
+
+func asset_batch_reimport(params: Dictionary) -> void:
+    log_info("Starting asset_batch_reimport operation")
+    var raw_paths = params.get("asset_paths", [])
+    var asset_paths: Array = raw_paths if raw_paths is Array else []
+    if asset_paths.is_empty():
+        log_error("asset_paths is required")
+        return
+
+    var selected := PackedStringArray()
+    var missing: Array = []
+    for raw_path in asset_paths:
+        var res_path := _asset_pipeline_to_res_path(str(raw_path))
+        selected.append(res_path)
+        var absolute_path := ProjectSettings.globalize_path(res_path)
+        if not FileAccess.file_exists(absolute_path):
+            missing.append(res_path)
+
+    var mode := "checked"
+    var warnings: Array = []
+    if Engine.has_singleton("EditorInterface"):
+        var editor_interface = Engine.get_singleton("EditorInterface")
+        if editor_interface != null and editor_interface.has_method("get_resource_filesystem"):
+            var filesystem = editor_interface.call("get_resource_filesystem")
+            if filesystem != null and filesystem.has_method("reimport_files"):
+                filesystem.call("reimport_files", selected)
+                mode = "editor_filesystem"
+            else:
+                warnings.append("EditorInterface resource filesystem does not expose reimport_files.")
+        else:
+            warnings.append("EditorInterface singleton does not expose get_resource_filesystem.")
+    else:
+        warnings.append("EditorInterface singleton is unavailable in this Godot run; selected files were checked but not editor-reimported.")
+
+    print(JSON.stringify({
+        "success": true,
+        "operation": "asset_batch_reimport",
+        "mode": mode,
+        "reimported": Array(selected),
+        "count": selected.size(),
+        "missing": missing,
+        "warnings": warnings,
+        "wait_for_completion": bool(params.get("wait_for_completion", true))
+    }))
+    log_info("asset_batch_reimport completed successfully")
+
+
+func _asset_pipeline_to_res_path(path: String) -> String:
+    var normalized := path.replace("\\", "/")
+    if normalized.begins_with("res://"):
+        return normalized
+    return "res://" + normalized.trim_prefix("/")

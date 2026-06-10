@@ -56,7 +56,7 @@ func poll(dispatcher: GodotMCPLiveCommandDispatcher) -> void:
 				_state.record_error("Received non-dictionary WebSocket payload.")
 				continue
 
-			var response := dispatcher.handle_message(parsed)
+			var response = await dispatcher.handle_message(parsed)
 			send_json(response)
 	elif ready_state == WebSocketPeer.STATE_CLOSING:
 		_state.connection_state = "closing"

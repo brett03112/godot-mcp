@@ -13,6 +13,7 @@ yarn-error.log*
 
 # Environment variables
 .env*
+.mcp.json
 
 # OS files
 .DS_Store
