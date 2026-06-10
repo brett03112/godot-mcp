@@ -11,6 +11,7 @@ import {
 import { extname, join, resolve } from 'path';
 import { ToolRegistry } from '../registry.js';
 import { ServerContext, ToolDefinition, ToolResponse } from '../types.js';
+import { getToolMetadata } from '../toolsets.js';
 
 interface CapabilityCategory {
   key: string;
@@ -343,6 +344,8 @@ function recommendNextTool(ctx: ServerContext): ToolDefinition {
         goal: { type: 'string' },
         available_tools: { type: 'array', items: { type: 'string' } },
         current_state: { type: 'string' },
+        active_toolsets: { type: 'array', items: { type: 'string' } },
+        active_tools: { type: 'array', items: { type: 'string' } },
         project_path: { type: 'string' },
         include_validation: { type: 'boolean' },
       },
@@ -369,6 +372,10 @@ function recommendNextTool(ctx: ServerContext): ToolDefinition {
         project: projectSummary(project),
         recommended_sequence: sequence,
         validation_path: validationPath,
+        profile_awareness: profileAwareness(args, [
+          ...sequence.map((step) => step.tool).filter(Boolean),
+          ...validationPath.map((step) => step.tool).filter(Boolean),
+        ]),
         stop_conditions: [
           'Stop before mutation if risk_scan reports an unmitigated high risk.',
           'Stop before completion unless postchange_verification_plan has fresh evidence for each changed surface.',
@@ -451,6 +458,16 @@ function planFeatureImplementation(ctx: ServerContext): ToolDefinition {
           },
         ],
         acceptance_checks: acceptanceChecks(goalType),
+        profile_awareness: profileAwareness(args, [
+          'preflight_project_health',
+          preferredDomainTool(goalType, availableTools),
+          'risk_scan',
+          'plan_test_strategy',
+          'postchange_verification_plan',
+          'mcp_task_create',
+          'mcp_evidence_attach',
+          'mcp_session_report',
+        ]),
       });
     },
   };
@@ -467,6 +484,8 @@ function planTestStrategy(ctx: ServerContext): ToolDefinition {
         goal: { type: 'string' },
         changed_files: { type: 'array', items: { type: 'string' } },
         available_tools: { type: 'array', items: { type: 'string' } },
+        active_toolsets: { type: 'array', items: { type: 'string' } },
+        active_tools: { type: 'array', items: { type: 'string' } },
       },
       required: ['goal'],
     },
@@ -488,6 +507,7 @@ function planTestStrategy(ctx: ServerContext): ToolDefinition {
         project: projectSummary(project),
         test_layers: layers,
         commands: buildVerificationCommands(changedFiles),
+        profile_awareness: profileAwareness(args, layers.map((layer) => layer.tool).filter(Boolean)),
         evidence_to_capture: [
           'Focused RED/GREEN test output for this phase or feature.',
           'Full npm test output.',
@@ -511,6 +531,8 @@ function riskScan(ctx: ServerContext): ToolDefinition {
         changed_files: { type: 'array', items: { type: 'string' } },
         planned_actions: { type: 'array', items: { type: 'string' } },
         risk_tolerance: { type: 'string' },
+        active_toolsets: { type: 'array', items: { type: 'string' } },
+        active_tools: { type: 'array', items: { type: 'string' } },
       },
     },
     handler: async (rawArgs) => {
@@ -531,6 +553,10 @@ function riskScan(ctx: ServerContext): ToolDefinition {
         highest_severity: highestSeverity(risks),
         risks,
         required_verification: requiredVerification,
+        profile_awareness: profileAwareness(args, requiredVerification
+          .map((entry) => entry.match(/\b[a-z][a-z0-9_]+\b/g) || [])
+          .flat()
+          .filter((token) => token.includes('_'))),
         recommendation: risks.some((risk) => risk.severity === 'high')
           ? 'Resolve or explicitly verify high-risk items before applying broad changes.'
           : 'Proceed with the planned verification layers.',
@@ -590,6 +616,8 @@ function postchangeVerificationPlan(ctx: ServerContext): ToolDefinition {
         goal: { type: 'string' },
         changed_files: { type: 'array', items: { type: 'string' } },
         include_reload_guidance: { type: 'boolean' },
+        active_toolsets: { type: 'array', items: { type: 'string' } },
+        active_tools: { type: 'array', items: { type: 'string' } },
       },
     },
     handler: async (rawArgs) => {
@@ -614,6 +642,11 @@ function postchangeVerificationPlan(ctx: ServerContext): ToolDefinition {
           'Call at least one representative new tool through the exposed namespace after reload.',
         ],
         reload,
+        profile_awareness: profileAwareness(args, [
+          'session_list',
+          'toolset_status',
+          'recommend_toolset_profile',
+        ]),
         evidence: [
           'Focused test output.',
           'Full npm test output.',
@@ -997,6 +1030,36 @@ function check(condition: boolean, pass: string, fail: string, failStatus: 'warn
   };
 }
 
+function profileAwareness(args: any, recommendedTools: string[]): any {
+  const activeToolsets = arrayOfStrings(args.activeToolsets);
+  const activeTools = arrayOfStrings(args.activeTools);
+  const filterActive = activeToolsets.length > 0 || activeTools.length > 0;
+  const tools = uniqueStrings(recommendedTools.filter(Boolean));
+  const neededToolsets = uniqueStrings(tools.map((tool) => getToolMetadata(tool).toolset)).sort();
+  const missingToolsets = filterActive && activeToolsets.length > 0
+    ? neededToolsets.filter((toolset) => !activeToolsets.includes(toolset))
+    : [];
+  const missingTools = filterActive && activeTools.length > 0
+    ? tools.filter((tool) => !activeTools.includes(tool))
+    : [];
+  return {
+    profile_filter_active: filterActive,
+    active_toolsets: activeToolsets,
+    active_tools: activeTools,
+    needed_toolsets: neededToolsets,
+    checked_tools: tools,
+    missing_toolsets: missingToolsets,
+    missing_tools: missingTools,
+    remediation: missingToolsets.length || missingTools.length
+      ? {
+        GODOT_MCP_TOOLSETS: uniqueStrings([...activeToolsets, ...missingToolsets]).join(','),
+        GODOT_MCP_TOOLS: uniqueStrings([...activeTools, ...missingTools]).join(','),
+        reload_required: 'Reload/restart the MCP connector after changing the profile env vars.',
+      }
+      : null,
+  };
+}
+
 function normalizeArgs(args: any): any {
   return {
     ...args,
@@ -1009,6 +1072,8 @@ function normalizeArgs(args: any): any {
     plannedActions: args.plannedActions ?? args.planned_actions,
     riskTolerance: args.riskTolerance ?? args.risk_tolerance,
     maxResults: args.maxResults ?? args.max_results,
+    activeToolsets: args.activeToolsets ?? args.active_toolsets,
+    activeTools: args.activeTools ?? args.active_tools,
   };
 }
 

@@ -32,12 +32,54 @@ import { computeHeatmap, generateHeatmapHtml, HeatmapType } from '../utils/heatm
 export function registerPlaytestTools(registry: ToolRegistry, ctx: ServerContext): void {
   registry.registerAll([
     runAutomatedPlaytest(ctx),
+    playtestRecording(ctx),
     startPlaytestRecording(ctx),
     stopPlaytestRecording(ctx),
     analyzePlaytestSession(ctx),
     generateHeatmap(ctx),
     compareSessions(ctx),
   ]);
+}
+
+// ─── Tool 2: playtest_recording ────────────────────────────────────────────
+
+function playtestRecording(ctx: ServerContext): ToolDefinition {
+  return {
+    name: 'playtest_recording',
+    description: 'Start or stop a manual playtest recording session. Use action "start" to inject the recorder and launch the game, or action "stop" with session_id to collect data and clean up.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['start', 'stop'], description: 'Recording lifecycle action.' },
+        project_path: { type: 'string', description: 'Path to the Godot project directory' },
+        session_id: { type: 'string', description: 'Session ID from action "start"; required for action "stop".' },
+        scene: { type: 'string', description: 'Specific scene to run (default: main scene)' },
+        player_node_path: { type: 'string', description: 'Path to player node. Auto-detects if omitted.' },
+        sample_interval_ms: { type: 'number', description: 'Milliseconds between samples (default: 100)' },
+        record_inputs: { type: 'boolean', description: 'Whether to record input events (default: true)' },
+        event_hooks: { type: 'object', description: 'Map of signal names to event categories' },
+        session_name: { type: 'string', description: 'Optional label for this session' },
+      },
+      required: ['action', 'project_path'],
+    },
+    metadata: {
+      toolset: 'playtest',
+      aliases: ['start_playtest_recording', 'stop_playtest_recording'],
+      risk: 'high',
+      mutates: true,
+      requires_live: false,
+      requires_display: true,
+    },
+    handler: async (args: any) => {
+      args = ctx.normalizeParameters(args || {});
+      if (args.action !== 'start' && args.action !== 'stop') {
+        return failure('action must be "start" or "stop"', ['Use action "start" to begin recording.', 'Use action "stop" with session_id to finish recording.']);
+      }
+      return args.action === 'start'
+        ? startPlaytestRecording(ctx).handler(args)
+        : stopPlaytestRecording(ctx).handler(args);
+    },
+  };
 }
 
 // ─── Active Recording State ────────────────────────────────────────────────
@@ -1038,6 +1080,20 @@ function classifyCurveShape(scores: number[]): string {
   if (decreasing > total * 0.7) return 'gradually_decreasing';
   if (increasing > 0 && decreasing > 0 && Math.abs(increasing - decreasing) < total * 0.3) return 'sawtooth';
   return 'variable';
+}
+
+function failure(reason: string, recommendations: string[] = []): any {
+  return {
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        status: 'failed',
+        reason,
+        recommendations,
+      }, null, 2),
+    }],
+    isError: true,
+  };
 }
 
 function detectTrend(values: number[]): string {

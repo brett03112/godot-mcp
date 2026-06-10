@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **339 tools** across 35 categories plus **348 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **343 tools** across 36 categories plus **352 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (339 tools)
+## Tool Reference (343 tools)
 
 ### Project Management (7 tools)
 
@@ -62,6 +62,45 @@ This direct feedback loop helps AI assistants like Claude understand what works 
 | `get_godot_version` | Query the installed Godot version |
 | `list_projects` | Find project.godot files in a directory (recursive or flat) |
 | `get_project_info` | Analyze project structure and assets |
+
+### Toolset Profiles & Session Setup (2 tools)
+
+Toolset profiles reduce token load by exposing only the catalog slice needed for a session. With no profile environment variables, the server remains backward-compatible and exposes the full 343-tool catalog.
+
+| Tool | Description |
+| ------ | ------------- |
+| `toolset_status` | Report active toolsets, explicitly enabled tools, loaded/hidden counts, config sources, and disabled-tool remediation |
+| `recommend_toolset_profile` | Recommend compact toolsets, individual tools, resources, env snippets, and verification commands for a feature request |
+
+```powershell
+# Load a compact scene-editing catalog for the next MCP server process
+$env:GODOT_MCP_TOOLSETS = "core,project,scene,script,visual"
+
+# Or expose exact tools plus required core support tools
+$env:GODOT_MCP_TOOLS = "script_patch,validate_scene"
+
+# Or use a project-local named profile
+$env:GODOT_MCP_PROJECT_PATH = "C:\path\to\godot-project"
+$env:GODOT_MCP_PROFILE = "feature-scene-edit"
+```
+
+Project profiles live at `.godot-mcp/toolsets.json`:
+
+```json
+{
+  "profiles": {
+    "feature-scene-edit": {
+      "toolsets": ["core", "project", "scene", "script", "visual"],
+      "tools": ["filesystem_search"]
+    },
+    "playtest-loop": {
+      "toolsets": ["core", "playtest", "runtime", "visual", "quality"]
+    }
+  }
+}
+```
+
+After changing profile env vars or profile files, reload/restart the MCP connector so `tools/list`, tool resources, and dispatch use the new active catalog. Calling a hidden-but-known tool returns a structured disabled-tool error with the missing toolset and exact env remediation.
 
 ### Scene Creation (5 tools)
 
@@ -516,28 +555,31 @@ create_particle_material(
 )
 ```
 
-### Performance Profiling (3 tools)
+### Performance Profiling (4 tools)
 
 | Tool | Description |
 | ------ | ------------- |
+| `profiler` | Consolidated profiler lifecycle tool with `action: "start" | "get" | "analyze"` |
 | `start_profiler` | Run a Godot project with a performance profiler for a specified duration |
 | `get_profiling_data` | Read profiling results with statistical summary (FPS, frame times, draw calls, memory) |
 | `analyze_bottlenecks` | Detect performance bottlenecks with severity ratings and an overall A-F grade |
 
 ```text
 # Example: Profile a game for 10 seconds
-start_profiler(project_path, duration=10, sample_interval=0.5)
+profiler(project_path, action="start", duration=10, sample_interval=0.5)
 # Returns: { profiler_id: "profile_1710547200000", status: "completed" }
 
-get_profiling_data(project_path, profiler_id="profile_1710547200000")
+profiler(project_path, action="get", profiler_id="profile_1710547200000")
 # Returns: { summary: { avg_fps: 58.3, min_fps: 42.1, max_draw_calls: 1250, ... }, samples: [...] }
 
-analyze_bottlenecks(project_path, target_fps=60)
+profiler(project_path, action="analyze", target_fps=60)
 # Returns: { overall_grade: "C", bottlenecks: [
 #   { severity: "warning", category: "rendering", metric: "max_draw_calls", value: 1250, threshold: 1000,
 #     recommendation: "Consider batching materials or using MultiMesh" }
 # ], recommendations: [...] }
 ```
+
+`start_profiler`, `get_profiling_data`, and `analyze_bottlenecks` remain available as deprecated compatibility aliases for the current release cycle.
 
 **Metrics collected:** FPS, frame time, process time, physics time, draw calls, render objects, render primitives, static memory, node count, orphan nodes, navigation maps
 
@@ -554,11 +596,12 @@ capture_viewport(project_path, scene_path="scenes/main_menu.tscn", output_path="
 # Optional: delay_frames=30 (wait longer for complex scenes), resolution="1920x1080"
 ```
 
-### Automated Playtesting (6 tools)
+### Automated Playtesting (7 tools)
 
 | Tool | Description |
 | ------ | ------------- |
 | `run_automated_playtest` | Run a project with an AI bot (random, waypoint, idle, stress) and record session data |
+| `playtest_recording` | Consolidated manual playtest recording lifecycle tool with `action: "start" | "stop"` |
 | `start_playtest_recording` | Start manual playtest recording — human plays while data is captured |
 | `stop_playtest_recording` | Stop recording, collect session data, and clean up |
 | `analyze_playtest_session` | Analyze a recorded session for death clusters, backtracking, difficulty spikes, and more |
@@ -577,9 +620,9 @@ run_automated_playtest(
 # Returns: session_id, duration, events, performance data
 
 # Example: Manual playtest recording
-start_playtest_recording(project_path, session_name="level3_attempt1")
+playtest_recording(project_path, action="start", session_name="level3_attempt1")
 # Returns: session_id — human plays the game...
-stop_playtest_recording(project_path, session_id="...")
+playtest_recording(project_path, action="stop", session_id="...")
 # Returns: complete session data
 
 # Example: Analyze a session
@@ -600,6 +643,8 @@ generate_heatmap(
 compare_sessions(project_path, session_ids=["s1", "s2", "s3"], metrics=["deaths", "duration", "damage"])
 # Returns: per-metric aggregates (min/max/avg/stddev), trend analysis
 ```
+
+`start_playtest_recording` and `stop_playtest_recording` remain available as deprecated compatibility aliases for the current release cycle.
 
 ### Fun Metrics Framework (5 tools)
 
@@ -700,9 +745,9 @@ configure_asset_generation(project_path, test_connectivity=true)
 | `create_astar_grid` | Save a reusable AStarGrid2D configuration resource for tile/grid pathfinding; AStarGrid2D itself is RefCounted in Godot 4.6 |
 | `setup_navigation_server` | Validate and return NavigationServer2D/3D runtime configuration for map, avoidance, cell, edge, and agent settings |
 
-## MCP Resource Reference (118 resources)
+## MCP Resource Reference (352 resources)
 
-The server exposes read-only MCP resources for clients that inspect `resources/list`, plus one resource template for individual tool metadata. The live catalog currently contains 118 resources: 3 core resources and 115 per-tool definition resources.
+The server exposes read-only MCP resources for clients that inspect `resources/list`, plus one resource template for individual tool metadata. The default full catalog currently contains 352 resources: 3 core resources, 6 live resources, and 343 per-tool definition resources. Filtered toolset profiles hide per-tool resources for hidden tools and hide live resources when the live toolset is not active.
 
 ### Core Resources (3 resources)
 
@@ -718,7 +763,11 @@ The server exposes read-only MCP resources for clients that inspect `resources/l
 | ------ | ------------- |
 | `godot-mcp://tools/{name}` | Read the description and input schema for an individual Godot MCP tool |
 
-### Per-Tool Definition Resources (339 resources)
+### Live Resources (6 resources)
+
+Live resources expose active editor/session snapshots when the `live` toolset is loaded or no profile filter is active.
+
+### Per-Tool Definition Resources (343 resources)
 
 Each per-tool resource returns the tool description, input schema, `callMethod: "tools/call"`, and its concrete `resourceUri`.
 
@@ -739,7 +788,10 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/create_particle_system` - Create a GPUParticles2D or GPUParticles3D node with ParticleProcessMaterial settings for emission, direction, velocity, gravity, color, and scale.
 - `godot-mcp://tools/apply_particle_preset` - Create a particle system from a named preset such as fire, smoke, explosion, magic_sparkle, rain, snow, dust, or sparks.
 - `godot-mcp://tools/create_particle_material` - Create a standalone ParticleProcessMaterial `.tres` resource for reuse, optionally from a named preset.
-- `godot-mcp://tools/start_profiler` - Run a Godot project with a profiler for a duration and collect FPS, frame-time, draw-call, memory, and object-count samples.
+- `godot-mcp://tools/toolset_status` - Report active toolsets, explicit tools, hidden/loaded counts, config sources, and disabled-tool remediation.
+- `godot-mcp://tools/recommend_toolset_profile` - Recommend compact toolsets and env/config snippets for a feature request.
+- `godot-mcp://tools/profiler` - Run the profiler lifecycle with `action: "start"`, `"get"`, or `"analyze"`.
+- `godot-mcp://tools/start_profiler` - Deprecated compatibility alias for `profiler` with `action: "start"`.
 - `godot-mcp://tools/get_profiling_data` - Read raw samples and statistical summaries from a completed profiler session.
 - `godot-mcp://tools/analyze_bottlenecks` - Analyze profiling data against thresholds and return severity-ranked bottlenecks, recommendations, and an A-F grade.
 - `godot-mcp://tools/generate_docstring` - Generate `##` GDScript documentation comments for functions and classes, including parameter and return annotations.
@@ -751,8 +803,9 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/configure_audio_bus` - Create an AudioBusLayout resource with named buses, volume, routing, and effects.
 - `godot-mcp://tools/capture_viewport` - Run a scene briefly and save a PNG viewport screenshot for visual verification.
 - `godot-mcp://tools/run_automated_playtest` - Run a project with an automated bot and recorder, collecting position, events, performance data, and optional input events.
-- `godot-mcp://tools/start_playtest_recording` - Start a manual playtest recording session by injecting a recorder autoload and running the game.
-- `godot-mcp://tools/stop_playtest_recording` - Stop a running playtest recording, collect session data, and clean up injected autoloads.
+- `godot-mcp://tools/playtest_recording` - Start or stop manual playtest recording with `action: "start" | "stop"`.
+- `godot-mcp://tools/start_playtest_recording` - Deprecated compatibility alias for `playtest_recording` with `action: "start"`.
+- `godot-mcp://tools/stop_playtest_recording` - Deprecated compatibility alias for `playtest_recording` with `action: "stop"`.
 - `godot-mcp://tools/analyze_playtest_session` - Analyze a playtest session for death clusters, backtracking, difficulty spikes, time distribution, and event frequency.
 - `godot-mcp://tools/generate_heatmap` - Generate JSON grid data and optional HTML heatmaps for position, death, damage, pickup, or time-spent data.
 - `godot-mcp://tools/compare_sessions` - Compare metrics across multiple sessions with per-session breakdowns, aggregates, and trend detection.
@@ -1000,12 +1053,13 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",
-        "start_profiler", "get_profiling_data", "analyze_bottlenecks",
+        "toolset_status", "recommend_toolset_profile",
+        "profiler", "start_profiler", "get_profiling_data", "analyze_bottlenecks",
         "generate_docstring", "generate_test_from_specification",
         "analyze_test_coverage", "create_mock_node",
         "get_class_info", "search_asset_library",
         "configure_audio_bus", "capture_viewport",
-        "run_automated_playtest", "start_playtest_recording",
+        "run_automated_playtest", "playtest_recording", "start_playtest_recording",
         "stop_playtest_recording", "analyze_playtest_session",
         "generate_heatmap", "compare_sessions",
         "calculate_game_feel_metrics", "analyze_difficulty_curve",
@@ -1111,7 +1165,7 @@ src/
 │   ├── audio.ts                    # Audio bus configuration (1 tool)
 │   ├── viewport.ts                 # Viewport screenshot capture (1 tool)
 │   ├── visual-qa.ts                # Visual QA and screenshot diff tools (9 tools)
-│   ├── playtest.ts                 # Automated playtesting harness (6 tools)
+│   ├── playtest.ts                 # Automated playtesting harness (7 tools)
 │   ├── fun-metrics.ts              # Fun metrics framework (5 tools)
 │   ├── asset-generation.ts         # Asset generation bridge (5 tools)
 │   ├── networking.ts               # Networking and multiplayer helpers (3 tools)
@@ -1134,7 +1188,7 @@ The server uses a **hybrid dispatch** pattern:
 - **Error Taxonomy** (`errors.ts`) provides structured error categories and codes for consistent error reporting
 - **Operation Logger** (`logger.ts`) automatically logs all registry-dispatched tool calls with timestamps, duration, and sanitized parameters
 - **Per-tool Timeout** - optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
-- **MCP Resources** expose server info, the full tool catalog, runtime debug output, and one read-only resource for every tool
+- **MCP Resources** expose server info, the active-profile tool catalog, runtime debug output, live resources when loaded, and one read-only resource for every loaded tool
 - **GDScript operations** (`godot_operations.gd`) handle operations requiring Godot's runtime: scene manipulation, particle creation, animation tree setup, networking helpers, physics, navigation, and more. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
 
 ## Example Prompts

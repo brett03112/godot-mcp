@@ -20,6 +20,7 @@ import { validateParams, projectPath, requiredString, requiredNumber, optionalSt
 
 export function registerProfilingTools(registry: ToolRegistry, ctx: ServerContext): void {
   registry.registerAll([
+    profiler(ctx),
     startProfiler(ctx),
     getProfilingData(ctx),
     analyzeBottlenecks(ctx),
@@ -31,6 +32,49 @@ export function registerProfilingTools(registry: ToolRegistry, ctx: ServerContex
 const PROFILER_SCRIPT_NAME = '_mcp_profiler.gd';
 const PROFILER_OUTPUT_DIR = '.mcp_profiling';
 const PROFILER_AUTOLOAD_NAME = '_McpProfiler';
+
+// ─── profiler ───────────────────────────────────────────────────────────────
+
+function profiler(ctx: ServerContext): ToolDefinition {
+  return {
+    name: 'profiler',
+    description: 'Run the performance profiler lifecycle. Use action "start", "get", or "analyze" instead of separate legacy profiler tools.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['start', 'get', 'analyze'], description: 'Profiler lifecycle action.' },
+        project_path: { type: 'string', description: 'Path to the Godot project directory' },
+        duration: { type: 'number', description: 'Duration to profile in seconds; required for action "start".' },
+        scene_path: { type: 'string', description: 'Specific scene to run (default: main scene)' },
+        sample_interval: { type: 'number', description: 'Seconds between metric samples (default: 0.5)' },
+        profiler_id: { type: 'string', description: 'Profiler session ID for action "get" or "analyze".' },
+        target_fps: { type: 'number', description: 'Target FPS for action "analyze" (default: 60).' },
+      },
+      required: ['action', 'project_path'],
+    },
+    metadata: {
+      toolset: 'quality',
+      aliases: ['start_profiler', 'get_profiling_data', 'analyze_bottlenecks'],
+      risk: 'high',
+      mutates: true,
+      requires_live: false,
+      requires_display: true,
+    },
+    handler: async (args: any) => {
+      args = ctx.normalizeParameters(args || {});
+      if (!['start', 'get', 'analyze'].includes(args.action)) {
+        return failure('action must be "start", "get", or "analyze"', [
+          'Use action "start" with duration to collect profile data.',
+          'Use action "get" with profiler_id to read profile data.',
+          'Use action "analyze" with profiler_id to analyze bottlenecks.',
+        ]);
+      }
+      if (args.action === 'start') return startProfiler(ctx).handler(args);
+      if (args.action === 'get') return getProfilingData(ctx).handler(args);
+      return analyzeBottlenecks(ctx).handler(args);
+    },
+  };
+}
 
 /**
  * GDScript profiler autoload that collects Performance monitor data
@@ -646,4 +690,18 @@ function generateRecommendations(bottlenecks: Bottleneck[]): string[] {
   }
 
   return recs;
+}
+
+function failure(reason: string, recommendations: string[] = []): any {
+  return {
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        status: 'failed',
+        reason,
+        recommendations,
+      }, null, 2),
+    }],
+    isError: true,
+  };
 }
