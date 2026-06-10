@@ -717,13 +717,13 @@ Verification note, 2026-06-10: Phase 4.9 added `docs/superpowers/plans/2026-06-1
 
 ### 4.10 Add Safer Autonomous Planning Tools
 
-- [ ] Add `capability_matrix`.
-- [ ] Add `recommend_next_tool`.
-- [ ] Add `plan_feature_implementation`.
-- [ ] Add `plan_test_strategy`.
-- [ ] Add `risk_scan`.
-- [ ] Add `preflight_project_health`.
-- [ ] Add `postchange_verification_plan`.
+- [x] Add `capability_matrix`.
+- [x] Add `recommend_next_tool`.
+- [x] Add `plan_feature_implementation`.
+- [x] Add `plan_test_strategy`.
+- [x] Add `risk_scan`.
+- [x] Add `preflight_project_health`.
+- [x] Add `postchange_verification_plan`.
 
 Why this matters:
 
@@ -731,7 +731,9 @@ Why this matters:
 
 Acceptance:
 
-- [ ] Given a goal like "add a pause menu", MCP can recommend the tool sequence and validation path.
+- [x] Given a goal like "add a pause menu", MCP can recommend the tool sequence and validation path.
+
+Verification note, 2026-06-10: Phase 4.10 added `docs/superpowers/plans/2026-06-10-phase-4-10-safer-planning.md`, focused RED/GREEN tests in `tests/safer-planning.test.mjs`, modular tooling in `src/tools/safer-planning.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list/resource updates, and `test_mcp_enhancements/phase410_live_proof.mjs`. RED first failed with missing `build/tools/safer-planning.js`; focused `npm run build && node --test tests/safer-planning.test.mjs` passed 6/6, full `npm test` passed 144/144, Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches, and `git diff --check` exited 0 with Git CRLF warnings only. The Phase 4.10 proof script listed 339 tools, found all 7 new tools, proved `capability_matrix`, `recommend_next_tool`, `plan_feature_implementation`, `plan_test_strategy`, `risk_scan`, `preflight_project_health`, and `postchange_verification_plan` against `test_mcp_enhancements`, verified the "add a pause menu" sequence included `generate_menu_flow` and visual validation, and removed the temporary smoke log. A temporary current-build listener proved PID 24796 could own `127.0.0.1:6010` and Godot editor PID 6860 could reconnect to it, then that holder was stopped before handoff so it will not block Codex MCP connector reload. Direct Codex MCP namespace callability still needs connector reload because `mcp__godot_mcp.session_list` returns `Transport closed`.
 
 ## Phase 5 - Packaging, Configuration, Documentation, And Distribution
 

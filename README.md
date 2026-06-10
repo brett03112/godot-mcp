@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **332 tools** across 34 categories plus **341 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **339 tools** across 35 categories plus **348 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (332 tools)
+## Tool Reference (339 tools)
 
 ### Project Management (7 tools)
 
@@ -415,6 +415,18 @@ configure_audio_bus(
 | `mcp_session_report` | Generate a Markdown session report from tasks and evidence |
 | `mcp_changelog_draft` | Draft a Markdown changelog from closed tasks and evidence |
 
+### Safer Autonomous Planning (7 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `capability_matrix` | Map MCP tools into capability categories and highlight tools relevant to a goal |
+| `recommend_next_tool` | Recommend a safer next MCP tool sequence and validation path for a goal |
+| `plan_feature_implementation` | Create a scoped Godot feature implementation plan with tools, files, tests, risks, and evidence |
+| `plan_test_strategy` | Plan layered tests and commands based on a goal and changed files |
+| `risk_scan` | Scan goals, changed files, and planned actions for Godot MCP implementation risks |
+| `preflight_project_health` | Inspect project-local health signals before autonomous edits |
+| `postchange_verification_plan` | Plan post-change commands, Godot checks, MCP calls, evidence, and reload guidance |
+
 ### Refactoring (1 tool)
 
 | Tool | Description |
@@ -706,7 +718,7 @@ The server exposes read-only MCP resources for clients that inspect `resources/l
 | ------ | ------------- |
 | `godot-mcp://tools/{name}` | Read the description and input schema for an individual Godot MCP tool |
 
-### Per-Tool Definition Resources (332 resources)
+### Per-Tool Definition Resources (339 resources)
 
 Each per-tool resource returns the tool description, input schema, `callMethod: "tools/call"`, and its concrete `resourceUri`.
 
@@ -898,6 +910,13 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/mcp_evidence_attach` - Attach evidence to the project-local MCP ledger.
 - `godot-mcp://tools/mcp_session_report` - Generate a task/evidence session report.
 - `godot-mcp://tools/mcp_changelog_draft` - Draft a changelog from closed tasks.
+- `godot-mcp://tools/capability_matrix` - Map MCP tools into goal-aware capability categories.
+- `godot-mcp://tools/recommend_next_tool` - Recommend a safer next tool sequence and validation path.
+- `godot-mcp://tools/plan_feature_implementation` - Plan a bounded feature implementation.
+- `godot-mcp://tools/plan_test_strategy` - Plan layered tests for a goal and changed files.
+- `godot-mcp://tools/risk_scan` - Scan planned changes for implementation and reload risks.
+- `godot-mcp://tools/preflight_project_health` - Inspect project health before edits.
+- `godot-mcp://tools/postchange_verification_plan` - Plan post-change verification and reload proof.
 
 ## Requirements
 
@@ -974,6 +993,10 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "mcp_task_create", "mcp_task_update", "mcp_task_list",
         "mcp_task_close", "mcp_evidence_attach", "mcp_session_report",
         "mcp_changelog_draft",
+        "capability_matrix", "recommend_next_tool",
+        "plan_feature_implementation", "plan_test_strategy",
+        "risk_scan", "preflight_project_health",
+        "postchange_verification_plan",
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",

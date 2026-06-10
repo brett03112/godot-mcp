@@ -72,6 +72,7 @@ import { registerAddonToolManagerTools } from './tools/addon-tool-manager.js';
 import { registerLspDapIntegrationTools } from './tools/lsp-dap-integration.js';
 import { registerQualityGateTools } from './tools/quality-gates.js';
 import { registerTaskLedgerTools } from './tools/task-ledger.js';
+import { registerSaferPlanningTools } from './tools/safer-planning.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -529,6 +530,12 @@ class GodotServer {
     'related_files': 'relatedFiles',
     'session_title': 'sessionTitle',
     'include_evidence': 'includeEvidence',
+    'available_tools': 'availableTools',
+    'current_state': 'currentState',
+    'include_validation': 'includeValidation',
+    'include_reload_guidance': 'includeReloadGuidance',
+    'planned_actions': 'plannedActions',
+    'risk_tolerance': 'riskTolerance',
   };
 
   /**
@@ -924,6 +931,7 @@ class GodotServer {
     registerLspDapIntegrationTools(this.toolRegistry, ctx);
     registerQualityGateTools(this.toolRegistry, ctx);
     registerTaskLedgerTools(this.toolRegistry, ctx);
+    registerSaferPlanningTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
