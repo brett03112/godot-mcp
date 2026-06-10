@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **292 tools** across 31 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **302 tools** across 31 categories plus **118 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (292 tools)
+## Tool Reference (302 tools)
 
 ### Project Management (7 tools)
 
@@ -351,7 +351,7 @@ configure_audio_bus(
 | `configure_localization` | Set supported locales, register files, set fallback locale |
 | `extract_translatable_strings` | Scan .gd and .tscn files for tr() calls and UI text |
 
-### Plugin Management (4 tools)
+### Plugin Management (14 tools)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -359,6 +359,16 @@ configure_audio_bus(
 | `configure_plugin` | Enable, disable, or add settings to plugins |
 | `create_plugin` | Generate scaffolds from templates: basic, dock, inspector, import, tool |
 | `install_plugin` | Install from Godot Asset Library or Git repositories |
+| `asset_library_get_details` | Fetch and normalize details for a Godot Asset Library asset ID |
+| `asset_library_install_addon` | Install addon folders from an Asset Library archive or local source directory |
+| `asset_library_update_addon` | Update selected addon folders from an Asset Library archive or local source directory |
+| `asset_library_remove_addon` | Disable and optionally remove a project-local addon folder |
+| `addon_enable` | Enable an editor addon by adding its `plugin.cfg` to `project.godot` |
+| `addon_disable` | Disable an editor addon by removing its `plugin.cfg` from `project.godot` |
+| `addon_list` | List project addons with `plugin.cfg` metadata, enabled state, and optional health |
+| `addon_health_check` | Check addon install health, script presence, enabled state, and adapter mapping |
+| `external_tool_status` | Report optional addon/external tool adapter status and related MCP tools |
+| `external_tool_configure` | Store project-local configuration for optional external tool adapters |
 
 ### Refactoring (1 tool)
 
@@ -803,6 +813,16 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/configure_plugin` - Enable, disable, or configure plugin settings.
 - `godot-mcp://tools/create_plugin` - Generate a plugin scaffold with `plugin.cfg`, script, and directory structure.
 - `godot-mcp://tools/install_plugin` - Install plugins from the Godot Asset Library or Git repositories.
+- `godot-mcp://tools/asset_library_get_details` - Fetch and normalize details for a Godot Asset Library asset ID.
+- `godot-mcp://tools/asset_library_install_addon` - Install addon folders from an Asset Library archive or local source directory.
+- `godot-mcp://tools/asset_library_update_addon` - Update selected addon folders from an Asset Library archive or local source directory.
+- `godot-mcp://tools/asset_library_remove_addon` - Disable and optionally remove a project-local addon folder.
+- `godot-mcp://tools/addon_enable` - Enable an editor addon by adding its `plugin.cfg` to `project.godot`.
+- `godot-mcp://tools/addon_disable` - Disable an editor addon by removing its `plugin.cfg` from `project.godot`.
+- `godot-mcp://tools/addon_list` - List project addons with `plugin.cfg` metadata, enabled state, and optional health.
+- `godot-mcp://tools/addon_health_check` - Check addon install health, script presence, enabled state, and adapter mapping.
+- `godot-mcp://tools/external_tool_status` - Report optional addon/external tool adapter status and related MCP tools.
+- `godot-mcp://tools/external_tool_configure` - Store project-local configuration for optional external tool adapters.
 
 ## Requirements
 
@@ -863,6 +883,10 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "validate_translations", "create_dialogue_resource",
         "configure_localization", "extract_translatable_strings",
         "list_plugins", "configure_plugin", "create_plugin", "install_plugin",
+        "asset_library_get_details", "asset_library_install_addon",
+        "asset_library_update_addon", "asset_library_remove_addon",
+        "addon_enable", "addon_disable", "addon_list", "addon_health_check",
+        "external_tool_status", "external_tool_configure",
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",

@@ -620,17 +620,17 @@ Verification note, 2026-06-10: Phase 4.5 added `docs/superpowers/plans/2026-06-1
 
 ### 4.6 Add Addon And External Tool Managers
 
-- [ ] Expand existing Asset Library support with `asset_library_get_details`.
-- [ ] Add `asset_library_install_addon`.
-- [ ] Add `asset_library_update_addon`.
-- [ ] Add `asset_library_remove_addon`.
-- [ ] Add `addon_enable`.
-- [ ] Add `addon_disable`.
-- [ ] Add `addon_list`.
-- [ ] Add `addon_health_check`.
-- [ ] Add `external_tool_status`.
-- [ ] Add `external_tool_configure`.
-- [ ] Add adapter definitions for optional tools:
+- [x] Expand existing Asset Library support with `asset_library_get_details`.
+- [x] Add `asset_library_install_addon`.
+- [x] Add `asset_library_update_addon`.
+- [x] Add `asset_library_remove_addon`.
+- [x] Add `addon_enable`.
+- [x] Add `addon_disable`.
+- [x] Add `addon_list`.
+- [x] Add `addon_health_check`.
+- [x] Add `external_tool_status`.
+- [x] Add `external_tool_configure`.
+- [x] Add adapter definitions for optional tools:
   - GUT
   - gdUnit4
   - Godot Jolt
@@ -642,8 +642,10 @@ Verification note, 2026-06-10: Phase 4.5 added `docs/superpowers/plans/2026-06-1
 
 Acceptance:
 
-- [ ] Codex can search, install, enable, and verify a plugin in a disposable project.
-- [ ] Codex can explain which optional tools are installed and what MCP tools can use them.
+- [x] Codex can search, install, enable, and verify a plugin in a disposable project.
+- [x] Codex can explain which optional tools are installed and what MCP tools can use them.
+
+Verification note, 2026-06-10: Phase 4.6 added `docs/superpowers/plans/2026-06-10-phase-4-6-addon-tool-managers.md`, focused RED/GREEN tests in `tests/addon-tool-manager.test.mjs`, modular tooling in `src/tools/addon-tool-manager.ts`, registration from `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase46_live_proof.mjs`. Context7 Godot 4.6 docs were used for editor addon/plugin.cfg install and enable-state behavior. RED first failed with missing `build/tools/addon-tool-manager.js`; focused `npm run build; node --test tests/addon-tool-manager.test.mjs` passed 5/5, final `npm test` passed 125/125, and Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.6 proof script listed 302 tools, found all 10 new tools, fetched Asset Library details from a disposable local API fixture, installed/enabled/listed/health-checked/disabled/re-enabled/updated/removed a disposable project-local addon, reported all optional adapter definitions, configured a Blender adapter, verified its executable path, restored `project.godot` and `.godot-mcp/external_tools.json`, and removed temporary `.godot-mcp/phase46_*` and `addons/mcp_phase46_plugin` proof artifacts. Startup checks left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it; callable `mcp__godot_mcp.session_list` still returned `Transport closed`, so direct Codex MCP namespace callability requires connector/editor reload.
 
 ### 4.7 Add LSP/DAP Integration Tools
 
