@@ -570,7 +570,7 @@ Verification note, 2026-06-09: Phase 4.3 added `docs/superpowers/plans/2026-06-0
 
 Acceptance:
 
-- [ ] Codex can install or verify a test framework, generate a test, run it headlessly, and parse results.
+- [x] Codex can install or verify a test framework, generate a test, run it headlessly, and parse results.
 
 ### 4.4 Add Visual QA And Screenshot Diff Tools
 
@@ -834,7 +834,7 @@ Verification note, 2026-06-10: Phase 5.0 added `docs/superpowers/plans/2026-06-1
 
 ### 5.1 Add Configuration
 
-- [ ] Add MCP config for:
+- [x] Add MCP config for:
   - live bridge enabled/disabled
   - host
   - port
@@ -844,14 +844,16 @@ Verification note, 2026-06-10: Phase 5.0 added `docs/superpowers/plans/2026-06-1
   - log retention
   - screenshot output directory
   - stale session timeout
-- [ ] Add per-project `.godot-mcp/config.json`.
-- [ ] Add config validation.
-- [ ] Add `live_config_status`.
+- [x] Add per-project `.godot-mcp/config.json`.
+- [x] Add config validation.
+- [x] Add `live_config_status`.
 
 Acceptance:
 
-- [ ] Bad config fails with clear remediation.
-- [ ] Default config is local-only and eval-disabled.
+- [x] Bad config fails with clear remediation.
+- [x] Default config is local-only and eval-disabled.
+
+Verification note, 2026-06-10: Phase 5.1 added `docs/superpowers/plans/2026-06-10-phase-5-1-configuration.md`, focused RED/GREEN coverage in `tests/live-config.test.mjs`, the config loader/validator in `src/live/config.ts`, read-only `live_config_status` in `src/tools/live-config.ts`, live transport allowlist/secret/config wiring in `src/live/transport.ts` and `src/index.ts`, configurable stale session timeout in `src/live/session-manager.ts`, README/workflow docs updates, and `test_mcp_enhancements/phase51_live_proof.mjs`. RED first failed with missing `build/live/config.js`; focused `npm run build && node --test tests/live-config.test.mjs` passed 5/5, final `npm test` passed 157/157, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 5.1 proof script listed 344 default tools and 353 default resources, verified `live_config_status`, proved safe defaults (`127.0.0.1:6010`, eval disabled), proved bad config remediation with redacted secrets, proved disposable `.godot-mcp/config.json` project overlay behavior, and restored the temporary config artifact.
 
 ### 5.2 Add Addon Installer And Updater
 

@@ -66,6 +66,12 @@ export class LiveSessionManager {
     this.staleTimeoutMs = options.staleTimeoutMs ?? 15000;
   }
 
+  configure(options: Pick<LiveSessionManagerOptions, 'staleTimeoutMs'> = {}): void {
+    if (options.staleTimeoutMs !== undefined) {
+      this.staleTimeoutMs = options.staleTimeoutMs;
+    }
+  }
+
   registerHello(message: LiveHelloMessage | LiveProtocolMessage, connection: LiveConnectionHandle = {}): LiveSessionRecord {
     if (!isLiveHelloMessage(message)) {
       throw new Error('Expected live hello message.');

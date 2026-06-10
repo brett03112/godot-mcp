@@ -63,6 +63,29 @@ Project file:
 
 Reload/restart the MCP connector after changing these values. The active catalog is resolved when the server process starts.
 
+## Live Configuration
+
+Phase 5.1 adds `.godot-mcp/config.json` for live bridge settings. Defaults are local-only and eval-disabled:
+
+```json
+{
+  "live": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 6010,
+    "allowed_project_paths": ["."]
+  },
+  "eval": {
+    "enabled": false
+  },
+  "log_retention_days": 14,
+  "screenshot_output_dir": ".godot-mcp/screenshots",
+  "stale_session_timeout_ms": 15000
+}
+```
+
+Use `live_config_status` to verify the effective config. It redacts shared secrets and returns explicit remediation when host, port, allowed project paths, retention, screenshot directory, or stale timeout values are invalid.
+
 ## Common Mappings
 
 | Feature request | Recommended profile |

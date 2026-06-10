@@ -1,13 +1,15 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { IncomingMessage } from 'http';
-import { LiveSessionManager, liveSessionManager } from './session-manager.js';
+import { LiveSessionManager, liveSessionManager, normalizeProjectPath } from './session-manager.js';
 import { isLiveHelloMessage, parseLiveProtocolMessage } from './protocol.js';
+import { isProjectAllowed } from './config.js';
 
 export type LiveTransportOptions = {
   host?: string;
   port?: number;
   path?: string;
   sharedSecret?: string;
+  allowedProjectPaths?: string[];
   onError?: (message: string) => void;
 };
 
@@ -41,6 +43,7 @@ export class LiveSessionTransport {
       port: options.port || DEFAULT_PORT,
       path: options.path || DEFAULT_PATH,
       sharedSecret: options.sharedSecret,
+      allowedProjectPaths: options.allowedProjectPaths || [],
       onError: options.onError,
     };
   }
@@ -131,6 +134,11 @@ export class LiveSessionTransport {
       try {
         const message = parseLiveProtocolMessage(data.toString());
         if (isLiveHelloMessage(message)) {
+          const projectPath = normalizeProjectPath(String(message.session.project_path));
+          if (!isProjectAllowed(projectPath, this.options.allowedProjectPaths)) {
+            socket.close(1008, 'Godot MCP live bridge project path is not allowed by MCP config.');
+            return;
+          }
           const session = this.manager.registerHello(message, {
             remoteAddress,
             close: () => socket.close(),

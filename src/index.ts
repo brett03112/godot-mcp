@@ -74,6 +74,7 @@ import { registerQualityGateTools } from './tools/quality-gates.js';
 import { registerTaskLedgerTools } from './tools/task-ledger.js';
 import { registerSaferPlanningTools } from './tools/safer-planning.js';
 import { registerToolsetProfileTools } from './tools/toolset-profile.js';
+import { registerLiveConfigTools } from './tools/live-config.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -93,6 +94,10 @@ import {
   getToolMetadata,
   isToolEnabled,
 } from './toolsets.js';
+import {
+  LiveConfigLoadResult,
+  loadLiveConfig,
+} from './live/config.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -145,6 +150,7 @@ class GodotServer {
   private listToolsForResources: (() => Promise<{ tools: any[] }>) | null = null;
   private allToolDefinitionsCache: any[] = [];
   private activeToolProfile: ActiveToolProfile = createActiveToolProfile({ allToolNames: [] });
+  private liveConfigStatus: LiveConfigLoadResult = loadLiveConfig({ projectPath: process.env.GODOT_MCP_PROJECT_PATH });
 
   /**
    * Parameter name mappings between snake_case and camelCase
@@ -898,6 +904,12 @@ class GodotServer {
    */
   private registerModularTools(): void {
     const ctx = this.getServerContext();
+    this.liveConfigStatus = this.resolveLiveConfig(process.env.GODOT_MCP_PROJECT_PATH);
+    if (this.liveConfigStatus.validation.valid) {
+      liveSessionManager.configure({
+        staleTimeoutMs: this.liveConfigStatus.config.staleSessionTimeoutMs,
+      });
+    }
     // Tier 1
     registerSceneTools(this.toolRegistry, ctx);
     registerShaderTools(this.toolRegistry, ctx);
@@ -937,10 +949,13 @@ class GodotServer {
     registerTestToolingTools(this.toolRegistry, ctx);
     registerLiveEditorTools(this.toolRegistry, {
       manager: liveSessionManager,
-      getTransportStatus: () => ensureLiveSessionTransportStatus(liveSessionManager, {
-        sharedSecret: process.env.GODOT_MCP_LIVE_SECRET,
-        onError: (message) => console.error(`[LIVE] ${message}`),
-      }),
+      getTransportStatus: () => this.getConfiguredLiveTransportStatus(),
+      evalConfig: {
+        enabled: this.liveConfigStatus.validation.valid && this.liveConfigStatus.config.eval.enabled,
+        approvalToken: this.liveConfigStatus.config.eval.approvalToken,
+        projectPath: this.liveConfigStatus.config.eval.projectPath,
+        auditLogPath: this.liveConfigStatus.config.eval.auditLogPath,
+      },
     });
     registerVisualQaTools(this.toolRegistry, ctx);
     registerAssetPipelineTools(this.toolRegistry, ctx);
@@ -953,7 +968,48 @@ class GodotServer {
       getActiveProfile: () => this.activeToolProfile,
       getAllToolDefinitions: () => this.getAllKnownToolDefinitions(),
     });
+    registerLiveConfigTools(this.toolRegistry, ctx, {
+      getConfigStatus: (projectPath?: string) => this.resolveLiveConfig(projectPath || process.env.GODOT_MCP_PROJECT_PATH),
+    });
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
+  }
+
+  private resolveLiveConfig(projectPath?: string): LiveConfigLoadResult {
+    return loadLiveConfig({
+      projectPath,
+      cwd: process.cwd(),
+    });
+  }
+
+  private getConfiguredLiveTransportStatus(): Record<string, unknown> {
+    if (!this.liveConfigStatus.validation.valid) {
+      return {
+        running: false,
+        status: 'failed',
+        reason: 'live_config_invalid',
+        validation: this.liveConfigStatus.validation,
+      };
+    }
+
+    const config = this.liveConfigStatus.config;
+    if (!config.live.enabled) {
+      stopLiveSessionTransport();
+      return {
+        running: false,
+        status: 'disabled',
+        host: config.live.host,
+        port: config.live.port,
+        path: '/godot-mcp-live',
+      };
+    }
+
+    return ensureLiveSessionTransportStatus(liveSessionManager, {
+      host: config.live.host,
+      port: config.live.port,
+      sharedSecret: config.live.sharedSecret,
+      allowedProjectPaths: config.live.allowedProjectPaths,
+      onError: (message) => console.error(`[LIVE] ${message}`),
+    });
   }
 
   /**

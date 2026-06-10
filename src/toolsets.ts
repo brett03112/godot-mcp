@@ -71,6 +71,7 @@ export interface RecommendToolsetProfileArgs {
 const CORE_SUPPORT_TOOLS = [
   'toolset_status',
   'recommend_toolset_profile',
+  'live_config_status',
   'get_godot_version',
   'list_projects',
   'get_project_info',
