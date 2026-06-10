@@ -649,20 +649,20 @@ Verification note, 2026-06-10: Phase 4.6 added `docs/superpowers/plans/2026-06-1
 
 ### 4.7 Add LSP/DAP Integration Tools
 
-- [ ] Research Godot LSP and DAP ports and lifecycle in Godot 4.6.
-- [ ] Add `lsp_status`.
-- [ ] Add `lsp_symbols`.
-- [ ] Add `lsp_definition`.
-- [ ] Add `lsp_references`.
-- [ ] Add `lsp_diagnostics`.
-- [ ] Add `lsp_rename_preview`.
-- [ ] Add `dap_status`.
-- [ ] Add `dap_set_breakpoint`.
-- [ ] Add `dap_clear_breakpoint`.
-- [ ] Add `dap_stack_trace`.
-- [ ] Add `dap_variables`.
-- [ ] Add `dap_continue`.
-- [ ] Add `dap_step`.
+- [x] Research Godot LSP and DAP ports and lifecycle in Godot 4.6.
+- [x] Add `lsp_status`.
+- [x] Add `lsp_symbols`.
+- [x] Add `lsp_definition`.
+- [x] Add `lsp_references`.
+- [x] Add `lsp_diagnostics`.
+- [x] Add `lsp_rename_preview`.
+- [x] Add `dap_status`.
+- [x] Add `dap_set_breakpoint`.
+- [x] Add `dap_clear_breakpoint`.
+- [x] Add `dap_stack_trace`.
+- [x] Add `dap_variables`.
+- [x] Add `dap_continue`.
+- [x] Add `dap_step`.
 
 Why this matters:
 
@@ -670,8 +670,10 @@ Why this matters:
 
 Acceptance:
 
-- [ ] Codex can retrieve diagnostics and symbols from the Godot language server.
-- [ ] Codex can attach to a debug session or report why it cannot.
+- [x] Codex can retrieve diagnostics and symbols from the Godot language server.
+- [x] Codex can attach to a debug session or report why it cannot.
+
+Verification note, 2026-06-10: Phase 4.7 added `docs/superpowers/plans/2026-06-10-phase-4-7-lsp-dap-integration.md`, focused RED/GREEN tests in `tests/lsp-dap-integration.test.mjs`, modular tooling in `src/tools/lsp-dap-integration.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase47_live_proof.mjs`. Context7 Godot docs confirmed Godot's external editor defaults: LSP on `6005`, DAP on `6006`, configured under Network > Language Server and Network > Debug Adapter. RED first failed with missing `build/tools/lsp-dap-integration.js`; a live LSP proof then found and fixed byte-inaccurate TCP frame parsing for non-ASCII symbol payloads. Focused `npm run build; node --test tests/lsp-dap-integration.test.mjs` passed 4/4, final `npm test` passed 129/129, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.7 proof script listed 315 tools, found all 13 new tools, retrieved `coin.gd` symbols and diagnostics from the open editor language server, called LSP definition/references/rename preview, and exercised DAP status, breakpoint set/clear, stack trace, variables, continue, and step against port `6006`; `dap_variables` returned a clear `unavailable` status without an active variables reference. `godot_mcp_live` was re-enabled in `project.godot`, but the already-open GUI editor did not hot-connect to `127.0.0.1:6010`; direct Codex MCP namespace callability for the new `lsp_*`/`dap_*` tools still requires connector/editor reload.
 
 ### 4.8 Add Performance, Memory, And Quality Gates
 

@@ -69,6 +69,7 @@ import { registerTestToolingTools } from './tools/test-tooling.js';
 import { registerVisualQaTools } from './tools/visual-qa.js';
 import { registerAssetPipelineTools } from './tools/asset-pipeline.js';
 import { registerAddonToolManagerTools } from './tools/addon-tool-manager.js';
+import { registerLspDapIntegrationTools } from './tools/lsp-dap-integration.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -486,6 +487,18 @@ class GodotServer {
     'target_paths': 'targetPaths',
     'include_hidden': 'includeHidden',
     'viewport_index': 'viewportIndex',
+    'host': 'host',
+    'port': 'port',
+    'line': 'line',
+    'column': 'column',
+    'include_declaration': 'includeDeclaration',
+    'thread_id': 'threadId',
+    'frame_id': 'frameId',
+    'variables_reference': 'variablesReference',
+    'breakpoint_id': 'breakpointId',
+    'step_type': 'stepType',
+    'start_frame': 'startFrame',
+    'levels': 'levels',
   };
 
   /**
@@ -878,6 +891,7 @@ class GodotServer {
     registerVisualQaTools(this.toolRegistry, ctx);
     registerAssetPipelineTools(this.toolRegistry, ctx);
     registerAddonToolManagerTools(this.toolRegistry, ctx);
+    registerLspDapIntegrationTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **302 tools** across 31 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **315 tools** across 32 categories plus **118 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (302 tools)
+## Tool Reference (315 tools)
 
 ### Project Management (7 tools)
 
@@ -369,6 +369,24 @@ configure_audio_bus(
 | `addon_health_check` | Check addon install health, script presence, enabled state, and adapter mapping |
 | `external_tool_status` | Report optional addon/external tool adapter status and related MCP tools |
 | `external_tool_configure` | Store project-local configuration for optional external tool adapters |
+
+### LSP/DAP Integration (13 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `lsp_status` | Check the Godot GDScript language server endpoint and capabilities |
+| `lsp_symbols` | Retrieve document symbols from the Godot language server |
+| `lsp_definition` | Resolve a symbol definition location through LSP |
+| `lsp_references` | Find symbol references through LSP |
+| `lsp_diagnostics` | Collect published diagnostics for a GDScript document |
+| `lsp_rename_preview` | Request a preview-only LSP rename workspace edit |
+| `dap_status` | Check the Godot Debug Adapter endpoint and capabilities |
+| `dap_set_breakpoint` | Set a GDScript breakpoint through DAP |
+| `dap_clear_breakpoint` | Clear breakpoints for a GDScript source file through DAP |
+| `dap_stack_trace` | Retrieve stack frames for an active debug thread |
+| `dap_variables` | Retrieve variables from a debug frame, scope, or variables reference |
+| `dap_continue` | Continue an active debug thread |
+| `dap_step` | Step an active debug thread using next, in, or out semantics |
 
 ### Refactoring (1 tool)
 
@@ -823,6 +841,19 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/addon_health_check` - Check addon install health, script presence, enabled state, and adapter mapping.
 - `godot-mcp://tools/external_tool_status` - Report optional addon/external tool adapter status and related MCP tools.
 - `godot-mcp://tools/external_tool_configure` - Store project-local configuration for optional external tool adapters.
+- `godot-mcp://tools/lsp_status` - Check the Godot GDScript language server endpoint and capabilities.
+- `godot-mcp://tools/lsp_symbols` - Retrieve document symbols from the Godot language server.
+- `godot-mcp://tools/lsp_definition` - Resolve a symbol definition location through LSP.
+- `godot-mcp://tools/lsp_references` - Find symbol references through LSP.
+- `godot-mcp://tools/lsp_diagnostics` - Collect published diagnostics for a GDScript document.
+- `godot-mcp://tools/lsp_rename_preview` - Request a preview-only LSP rename workspace edit.
+- `godot-mcp://tools/dap_status` - Check the Godot Debug Adapter endpoint and capabilities.
+- `godot-mcp://tools/dap_set_breakpoint` - Set a GDScript breakpoint through DAP.
+- `godot-mcp://tools/dap_clear_breakpoint` - Clear breakpoints for a GDScript source file through DAP.
+- `godot-mcp://tools/dap_stack_trace` - Retrieve stack frames for an active debug thread.
+- `godot-mcp://tools/dap_variables` - Retrieve variables from a debug frame, scope, or variables reference.
+- `godot-mcp://tools/dap_continue` - Continue an active debug thread.
+- `godot-mcp://tools/dap_step` - Step an active debug thread using next, in, or out semantics.
 
 ## Requirements
 
@@ -887,6 +918,10 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "asset_library_update_addon", "asset_library_remove_addon",
         "addon_enable", "addon_disable", "addon_list", "addon_health_check",
         "external_tool_status", "external_tool_configure",
+        "lsp_status", "lsp_symbols", "lsp_definition", "lsp_references",
+        "lsp_diagnostics", "lsp_rename_preview",
+        "dap_status", "dap_set_breakpoint", "dap_clear_breakpoint",
+        "dap_stack_trace", "dap_variables", "dap_continue", "dap_step",
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",
