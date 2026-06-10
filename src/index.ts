@@ -73,6 +73,7 @@ import { registerLspDapIntegrationTools } from './tools/lsp-dap-integration.js';
 import { registerQualityGateTools } from './tools/quality-gates.js';
 import { registerTaskLedgerTools } from './tools/task-ledger.js';
 import { registerSaferPlanningTools } from './tools/safer-planning.js';
+import { registerToolsetProfileTools } from './tools/toolset-profile.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -83,6 +84,15 @@ import {
   ensureLiveSessionTransportStatus,
   stopLiveSessionTransport,
 } from './live/transport.js';
+import {
+  ActiveToolProfile,
+  createActiveToolProfile,
+  decorateToolDefinition,
+  disabledToolResponse,
+  filterToolDefinitions,
+  getToolMetadata,
+  isToolEnabled,
+} from './toolsets.js';
 
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
@@ -133,6 +143,8 @@ class GodotServer {
   private toolRegistry: ToolRegistry = new ToolRegistry();
   private tscnCache: TscnCache = new TscnCache();
   private listToolsForResources: (() => Promise<{ tools: any[] }>) | null = null;
+  private allToolDefinitionsCache: any[] = [];
+  private activeToolProfile: ActiveToolProfile = createActiveToolProfile({ allToolNames: [] });
 
   /**
    * Parameter name mappings between snake_case and camelCase
@@ -536,6 +548,11 @@ class GodotServer {
     'include_reload_guidance': 'includeReloadGuidance',
     'planned_actions': 'plannedActions',
     'risk_tolerance': 'riskTolerance',
+    'feature_request': 'featureRequest',
+    'project_facts': 'projectFacts',
+    'active_toolsets': 'activeToolsets',
+    'active_tools': 'activeTools',
+    'include_optional': 'includeOptional',
   };
 
   /**
@@ -932,6 +949,10 @@ class GodotServer {
     registerQualityGateTools(this.toolRegistry, ctx);
     registerTaskLedgerTools(this.toolRegistry, ctx);
     registerSaferPlanningTools(this.toolRegistry, ctx);
+    registerToolsetProfileTools(this.toolRegistry, ctx, {
+      getActiveProfile: () => this.activeToolProfile,
+      getAllToolDefinitions: () => this.getAllKnownToolDefinitions(),
+    });
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 
@@ -1291,10 +1312,10 @@ class GodotServer {
     this.registerModularTools();
 
     // Define available tools (legacy + modular)
-    this.listToolsForResources = async () => ({
-      tools: [
+    this.listToolsForResources = async () => {
+      const tools = [
         // --- Modular tools from registry ---
-        ...this.toolRegistry.getToolDefinitions(),
+        ...this.toolRegistry.getAllToolDefinitions(),
         // --- Legacy tools (will be migrated to registry incrementally) ---
         {
           name: 'launch_editor',
@@ -3121,14 +3142,22 @@ class GodotServer {
             required: ['projectPath', 'source'],
           },
         },
-      ],
-    });
+      ];
+      return {
+        tools: this.refreshToolProfile(tools),
+      };
+    };
 
     this.server.setRequestHandler(ListToolsRequestSchema, this.listToolsForResources);
 
     // Handle tool calls — registry-first dispatch with legacy fallback
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       this.logDebug(`Handling tool request: ${request.params.name}`);
+      await this.ensureToolProfileReady();
+
+      if (this.isKnownTool(request.params.name) && !isToolEnabled(request.params.name, this.activeToolProfile)) {
+        return disabledToolResponse(request.params.name, this.activeToolProfile, getToolMetadata(request.params.name));
+      }
 
       // Check modular tool registry first
       if (this.toolRegistry.has(request.params.name)) {
@@ -3306,8 +3335,37 @@ class GodotServer {
     return result.tools;
   }
 
+  private getAllKnownToolDefinitions(): any[] {
+    if (this.allToolDefinitionsCache.length > 0) {
+      return this.allToolDefinitionsCache;
+    }
+    return this.toolRegistry.getAllToolDefinitions();
+  }
+
+  private refreshToolProfile(tools: any[]): any[] {
+    this.allToolDefinitionsCache = tools.map((tool) => decorateToolDefinition(tool));
+    this.activeToolProfile = createActiveToolProfile({
+      allToolNames: this.allToolDefinitionsCache.map((tool) => tool.name),
+    });
+    this.toolRegistry.configureToolProfile(this.activeToolProfile);
+    return filterToolDefinitions(this.allToolDefinitionsCache, this.activeToolProfile);
+  }
+
+  private async ensureToolProfileReady(): Promise<void> {
+    if (this.allToolDefinitionsCache.length === 0 && this.listToolsForResources) {
+      await this.listToolsForResources();
+    } else {
+      this.toolRegistry.configureToolProfile(this.activeToolProfile);
+    }
+  }
+
+  private isKnownTool(toolName: string): boolean {
+    return this.allToolDefinitionsCache.some((tool) => tool.name === toolName) || this.toolRegistry.has(toolName);
+  }
+
   private async getMcpResources(): Promise<any[]> {
     const tools = await this.getAvailableToolDefinitions();
+    const liveResources = this.shouldExposeLiveResources() ? getLiveResourceDescriptors() : [];
     const toolResources = tools.map((tool) => ({
       uri: this.getToolResourceUri(tool.name),
       name: `Tool: ${tool.name}`,
@@ -3334,7 +3392,7 @@ class GodotServer {
         description: 'Current captured output for the active Godot process, if one is running.',
         mimeType: 'application/json',
       },
-      ...getLiveResourceDescriptors(),
+      ...liveResources,
       ...toolResources,
     ];
   }
@@ -3375,7 +3433,7 @@ class GodotServer {
           'godot-mcp://server/info',
           'godot-mcp://tools/catalog',
           'godot-mcp://runtime/debug-output',
-          ...getLiveResourceDescriptors().map((resource) => resource.uri),
+          ...(this.shouldExposeLiveResources() ? getLiveResourceDescriptors().map((resource) => resource.uri) : []),
           'godot-mcp://tools/{name}',
         ],
         note: 'These resources expose read-only metadata for resource-oriented MCP clients. Use MCP tools/call to execute Godot operations.',
@@ -3415,10 +3473,19 @@ class GodotServer {
     }
 
     if (parsed.hostname === 'live') {
+      if (!this.shouldExposeLiveResources()) {
+        throw new McpError(ErrorCode.InvalidParams, `Live resource not loaded by active tool profile: ${uri}`);
+      }
       return readLiveResource(uri, liveSessionManager);
     }
 
     throw new McpError(ErrorCode.InvalidParams, `Resource not found: ${uri}`);
+  }
+
+  private shouldExposeLiveResources(): boolean {
+    return this.activeToolProfile.mode === 'all'
+      || this.activeToolProfile.activeToolsets.includes('live')
+      || this.activeToolProfile.loadedToolNames.some((tool) => getToolMetadata(tool).toolset === 'live');
   }
 
   /**

@@ -12,12 +12,20 @@ import { ToolDefinition, ToolResponse } from './types.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { OperationLogger } from './utils/logger.js';
 import { createTimeoutError, structuredErrorToResponse, ErrorCategory } from './utils/errors.js';
+import {
+  ActiveToolProfile,
+  decorateToolDefinition,
+  disabledToolResponse,
+  getToolMetadata,
+  isToolEnabled,
+} from './toolsets.js';
 
 const DEFAULT_TIMEOUT_MS = 30000;
 
 export class ToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
   private logger: OperationLogger;
+  private activeProfile: ActiveToolProfile | null = null;
 
   constructor(logDir?: string) {
     this.logger = new OperationLogger(logDir);
@@ -31,7 +39,10 @@ export class ToolRegistry {
     if (this.tools.has(tool.name)) {
       throw new Error(`Tool already registered: ${tool.name}`);
     }
-    this.tools.set(tool.name, tool);
+    this.tools.set(tool.name, {
+      ...tool,
+      metadata: getToolMetadata(tool.name, tool.metadata),
+    });
   }
 
   /**
@@ -65,12 +76,39 @@ export class ToolRegistry {
     name: string;
     description: string;
     inputSchema: { type: 'object'; properties: Record<string, any>; required?: string[] };
+    metadata?: any;
   }> {
-    return Array.from(this.tools.values()).map(tool => ({
+    return this.getAllToolDefinitions().filter((tool) => (
+      !this.activeProfile || isToolEnabled(tool.name, this.activeProfile)
+    ));
+  }
+
+  /**
+   * Get every registered tool definition regardless of the active profile.
+   */
+  getAllToolDefinitions(): Array<{
+    name: string;
+    description: string;
+    inputSchema: { type: 'object'; properties: Record<string, any>; required?: string[] };
+    metadata?: any;
+  }> {
+    return Array.from(this.tools.values()).map(tool => decorateToolDefinition({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
+      metadata: tool.metadata,
     }));
+  }
+
+  /**
+   * Configure the active Phase 5.0 tool profile used for list and dispatch filtering.
+   */
+  configureToolProfile(profile: ActiveToolProfile | null): void {
+    this.activeProfile = profile;
+  }
+
+  getToolMetadata(name: string): any {
+    return this.tools.get(name)?.metadata || getToolMetadata(name);
   }
 
   /**
@@ -85,6 +123,10 @@ export class ToolRegistry {
         ErrorCode.MethodNotFound,
         `Unknown tool: ${name}`
       );
+    }
+
+    if (this.activeProfile && !isToolEnabled(name, this.activeProfile)) {
+      return disabledToolResponse(name, this.activeProfile, tool.metadata);
     }
 
     const opId = this.logger.logStart(name, args || {});

@@ -743,7 +743,7 @@ Goal: Make the live-enhanced MCP easy to install, trust, verify, and maintain.
 
 Goal: Reduce token load and improve tool selection by letting a developer or LLM load only the MCP tools/resources needed for a feature session.
 
-- [ ] Add tool metadata to the registry:
+- [x] Add tool metadata to the registry:
   - `toolset`
   - `aliases`
   - `risk`
@@ -751,7 +751,7 @@ Goal: Reduce token load and improve tool selection by letting a developer or LLM
   - `requires_live`
   - `requires_display`
   - `requires_godot_version`
-- [ ] Define first-pass toolsets:
+- [x] Define first-pass toolsets:
   - `core`
   - `project`
   - `scene`
@@ -764,49 +764,49 @@ Goal: Reduce token load and improve tool selection by letting a developer or LLM
   - `quality`
   - `debug`
   - `release`
-- [ ] Add startup filtering with env vars:
+- [x] Add startup filtering with env vars:
   - `GODOT_MCP_TOOLSETS=core,scene,playtest`
   - `GODOT_MCP_TOOLS=script_patch,validate_scene,run_automated_playtest`
-- [ ] Keep the default startup profile backward-compatible by loading all tools when no filter is configured.
-- [ ] Add an optional per-project `.godot-mcp/toolsets.json` for named profiles such as `feature-scene-edit`, `playtest-loop`, `visual-qa`, and `release-check`.
-- [ ] Filter `tools/list`, per-tool resources, catalog resources, and dispatch through the same active profile.
-- [ ] Return a clear disabled-tool error when a tool exists but is not loaded by the active profile.
-- [ ] Add a read-only `toolset_status` tool that reports:
+- [x] Keep the default startup profile backward-compatible by loading all tools when no filter is configured.
+- [x] Add an optional per-project `.godot-mcp/toolsets.json` for named profiles such as `feature-scene-edit`, `playtest-loop`, `visual-qa`, and `release-check`.
+- [x] Filter `tools/list`, per-tool resources, catalog resources, and dispatch through the same active profile.
+- [x] Return a clear disabled-tool error when a tool exists but is not loaded by the active profile.
+- [x] Add a read-only `toolset_status` tool that reports:
   - active toolsets
   - explicitly enabled tools
   - hidden tool count
   - loaded tool count
   - config sources
   - disabled-tool remediation
-- [ ] Add a read-only `recommend_toolset_profile` tool that accepts a feature request and project facts, then returns:
+- [x] Add a read-only `recommend_toolset_profile` tool that accepts a feature request and project facts, then returns:
   - recommended toolsets
   - required individual tools
   - optional tools
   - needed MCP resources
   - env/config snippet for the next session
   - verification commands for the selected workflow
-- [ ] Update safer-planning tools so `recommend_next_tool`, `plan_feature_implementation`, `plan_test_strategy`, `risk_scan`, and `postchange_verification_plan` can include active-profile awareness.
-- [ ] Add a session setup workflow:
+- [x] Update safer-planning tools so `recommend_next_tool`, `plan_feature_implementation`, `plan_test_strategy`, `risk_scan`, and `postchange_verification_plan` can include active-profile awareness.
+- [x] Add a session setup workflow:
   - LLM receives a developer feature request.
   - LLM calls `toolset_status` and/or `recommend_toolset_profile`.
   - LLM selects the minimal needed toolsets/resources.
   - LLM writes or suggests the session env/profile config.
   - User or client reloads the MCP server with that profile.
   - LLM proceeds with implementation using the smaller loaded catalog.
-- [ ] Add compatibility aliases for consolidated lifecycle tools instead of breaking existing names immediately.
-- [ ] Consolidate only true sibling lifecycle tools:
+- [x] Add compatibility aliases for consolidated lifecycle tools instead of breaking existing names immediately.
+- [x] Consolidate only true sibling lifecycle tools:
   - `start_playtest_recording` and `stop_playtest_recording` -> `playtest_recording` with `action: "start" | "stop"`.
   - `start_profiler`, `get_profiling_data`, and `analyze_bottlenecks` -> `profiler` with `action: "start" | "get" | "analyze"`.
-- [ ] Mark legacy sibling tools as deprecated aliases in tool metadata, docs, and catalog output.
-- [ ] Do not hide deprecated aliases by default until at least one release cycle after the consolidated tools ship.
-- [ ] Update README and `docs/autonomous-workflows.md` with:
+- [x] Mark legacy sibling tools as deprecated aliases in tool metadata, docs, and catalog output.
+- [x] Do not hide deprecated aliases by default until at least one release cycle after the consolidated tools ship.
+- [x] Update README and `docs/autonomous-workflows.md` with:
   - profile examples
   - common feature-to-toolset mappings
   - safe read-only default recommendations
   - live/playtest/display caveats
   - reload requirements
-- [ ] Update MCP resource catalog generation so resources respect active profiles and do not duplicate hidden tool definitions.
-- [ ] Add tests for:
+- [x] Update MCP resource catalog generation so resources respect active profiles and do not duplicate hidden tool definitions.
+- [x] Add tests for:
   - env var profile parsing
   - explicit tool allowlists
   - default all-tools behavior
@@ -819,16 +819,18 @@ Goal: Reduce token load and improve tool selection by letting a developer or LLM
 
 Acceptance:
 
-- [ ] With no toolset env vars, the MCP server exposes the same tool surface as before.
-- [ ] With `GODOT_MCP_TOOLSETS=core,scene`, `tools/list` omits unrelated playtest, asset-generation, profiling, and release tools.
-- [ ] With `GODOT_MCP_TOOLS=script_patch,validate_scene`, only those tools plus required core support tools are exposed.
-- [ ] Calling a hidden-but-known tool returns a clear remediation message naming the missing profile or explicit tool env var.
-- [ ] Given a request like "add a pause menu", `recommend_toolset_profile` returns a compact scene/script/UI/test/visual profile and a usable env/config snippet.
-- [ ] Given a request like "run a playtest and make the level less frustrating", `recommend_toolset_profile` includes playtest, runtime, fun metrics, and visual/quality verification tools.
-- [ ] A Codex session can follow the recommended env/config snippet, reload the MCP server, and continue with the smaller active catalog.
-- [ ] Deprecated `start_playtest_recording`, `stop_playtest_recording`, `start_profiler`, `get_profiling_data`, and `analyze_bottlenecks` still work as aliases.
-- [ ] `playtest_recording` and `profiler` reject unsupported `action` values with clear guidance.
-- [ ] Focused tests, full `npm test`, and a `test_mcp_enhancements` proof verify profile filtering and alias behavior.
+- [x] With no toolset env vars, the MCP server exposes the same tool surface as before.
+- [x] With `GODOT_MCP_TOOLSETS=core,scene`, `tools/list` omits unrelated playtest, asset-generation, profiling, and release tools.
+- [x] With `GODOT_MCP_TOOLS=script_patch,validate_scene`, only those tools plus required core support tools are exposed.
+- [x] Calling a hidden-but-known tool returns a clear remediation message naming the missing profile or explicit tool env var.
+- [x] Given a request like "add a pause menu", `recommend_toolset_profile` returns a compact scene/script/UI/test/visual profile and a usable env/config snippet.
+- [x] Given a request like "run a playtest and make the level less frustrating", `recommend_toolset_profile` includes playtest, runtime, fun metrics, and visual/quality verification tools.
+- [x] A Codex session can follow the recommended env/config snippet, reload the MCP server, and continue with the smaller active catalog.
+- [x] Deprecated `start_playtest_recording`, `stop_playtest_recording`, `start_profiler`, `get_profiling_data`, and `analyze_bottlenecks` still work as aliases.
+- [x] `playtest_recording` and `profiler` reject unsupported `action` values with clear guidance.
+- [x] Focused tests, full `npm test`, and a `test_mcp_enhancements` proof verify profile filtering and alias behavior.
+
+Verification note, 2026-06-10: Phase 5.0 added `docs/superpowers/plans/2026-06-10-phase-5-0-toolset-profiles.md`, focused RED/GREEN coverage in `tests/toolset-profiles.test.mjs`, the profile metadata/filtering layer in `src/toolsets.ts`, registry metadata and disabled dispatch support in `src/registry.ts`, read-only profile tools in `src/tools/toolset-profile.ts`, server-side active-profile wiring in `src/index.ts`, consolidated lifecycle wrappers in `src/tools/playtest.ts` and `src/tools/profiling.ts`, active-profile awareness in `src/tools/safer-planning.ts`, README/profile workflow docs, `docs/autonomous-workflows.md`, and `test_mcp_enhancements/phase50_live_proof.mjs`. RED first failed with missing `build/toolsets.js`; focused `npm run build && node --test tests/toolset-profiles.test.mjs tests/safer-planning.test.mjs` passed 14/14, final `npm test` passed 152/152, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 5.0 proof script listed 343 default tools and 352 default resources, verified `toolset_status`, `recommend_toolset_profile`, `playtest_recording`, `profiler`, and all five deprecated lifecycle aliases, proved `GODOT_MCP_TOOLSETS=core,scene` exposed 66 tools while hiding playtest/assets/live resources, proved `GODOT_MCP_TOOLS=script_patch,validate_scene` exposed 14 tools, proved a disposable `.godot-mcp/toolsets.json` named profile exposed 95 tools including `filesystem_search`, and restored the temporary project profile file. Startup checks left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it; direct Codex MCP namespace callability still requires MCP connector reload because the namespace call returned `Transport closed` before implementation.
 
 ### 5.1 Add Configuration
 

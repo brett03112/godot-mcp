@@ -48,6 +48,21 @@ export interface ToolInputSchema {
   required?: string[];
 }
 
+export type ToolRisk = 'low' | 'medium' | 'high';
+
+export interface ToolMetadata {
+  toolset: string;
+  aliases?: string[];
+  risk: ToolRisk;
+  mutates: boolean;
+  requires_live: boolean;
+  requires_display: boolean;
+  requires_godot_version?: string;
+  deprecated?: boolean;
+  alias_for?: string;
+  deprecation_message?: string;
+}
+
 /**
  * Complete definition of an MCP tool
  */
@@ -58,6 +73,8 @@ export interface ToolDefinition {
   handler: (args: any) => Promise<ToolResponse>;
   /** Optional timeout in milliseconds (default: 30000). Set higher for long-running tools. */
   timeout?: number;
+  /** Optional Phase 5.0 profile metadata. If omitted, the registry infers a first-pass value. */
+  metadata?: ToolMetadata;
 }
 
 /**
