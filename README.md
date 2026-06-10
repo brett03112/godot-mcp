@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **315 tools** across 32 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **325 tools** across 33 categories plus **334 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (315 tools)
+## Tool Reference (325 tools)
 
 ### Project Management (7 tools)
 
@@ -388,6 +388,21 @@ configure_audio_bus(
 | `dap_continue` | Continue an active debug thread |
 | `dap_step` | Step an active debug thread using next, in, or out semantics |
 
+### Performance, Memory & Quality Gates (10 tools)
+
+| Tool | Description |
+| ------ | ------------- |
+| `performance_budget_create` | Store a named project-local performance budget under `.godot-mcp/performance_budgets` |
+| `performance_budget_check` | Check a runtime profile summary against named or inline performance budgets |
+| `runtime_profile_capture` | Persist runtime profile samples or summarize an existing `.mcp_profiling` artifact |
+| `runtime_profile_compare` | Compare baseline/current profiles and flag regressions over a percentage budget |
+| `memory_snapshot` | Create a structured memory snapshot from profile artifacts |
+| `node_count_budget_check` | Count scene nodes and fail when a node-count budget is exceeded |
+| `draw_call_budget_check` | Check max draw calls from a runtime profile |
+| `texture_memory_budget_check` | Check texture memory from a runtime profile |
+| `export_size_budget_check` | Check exported files or directories against total and per-file byte budgets |
+| `quality_gate_run` | Run a named quality gate and return pass/fail results with recommendations |
+
 ### Refactoring (1 tool)
 
 | Tool | Description |
@@ -679,7 +694,7 @@ The server exposes read-only MCP resources for clients that inspect `resources/l
 | ------ | ------------- |
 | `godot-mcp://tools/{name}` | Read the description and input schema for an individual Godot MCP tool |
 
-### Per-Tool Definition Resources (115 resources)
+### Per-Tool Definition Resources (325 resources)
 
 Each per-tool resource returns the tool description, input schema, `callMethod: "tools/call"`, and its concrete `resourceUri`.
 
@@ -854,6 +869,16 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/dap_variables` - Retrieve variables from a debug frame, scope, or variables reference.
 - `godot-mcp://tools/dap_continue` - Continue an active debug thread.
 - `godot-mcp://tools/dap_step` - Step an active debug thread using next, in, or out semantics.
+- `godot-mcp://tools/performance_budget_create` - Store a named project-local performance budget under `.godot-mcp/performance_budgets`.
+- `godot-mcp://tools/performance_budget_check` - Check profile summaries against named or inline performance budgets.
+- `godot-mcp://tools/runtime_profile_capture` - Persist runtime profile samples or summarize existing `.mcp_profiling` artifacts.
+- `godot-mcp://tools/runtime_profile_compare` - Compare baseline and current profiles for regressions.
+- `godot-mcp://tools/memory_snapshot` - Create a structured memory snapshot from runtime profile artifacts.
+- `godot-mcp://tools/node_count_budget_check` - Count scene nodes and check a node-count budget.
+- `godot-mcp://tools/draw_call_budget_check` - Check max draw calls against a profile budget.
+- `godot-mcp://tools/texture_memory_budget_check` - Check texture memory against a profile budget.
+- `godot-mcp://tools/export_size_budget_check` - Check exported files or directories against byte budgets.
+- `godot-mcp://tools/quality_gate_run` - Run a named quality gate and return pass/fail recommendations.
 
 ## Requirements
 
@@ -922,6 +947,11 @@ Add to your Cline MCP settings file (`~/Library/Application Support/Code/User/gl
         "lsp_diagnostics", "lsp_rename_preview",
         "dap_status", "dap_set_breakpoint", "dap_clear_breakpoint",
         "dap_stack_trace", "dap_variables", "dap_continue", "dap_step",
+        "performance_budget_create", "performance_budget_check",
+        "runtime_profile_capture", "runtime_profile_compare", "memory_snapshot",
+        "node_count_budget_check", "draw_call_budget_check",
+        "texture_memory_budget_check", "export_size_budget_check",
+        "quality_gate_run",
         "refactor_rename",
         "create_project", "validate_scene",
         "create_particle_system", "apply_particle_preset", "create_particle_material",

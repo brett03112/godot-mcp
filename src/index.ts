@@ -70,6 +70,7 @@ import { registerVisualQaTools } from './tools/visual-qa.js';
 import { registerAssetPipelineTools } from './tools/asset-pipeline.js';
 import { registerAddonToolManagerTools } from './tools/addon-tool-manager.js';
 import { registerLspDapIntegrationTools } from './tools/lsp-dap-integration.js';
+import { registerQualityGateTools } from './tools/quality-gates.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -212,6 +213,26 @@ class GodotServer {
     'sample_interval': 'sampleInterval',
     'profiler_id': 'profilerId',
     'target_fps': 'targetFps',
+    // Phase 4.8: Quality gates
+    'budget_name': 'budgetName',
+    'gate_name': 'gateName',
+    'profile_id': 'profileId',
+    'baseline_profile_id': 'baselineProfileId',
+    'current_profile_id': 'currentProfileId',
+    'max_regression_percent': 'maxRegressionPercent',
+    'min_avg_fps': 'minAvgFps',
+    'min_min_fps': 'minMinFps',
+    'max_frame_time_ms': 'maxFrameTimeMs',
+    'max_draw_calls': 'maxDrawCalls',
+    'max_static_memory_mb': 'maxStaticMemoryMb',
+    'max_texture_memory_mb': 'maxTextureMemoryMb',
+    'max_node_count': 'maxNodeCount',
+    'max_export_size_bytes': 'maxExportSizeBytes',
+    'max_total_bytes': 'maxTotalBytes',
+    'per_file_budget_bytes': 'perFileBudgetBytes',
+    'export_paths': 'exportPaths',
+    'profile_samples': 'profileSamples',
+    'run_checks': 'runChecks',
     // Tier 3: Code intelligence
     'script_path': 'scriptPath',
     'class_name': 'className',
@@ -892,6 +913,7 @@ class GodotServer {
     registerAssetPipelineTools(this.toolRegistry, ctx);
     registerAddonToolManagerTools(this.toolRegistry, ctx);
     registerLspDapIntegrationTools(this.toolRegistry, ctx);
+    registerQualityGateTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

@@ -677,20 +677,22 @@ Verification note, 2026-06-10: Phase 4.7 added `docs/superpowers/plans/2026-06-1
 
 ### 4.8 Add Performance, Memory, And Quality Gates
 
-- [ ] Add `performance_budget_create`.
-- [ ] Add `performance_budget_check`.
-- [ ] Add `runtime_profile_capture`.
-- [ ] Add `runtime_profile_compare`.
-- [ ] Add `memory_snapshot`.
-- [ ] Add `node_count_budget_check`.
-- [ ] Add `draw_call_budget_check`.
-- [ ] Add `texture_memory_budget_check`.
-- [ ] Add `export_size_budget_check`.
-- [ ] Add `quality_gate_run`.
+- [x] Add `performance_budget_create`.
+- [x] Add `performance_budget_check`.
+- [x] Add `runtime_profile_capture`.
+- [x] Add `runtime_profile_compare`.
+- [x] Add `memory_snapshot`.
+- [x] Add `node_count_budget_check`.
+- [x] Add `draw_call_budget_check`.
+- [x] Add `texture_memory_budget_check`.
+- [x] Add `export_size_budget_check`.
+- [x] Add `quality_gate_run`.
 
 Acceptance:
 
-- [ ] Codex can run a named quality gate before export and produce pass/fail results with recommendations.
+- [x] Codex can run a named quality gate before export and produce pass/fail results with recommendations.
+
+Verification note, 2026-06-10: Phase 4.8 added `docs/superpowers/plans/2026-06-10-phase-4-8-quality-gates.md`, focused RED/GREEN tests in `tests/quality-gates.test.mjs`, modular tooling in `src/tools/quality-gates.ts`, registration and parameter mappings in `src/index.ts`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase48_live_proof.mjs`. Context7 Godot 4.6 docs confirmed `Performance.get_monitor(...)` usage and rendering/video-memory counters such as `RENDER_TOTAL_DRAW_CALLS_IN_FRAME`, `RENDER_VIDEO_MEM_USED`, and `RENDER_TEXTURE_MEM_USED`. RED first failed with missing `build/tools/quality-gates.js`; focused `npm run build && node --test tests/quality-gates.test.mjs` passed 5/5, final `npm test` passed 134/134, and Godot headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.8 proof script listed 325 tools, found all 10 new tools, created disposable profile/budget/export/scene artifacts, called every new tool successfully, and removed temporary proof artifacts. Startup checks left exactly one `build/index.js` listener on `127.0.0.1:6010` with the open Godot editor PID established to it; the Codex MCP namespace still returned `Transport closed`, so direct namespace callability requires connector reload.
 
 ### 4.9 Add Issue Tracker And Task Ledger Tools
 
