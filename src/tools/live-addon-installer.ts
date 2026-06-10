@@ -13,10 +13,15 @@ import { fileURLToPath } from 'url';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'path';
 import { ToolRegistry } from '../registry.js';
 import { ServerContext, ToolDefinition, ToolResponse } from '../types.js';
+import {
+  LIVE_ADDON_VERSION,
+  LIVE_PROTOCOL_VERSION,
+  SUPPORTED_GODOT_VERSION_RANGE,
+  checkLiveCompatibility,
+} from '../live/protocol.js';
 
 const ADDON_ID = 'godot_mcp_live';
 const PLUGIN_REF = `res://addons/${ADDON_ID}/plugin.cfg`;
-const REQUIRED_GODOT_VERSION = '4.6';
 
 export interface LiveAddonInstallerOptions {
   addonSourcePath?: string;
@@ -413,22 +418,20 @@ function parseConfigValue(value: string): string {
 
 function compatibilityFor(godotVersion?: string): any {
   const version = String(godotVersion || '').trim();
-  if (!version) {
-    return {
-      required_godot_version: REQUIRED_GODOT_VERSION,
-      provided_godot_version: null,
-      checked: false,
-      compatible: null,
-      reason: 'No godot_version was provided; the live addon requires Godot 4.6 or later.',
-    };
-  }
-  const compatible = /^4\.(?:[6-9]|\d{2,})(?:\.|$)/.test(version);
+  const compatibility = checkLiveCompatibility({
+    protocol_version: LIVE_PROTOCOL_VERSION,
+    addon_version: LIVE_ADDON_VERSION,
+    godot_version: version || undefined,
+  });
   return {
-    required_godot_version: REQUIRED_GODOT_VERSION,
-    provided_godot_version: version,
-    checked: true,
-    compatible,
-    reason: compatible ? 'Godot version is compatible with the live addon.' : 'The live addon requires Godot 4.6 or later.',
+    required_godot_version: SUPPORTED_GODOT_VERSION_RANGE,
+    required_protocol_version: LIVE_PROTOCOL_VERSION,
+    addon_version: LIVE_ADDON_VERSION,
+    provided_godot_version: version || null,
+    checked: Boolean(version),
+    compatible: compatibility.godot.compatible,
+    reason: compatibility.godot.reason,
+    remediation: compatibility.remediation,
   };
 }
 
@@ -503,7 +506,7 @@ function metadata(mutates: boolean, risk: 'low' | 'medium' | 'high'): any {
     mutates,
     requires_live: false,
     requires_display: false,
-    requires_godot_version: REQUIRED_GODOT_VERSION,
+    requires_godot_version: SUPPORTED_GODOT_VERSION_RANGE,
   };
 }
 

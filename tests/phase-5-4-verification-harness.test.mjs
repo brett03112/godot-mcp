@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 
 import {
+  LIVE_ADDON_VERSION,
+  LIVE_PROTOCOL_VERSION,
   isLiveHelloMessage,
   parseLiveProtocolMessage,
   stringifyLiveProtocolMessage,
@@ -46,6 +48,8 @@ function hello(projectPath, overrides = {}) {
       session_id: overrides.session_id || 'session-1',
       project_path: projectPath,
       godot_version: '4.6.3.stable',
+      protocol_version: LIVE_PROTOCOL_VERSION,
+      addon_version: LIVE_ADDON_VERSION,
       editor_pid: 4242,
       active_scene: 'res://test_animation_with_anim.tscn',
       play_state: 'stopped',
@@ -92,12 +96,14 @@ test('Phase 5.4 manual verification note template captures local proof details',
 test('live protocol stringify and parse round-trip command-safe JSON objects', () => {
   const message = {
     kind: 'hello',
-    session: {
-      session_id: 'phase54-session',
-      project_path: 'C:/phase54/project',
-      godot_version: '4.6.3.stable',
-      editor_pid: 4242,
-    },
+      session: {
+        session_id: 'phase54-session',
+        project_path: 'C:/phase54/project',
+        godot_version: '4.6.3.stable',
+        protocol_version: LIVE_PROTOCOL_VERSION,
+        addon_version: LIVE_ADDON_VERSION,
+        editor_pid: 4242,
+      },
   };
 
   const encoded = stringifyLiveProtocolMessage(message);

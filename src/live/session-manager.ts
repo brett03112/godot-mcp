@@ -102,6 +102,9 @@ export class LiveSessionManager {
     if (record && isLiveSessionUpdateMessage(message)) {
       const snapshot = normalizeLiveSessionSnapshot(message.session);
       record.activeScene = snapshot.activeScene;
+      record.protocolVersion = snapshot.protocolVersion;
+      record.addonVersion = snapshot.addonVersion;
+      record.compatibility = snapshot.compatibility;
       record.playState = snapshot.playState;
       record.writable = snapshot.writable;
       record.connectionState = snapshot.connectionState;
@@ -313,6 +316,9 @@ export class LiveSessionManager {
       sessionId: session.sessionId,
       projectPath: session.projectPath,
       godotVersion: session.godotVersion,
+      protocolVersion: session.protocolVersion,
+      addonVersion: session.addonVersion,
+      compatibility: session.compatibility,
       editorPid: session.editorPid,
       activeScene: session.activeScene,
       playState: session.playState,

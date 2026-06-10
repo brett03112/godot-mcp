@@ -2,6 +2,9 @@ export type LiveSessionSnapshot = {
   sessionId: string;
   projectPath: string;
   godotVersion: string;
+  protocolVersion: string | null;
+  addonVersion: string | null;
+  compatibility: LiveCompatibilityResult;
   editorPid: number | null;
   activeScene: string;
   playState: string;
@@ -45,6 +48,36 @@ export type LiveSessionUpdateMessage =
 
 export type LiveProtocolMessage = LiveSessionUpdateMessage | Record<string, unknown>;
 
+export const LIVE_PROTOCOL_VERSION = '1.0.0';
+export const SUPPORTED_LIVE_PROTOCOL_VERSIONS = [LIVE_PROTOCOL_VERSION] as const;
+export const LIVE_ADDON_VERSION = '0.1.0';
+export const SUPPORTED_GODOT_VERSION_RANGE = '>=4.6 <5.0';
+
+export type LiveCompatibilityResult = {
+  compatible: boolean;
+  reason: string;
+  remediation: string;
+  protocol: {
+    provided: string | null;
+    required: string;
+    supported: string[];
+    compatible: boolean;
+    reason: string;
+  };
+  godot: {
+    provided: string | null;
+    supported: string;
+    compatible: boolean | null;
+    reason: string;
+  };
+  addon: {
+    provided: string | null;
+    server_version: string;
+    compatible: boolean | null;
+    reason: string;
+  };
+};
+
 export function isLiveHelloMessage(value: unknown): value is LiveHelloMessage {
   return isObject(value) && value.kind === 'hello' && isObject(value.session);
 }
@@ -69,6 +102,9 @@ export function normalizeLiveSessionSnapshot(session: Record<string, unknown>): 
     sessionId,
     projectPath,
     godotVersion: optionalString(session.godot_version) || 'unknown',
+    protocolVersion: optionalString(session.protocol_version) || optionalString(session.protocolVersion),
+    addonVersion: optionalString(session.addon_version) || optionalString(session.addonVersion),
+    compatibility: checkLiveCompatibility(session),
     editorPid: optionalNumber(session.editor_pid),
     activeScene: optionalString(session.active_scene) || '',
     playState: optionalString(session.play_state) || 'unknown',
@@ -95,8 +131,68 @@ export function stringifyLiveProtocolMessage(message: LiveProtocolMessage): stri
   return JSON.stringify(message);
 }
 
+export function checkLiveCompatibility(session: Record<string, unknown>): LiveCompatibilityResult {
+  const protocolVersion = optionalString(session.protocol_version) || optionalString(session.protocolVersion);
+  const addonVersion = optionalString(session.addon_version) || optionalString(session.addonVersion);
+  const godotVersion = optionalString(session.godot_version) || optionalString(session.godotVersion);
+  const protocolCompatible = Boolean(protocolVersion && SUPPORTED_LIVE_PROTOCOL_VERSIONS.includes(protocolVersion as any));
+  const godotCompatible = godotVersion ? isSupportedGodotVersion(godotVersion) : null;
+  const addonCompatible = addonVersion ? true : null;
+
+  const protocolReason = protocolCompatible
+    ? `Live protocol ${protocolVersion} is supported.`
+    : protocolVersion
+      ? `Live protocol ${protocolVersion} is not supported by this MCP server.`
+      : 'Live hello is missing protocol_version.';
+  const godotReason = godotCompatible === true
+    ? `Godot ${godotVersion} is within ${SUPPORTED_GODOT_VERSION_RANGE}.`
+    : godotCompatible === false
+      ? `Godot ${godotVersion} is outside ${SUPPORTED_GODOT_VERSION_RANGE}.`
+      : 'Godot version was not provided; compatibility could not be checked.';
+  const addonReason = addonVersion
+    ? `Addon version ${addonVersion} reported by the live editor.`
+    : 'Addon version was not provided; update the bundled addon if this was unexpected.';
+
+  const compatible = protocolCompatible && godotCompatible !== false;
+  const failures = [protocolReason, godotReason].filter((reason) => /not supported|outside|missing/i.test(reason));
+  const remediation = 'Update the Godot MCP Live addon from the bundled source, reload or re-enable the addon in Godot, then reload the MCP connector if server code changed.';
+
+  return {
+    compatible,
+    reason: compatible ? 'Live bridge compatibility checks passed.' : failures.join(' '),
+    remediation,
+    protocol: {
+      provided: protocolVersion,
+      required: LIVE_PROTOCOL_VERSION,
+      supported: [...SUPPORTED_LIVE_PROTOCOL_VERSIONS],
+      compatible: protocolCompatible,
+      reason: protocolReason,
+    },
+    godot: {
+      provided: godotVersion,
+      supported: SUPPORTED_GODOT_VERSION_RANGE,
+      compatible: godotCompatible,
+      reason: godotReason,
+    },
+    addon: {
+      provided: addonVersion,
+      server_version: LIVE_ADDON_VERSION,
+      compatible: addonCompatible,
+      reason: addonReason,
+    },
+  };
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isSupportedGodotVersion(version: string): boolean {
+  const match = version.match(/^(\d+)\.(\d+)(?:\.|$)/);
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major === 4 && minor >= 6;
 }
 
 function requiredString(value: unknown, fieldName: string): string {

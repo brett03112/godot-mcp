@@ -16,10 +16,28 @@ The live bridge is separate from stdio MCP transport. MCP clients call tools ove
 
 1. The MCP server starts the live transport when live tooling initializes.
 2. The Godot addon connects to `/godot-mcp-live`.
-3. The addon registers a session with project path, Godot/editor details, active scene state, and capability flags.
+3. The addon registers a session with project path, `protocol_version`, `addon_version`, Godot/editor details, active scene state, and capability flags.
 4. MCP tools such as `session_list` and `editor_state` read from the session manager.
 5. Mutating live tools send command envelopes to the session and wait for response envelopes.
 6. Stale sessions are removed after the configured `stale_session_timeout_ms`.
+
+## Version Compatibility
+
+The current live bridge protocol is `protocol_version: "1.0.0"`. The bundled addon reports `addon_version: "0.1.0"` and supports Godot 4.6 through the current Godot 4.x line (`>=4.6 <5.0`).
+
+The MCP server checks every `hello` message before registering a live session. A missing or unsupported `protocol_version`, or a Godot version outside the supported range, returns a structured version mismatch error:
+
+```json
+{
+  "kind": "error",
+  "error": {
+    "code": "live_protocol_incompatible",
+    "message": "Update the Godot MCP Live addon from the bundled source, reload or re-enable the addon in Godot, then reload the MCP connector if server code changed."
+  }
+}
+```
+
+See [live-bridge-release-policy.md](live-bridge-release-policy.md) for migration rules.
 
 ## Command Envelope
 

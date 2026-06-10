@@ -2,9 +2,14 @@
 class_name GodotMCPLiveSessionState
 extends RefCounted
 
+const LIVE_PROTOCOL_VERSION := "1.0.0"
+const LIVE_ADDON_VERSION := "0.1.0"
+
 var session_id: String = ""
 var project_path: String = ""
 var godot_version: String = ""
+var protocol_version: String = LIVE_PROTOCOL_VERSION
+var addon_version: String = LIVE_ADDON_VERSION
 var editor_pid: int = 0
 var connection_state: String = "disconnected"
 var server_url: String = ""
@@ -118,6 +123,8 @@ func to_dictionary() -> Dictionary:
 		"session_id": session_id,
 		"project_path": project_path,
 		"godot_version": godot_version,
+		"protocol_version": protocol_version,
+		"addon_version": addon_version,
 		"editor_pid": editor_pid,
 		"connection_state": connection_state,
 		"server_url": server_url,

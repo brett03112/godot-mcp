@@ -1,7 +1,7 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { IncomingMessage } from 'http';
 import { LiveSessionManager, liveSessionManager, normalizeProjectPath } from './session-manager.js';
-import { isLiveHelloMessage, parseLiveProtocolMessage } from './protocol.js';
+import { checkLiveCompatibility, isLiveHelloMessage, parseLiveProtocolMessage } from './protocol.js';
 import { isProjectAllowed } from './config.js';
 
 export type LiveTransportOptions = {
@@ -134,6 +134,24 @@ export class LiveSessionTransport {
       try {
         const message = parseLiveProtocolMessage(data.toString());
         if (isLiveHelloMessage(message)) {
+          const compatibility = checkLiveCompatibility(message.session);
+          if (!compatibility.compatible) {
+            const reason = `Godot MCP live protocol compatibility failed: ${compatibility.reason} ${compatibility.remediation}`;
+            this.recordError(reason);
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({
+                kind: 'error',
+                error: {
+                  code: 'live_protocol_incompatible',
+                  message: reason,
+                  compatibility,
+                },
+              }), () => socket.close(1008, reason.slice(0, 120)));
+            } else {
+              socket.close(1008, reason.slice(0, 120));
+            }
+            return;
+          }
           const projectPath = normalizeProjectPath(String(message.session.project_path));
           if (!isProjectAllowed(projectPath, this.options.allowedProjectPaths)) {
             socket.close(1008, 'Godot MCP live bridge project path is not allowed by MCP config.');

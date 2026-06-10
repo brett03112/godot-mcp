@@ -920,15 +920,17 @@ Post-reload verification update, 2026-06-10: After Codex reload, the callable MC
 
 ### 5.5 Add Release And Compatibility Policy
 
-- [ ] Define supported Godot versions.
-- [ ] Define live addon protocol versioning.
-- [ ] Add compatibility negotiation between addon and MCP server.
-- [ ] Add migration notes for protocol changes.
-- [ ] Add changelog entries for new tools.
+- [x] Define supported Godot versions.
+- [x] Define live addon protocol versioning.
+- [x] Add compatibility negotiation between addon and MCP server.
+- [x] Add migration notes for protocol changes.
+- [x] Add changelog entries for new tools.
 
 Acceptance:
 
-- [ ] A version mismatch returns a clear message instead of failing mysteriously.
+- [x] A version mismatch returns a clear message instead of failing mysteriously.
+
+Verification note, 2026-06-10: Phase 5.5 added `docs/superpowers/plans/2026-06-10-phase-5-5-release-compatibility-policy.md`, focused RED/GREEN coverage in `tests/phase-5-5-release-compatibility.test.mjs`, live protocol constants and compatibility checks in `src/live/protocol.ts`, handshake rejection in `src/live/transport.ts`, session compatibility serialization in `src/live/session-manager.ts` and `src/tools/live-editor.ts`, addon hello fields in `test_mcp_enhancements/addons/godot_mcp_live/session_state.gd`, release policy docs in `docs/live-bridge-release-policy.md`, protocol/README updates, and `CHANGELOG.md`. RED first failed with missing `LIVE_ADDON_VERSION` export from `build/live/protocol.js`; focused `npm run build && node --test tests/phase-5-5-release-compatibility.test.mjs` passed 4/4, final `npm test` passed 174/174, `npm run smoke:non-live` passed with 350 tools, and `npm run smoke:live` passed with listener PID 22684 and Godot PID 20008. Godot headless editor smoke against `test_mcp_enhancements` exited 0 and `phase55_headless_editor.log` had 0 `SCRIPT ERROR`/`ERROR:` matches; Godot emitted the pre-existing nested-project and ObjectDB shutdown warnings. `git diff --check` exited 0 with Git CRLF warnings only. Direct Codex MCP namespace calls to `session_list`, `editor_state`, and `live_addon_status` returned `Transport closed`, so post-reload Phase 5.5 callable proof requires reloading the Codex MCP connector and reloading or re-enabling the Godot MCP Live addon so the new `protocol_version`/`addon_version` hello fields are active.
 
 ## Cross-Phase Tooling Ideas To Keep In View
 

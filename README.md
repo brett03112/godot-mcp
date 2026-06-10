@@ -57,6 +57,8 @@ The live bridge connects this MCP server to an open Godot editor through the bun
 
 The minimum fresh user path is: install and build this repo, configure an MCP client to run `build/index.js`, install the bundled addon, enable the addon, reload the MCP connector and addon after changes, call `session_list`, then call `editor_state`. The dedicated protocol and security notes live in [docs/live-bridge-protocol.md](docs/live-bridge-protocol.md) and [docs/live-bridge-security.md](docs/live-bridge-security.md).
 
+Compatibility policy: Godot MCP Live supports Godot 4.6 through the current Godot 4.x line (`>=4.6 <5.0`) and live bridge `protocol_version: "1.0.0"`. A version mismatch is rejected with a structured `live_protocol_incompatible` error and remediation. See [docs/live-bridge-release-policy.md](docs/live-bridge-release-policy.md).
+
 ## Tool Reference (350 tools)
 
 ### Project Management (7 tools)

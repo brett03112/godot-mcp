@@ -10,6 +10,10 @@ import { ToolRegistry } from '../build/registry.js';
 import { registerLiveEditorTools } from '../build/tools/live-editor.js';
 import { LiveSessionManager } from '../build/live/session-manager.js';
 import {
+  LIVE_ADDON_VERSION,
+  LIVE_PROTOCOL_VERSION,
+} from '../build/live/protocol.js';
+import {
   ensureLiveSessionTransportStatus,
   getLiveSessionTransportStatus,
   LiveSessionTransport,
@@ -45,6 +49,8 @@ function hello(projectPath, overrides = {}) {
       session_id: overrides.session_id || 'session-1',
       project_path: projectPath,
       godot_version: '4.6.3.stable',
+      protocol_version: LIVE_PROTOCOL_VERSION,
+      addon_version: LIVE_ADDON_VERSION,
       editor_pid: 4242,
       active_scene: 'res://scenes/main.tscn',
       play_state: 'stopped',
