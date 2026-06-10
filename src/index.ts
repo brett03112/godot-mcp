@@ -67,6 +67,7 @@ import { registerDesignToSceneTools } from './tools/design-to-scene.js';
 import { registerGameplaySystemTools } from './tools/gameplay-systems.js';
 import { registerTestToolingTools } from './tools/test-tooling.js';
 import { registerVisualQaTools } from './tools/visual-qa.js';
+import { registerAssetPipelineTools } from './tools/asset-pipeline.js';
 import {
   getLiveResourceDescriptors,
   readLiveResource,
@@ -874,6 +875,7 @@ class GodotServer {
       }),
     });
     registerVisualQaTools(this.toolRegistry, ctx);
+    registerAssetPipelineTools(this.toolRegistry, ctx);
     this.logDebug(`Registered ${this.toolRegistry.size} modular tools`);
   }
 

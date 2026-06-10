@@ -599,22 +599,24 @@ Verification note, 2026-06-09: Phase 4.4 added `docs/superpowers/plans/2026-06-0
 
 ### 4.5 Add Asset Pipeline Control Tools
 
-- [ ] Add `asset_import_profile_create`.
-- [ ] Add `asset_import_profile_apply`.
-- [ ] Add `texture_import_settings_get`.
-- [ ] Add `texture_import_settings_set`.
-- [ ] Add `audio_import_settings_get`.
-- [ ] Add `audio_import_settings_set`.
-- [ ] Add `model_import_settings_get`.
-- [ ] Add `model_import_settings_set`.
-- [ ] Add `asset_batch_reimport`.
-- [ ] Add `asset_usage_report`.
-- [ ] Add `asset_size_budget_report`.
-- [ ] Add `asset_license_manifest`.
+- [x] Add `asset_import_profile_create`.
+- [x] Add `asset_import_profile_apply`.
+- [x] Add `texture_import_settings_get`.
+- [x] Add `texture_import_settings_set`.
+- [x] Add `audio_import_settings_get`.
+- [x] Add `audio_import_settings_set`.
+- [x] Add `model_import_settings_get`.
+- [x] Add `model_import_settings_set`.
+- [x] Add `asset_batch_reimport`.
+- [x] Add `asset_usage_report`.
+- [x] Add `asset_size_budget_report`.
+- [x] Add `asset_license_manifest`.
 
 Acceptance:
 
-- [ ] Codex can import a batch of assets, set import flags, reimport them, and report size/license/usage metadata.
+- [x] Codex can import a batch of assets, set import flags, reimport them, and report size/license/usage metadata.
+
+Verification note, 2026-06-10: Phase 4.5 added `docs/superpowers/plans/2026-06-10-phase-4-5-asset-pipeline.md`, focused RED/GREEN tests in `tests/asset-pipeline.test.mjs`, modular tooling in `src/tools/asset-pipeline.ts`, registration from `src/index.ts`, Godot operation handler `asset_batch_reimport` in `src/scripts/godot_operations.gd`, README tool-count/tool-list updates, and `test_mcp_enhancements/phase45_live_proof.mjs`. Context7 Godot 4.6 docs were used for `EditorFileSystem.reimport_files()` and `ConfigFile` import metadata handling. RED first failed with missing `build/tools/asset-pipeline.js`; focused `npm run build; node --test tests/asset-pipeline.test.mjs` passed 6/6, final `npm test` passed 120/120, and Godot 4.6.3 headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches. The Phase 4.5 proof script listed 292 tools, found all 12 new tools, created and applied a project-local import profile across temporary texture/audio/model assets, proved import setting get/set and dry-run behavior, generated usage, size-budget, and license reports, ran selected `asset_batch_reimport` in headless checked mode, and removed temporary `mcp_phase45_*` and `.godot-mcp/phase45_*` proof artifacts. The open GUI live connector still needs reload before direct Codex MCP namespace callability can be tested.
 
 ### 4.6 Add Addon And External Tool Managers
 

@@ -41,7 +41,7 @@
                          |__/     |__/ \______/ |__/
 ```
 
-A Model Context Protocol (MCP) server for interacting with the Godot game engine. **280 tools** across 31 categories plus **118 read-only MCP resources** for complete AI-driven game development.
+A Model Context Protocol (MCP) server for interacting with the Godot game engine. **292 tools** across 31 categories plus **118 read-only MCP resources** for complete AI-driven game development.
 
 ## Introduction
 
@@ -49,7 +49,7 @@ Godot MCP enables AI assistants to launch the Godot editor, run projects, captur
 
 This direct feedback loop helps AI assistants like Claude understand what works and what doesn't in real Godot projects, leading to better code generation and debugging assistance.
 
-## Tool Reference (280 tools)
+## Tool Reference (292 tools)
 
 ### Project Management (7 tools)
 
@@ -275,7 +275,7 @@ create_material_from_texture(
 | `sprite_bounds_check` | Inspect Sprite2D bounds for missing textures and off-viewport sprites |
 | `camera_framing_check` | Check Camera2D framing for target Node2D positions |
 
-### Asset Import & Configuration (4 tools)
+### Asset Import & Configuration (16 tools)
 
 | Tool | Description |
 | ------ | ------------- |
@@ -283,6 +283,18 @@ create_material_from_texture(
 | `import_audio` | Configure loop settings, BPM sync, loop offset for WAV/OGG/MP3 |
 | `import_3d_model` | Configure collision generation, materials, animations, scale for GLTF/GLB/FBX/OBJ |
 | `create_resource` | Create any Resource .tres file with templates (themes, environments, materials) |
+| `asset_import_profile_create` | Create project-local import profiles for texture, audio, and model settings |
+| `asset_import_profile_apply` | Apply an import profile to selected assets with optional reimport |
+| `texture_import_settings_get` | Read texture `.import` `[params]` settings and remap metadata |
+| `texture_import_settings_set` | Update texture `.import` `[params]` settings with dry-run support |
+| `audio_import_settings_get` | Read audio `.import` `[params]` settings and remap metadata |
+| `audio_import_settings_set` | Update audio `.import` `[params]` settings with dry-run support |
+| `model_import_settings_get` | Read model/scene `.import` `[params]` settings and remap metadata |
+| `model_import_settings_set` | Update model/scene `.import` `[params]` settings with dry-run support |
+| `asset_batch_reimport` | Ask Godot to reimport selected assets after import setting changes |
+| `asset_usage_report` | Report references to selected assets across scenes, scripts, and resources |
+| `asset_size_budget_report` | Check selected asset sizes against total and per-asset budgets |
+| `asset_license_manifest` | Build a project-local license manifest from selected assets and sidecar files |
 
 ### Project Settings & Configuration (4 tools)
 
@@ -758,6 +770,18 @@ Each per-tool resource returns the tool description, input schema, `callMethod: 
 - `godot-mcp://tools/import_audio` - Configure audio import settings such as looping, BPM, and compression.
 - `godot-mcp://tools/import_3d_model` - Configure 3D model import settings for collision, materials, animation, and scale.
 - `godot-mcp://tools/create_resource` - Create custom Godot `.tres` resources such as Theme, Environment, Material, or AudioBusLayout.
+- `godot-mcp://tools/asset_import_profile_create` - Create project-local import profiles for texture, audio, and model settings.
+- `godot-mcp://tools/asset_import_profile_apply` - Apply an import profile to selected assets with optional reimport.
+- `godot-mcp://tools/texture_import_settings_get` - Read texture `.import` `[params]` settings and remap metadata.
+- `godot-mcp://tools/texture_import_settings_set` - Update texture `.import` `[params]` settings with dry-run support.
+- `godot-mcp://tools/audio_import_settings_get` - Read audio `.import` `[params]` settings and remap metadata.
+- `godot-mcp://tools/audio_import_settings_set` - Update audio `.import` `[params]` settings with dry-run support.
+- `godot-mcp://tools/model_import_settings_get` - Read model/scene `.import` `[params]` settings and remap metadata.
+- `godot-mcp://tools/model_import_settings_set` - Update model/scene `.import` `[params]` settings with dry-run support.
+- `godot-mcp://tools/asset_batch_reimport` - Ask Godot to reimport selected assets after import setting changes.
+- `godot-mcp://tools/asset_usage_report` - Report references to selected assets across scenes, scripts, and resources.
+- `godot-mcp://tools/asset_size_budget_report` - Check selected asset sizes against total and per-asset budgets.
+- `godot-mcp://tools/asset_license_manifest` - Build a project-local license manifest from selected assets and sidecar files.
 - `godot-mcp://tools/modify_project_setting` - Modify `project.godot` settings.
 - `godot-mcp://tools/configure_input_action` - Create or modify input action maps with keyboard, mouse, and gamepad bindings.
 - `godot-mcp://tools/setup_render_layers` - Configure physics and render layer names.
