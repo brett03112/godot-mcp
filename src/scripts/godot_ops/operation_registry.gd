@@ -9,6 +9,7 @@ const UiThemeOps = preload("ui_theme_ops.gd")
 const NodeRefactorOps = preload("node_refactor_ops.gd")
 const ResourceWorkflowOps = preload("resource_workflow_ops.gd")
 const PhysicsOps = preload("physics_ops.gd")
+const NavigationOps = preload("navigation_ops.gd")
 
 var _context
 var _handlers := {}
@@ -28,6 +29,7 @@ func _init(context) -> void:
     _register_node_refactor()
     _register_resource_workflow()
     _register_physics()
+    _register_navigation()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -164,3 +166,17 @@ func _register_physics() -> void:
         "setup_joint",
     ]:
         _handlers[operation] = Callable(physics_ops, operation)
+
+func _register_navigation() -> void:
+    var navigation_ops = NavigationOps.new()
+    navigation_ops.setup(_context, _legacy)
+    _modules.append(navigation_ops)
+    for operation in [
+        "generate_navmesh",
+        "add_navigation_agent",
+        "add_navigation_link",
+        "configure_navigation_obstacle",
+        "create_astar_grid",
+        "setup_navigation_server",
+    ]:
+        _handlers[operation] = Callable(navigation_ops, operation)

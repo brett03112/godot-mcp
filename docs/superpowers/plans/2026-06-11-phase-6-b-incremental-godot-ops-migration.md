@@ -253,3 +253,57 @@ Phase 6.B pass 6 post-reload Codex proof is PASSED.
 - Direct Codex MCP calls passed for moved physics tools `configure_physics_material`, `create_physics_body`, `set_collision_config`, `manage_collision_shape`, and `setup_joint`.
 - `validate_scene` passed on the temporary proof scene with 0 errors and 2 pre-existing sprite-without-texture warnings from the copied fixture.
 - Temporary `mcp_phase6b_pass6_codex` scene/resource proof files were removed afterward.
+
+## Pass 7 Plan, 2026-06-11
+
+Scope:
+
+- Move the next preferred family, navigation operations, into `src/scripts/godot_ops/navigation_ops.gd`.
+- Register `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, and `setup_navigation_server` from `operation_registry.gd` before the legacy fallback.
+- Keep navigation-specific AStar and navigation metadata helpers with the navigation module.
+- Preserve existing MCP tool names and operation names from `src/tools/navigation.ts`.
+- Avoid new navigation behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for a moved navigation operation.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved navigation tools if the Codex namespace requires reload.
+9. Post-reload MCP namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 7 Status, 2026-06-11
+
+Phase 6.B pass 7 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the navigation operation family; the remaining families listed in `Enhancements_TODO.md` still need their own migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing navigation module, missing registry preload, legacy dispatch cases, and missing build output.
+- `src/scripts/godot_ops/navigation_ops.gd` now owns `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, and `setup_navigation_server`.
+- Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 30/30, and `node --test tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 34/34.
+- Final `npm test` passed 208/208.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd create_astar_grid` returned success JSON for `res://resources/mcp_phase6b_pass7_astar.tres`.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches.
+- `npm run smoke:live` passed with listener PID 25112 and open Godot editor PID 21400 connected.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, `setup_navigation_server`, `validate_scene`, and `toolset_status`.
+- Temporary pass 7 scene/resource proof files were removed afterward.
+- `git diff --check` exited 0 with CRLF warnings only.
+- Direct Codex MCP namespace calls returned `Transport closed`, so post-reload proof still requires reloading Codex, then calling `session_list` plus moved navigation tools from the Codex namespace.
+
+## Pass 7 Post-Reload Proof, 2026-06-11
+
+Phase 6.B pass 7 post-reload Codex proof is PASSED.
+
+- Startup recovery stopped old listener PID 25112 so reloaded Codex MCP process PID 21384 could bind `127.0.0.1:6010`.
+- The open Godot editor PID 21400 reconnected from local port 52256.
+- `session_list` reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state.
+- Direct Codex MCP calls passed for `editor_state`, `toolset_status`, and `live_addon_status`.
+- Direct Codex MCP calls passed for moved navigation tools `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, and `setup_navigation_server`.
+- `validate_scene` passed on the temporary proof scene with 0 errors and 0 warnings.
+- Temporary `mcp_phase6b_pass7_codex` scene/resource proof files were removed afterward.

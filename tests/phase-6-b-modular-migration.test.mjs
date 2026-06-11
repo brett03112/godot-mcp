@@ -78,6 +78,15 @@ const PHYSICS_OPERATIONS = [
   'setup_joint',
 ];
 
+const NAVIGATION_OPERATIONS = [
+  'generate_navmesh',
+  'add_navigation_agent',
+  'add_navigation_link',
+  'configure_navigation_obstacle',
+  'create_astar_grid',
+  'setup_navigation_server',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -342,6 +351,54 @@ test('Phase 6.B pass 6 removes physics dispatch cases from legacy fallback', asy
 
 test('build output copies the Phase 6.B physics module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/physics_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 7 has a dedicated navigation operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/navigation_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.match(source, /func _load_scene_for_edit\(scene_path: String\) -> Dictionary:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  assert.match(source, /func _parse_vector2i\(value, fallback := Vector2i\.ZERO\) -> Vector2i:/);
+  assert.match(source, /func _nav_path_postprocessing_mode\(mode: String\) -> int:/);
+  assert.match(source, /func _nav_metadata_flags\(flags: Array\) -> int:/);
+  assert.match(source, /func _astar_heuristic\(value: String\) -> int:/);
+  assert.match(source, /func _astar_diagonal_mode\(cell_connect_mode: String, diagonal_mode: String\) -> int:/);
+  for (const operation of NAVIGATION_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved navigation operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const NavigationOps = preload\("navigation_ops\.gd"\)/);
+  assert.match(registry, /func _register_navigation\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_navigation()') < registry.indexOf('func dispatch'), 'navigation registration should happen during initialization');
+  for (const operation of NAVIGATION_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 7 removes navigation dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of NAVIGATION_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+  assert.doesNotMatch(legacy, /# --- Tier 16: Navigation ---/);
+  assert.doesNotMatch(legacy, /func _nav_path_postprocessing_mode\(mode: String\) -> int:/);
+  assert.doesNotMatch(legacy, /func _astar_diagonal_mode\(cell_connect_mode: String, diagonal_mode: String\) -> int:/);
+});
+
+test('build output copies the Phase 6.B navigation module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/navigation_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });
