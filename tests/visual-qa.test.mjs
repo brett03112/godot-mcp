@@ -290,8 +290,10 @@ test('capture wrappers delegate to existing editor and runtime capture tools', a
   });
 });
 
-test('visual QA GDScript dispatcher targets Phase 4.4 handlers', async () => {
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+test('visual QA GDScript legacy module targets Phase 4.4 handlers', async () => {
+  const runner = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+  assert.match(runner, /OperationRegistry/);
   for (const operation of [
     'visual_sprite_bounds_check',
     'visual_camera_framing_check',

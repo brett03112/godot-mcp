@@ -932,6 +932,83 @@ Acceptance:
 
 Verification note, 2026-06-10: Phase 5.5 added `docs/superpowers/plans/2026-06-10-phase-5-5-release-compatibility-policy.md`, focused RED/GREEN coverage in `tests/phase-5-5-release-compatibility.test.mjs`, live protocol constants and compatibility checks in `src/live/protocol.ts`, handshake rejection in `src/live/transport.ts`, session compatibility serialization in `src/live/session-manager.ts` and `src/tools/live-editor.ts`, addon hello fields in `test_mcp_enhancements/addons/godot_mcp_live/session_state.gd`, release policy docs in `docs/live-bridge-release-policy.md`, protocol/README updates, and `CHANGELOG.md`. RED first failed with missing `LIVE_ADDON_VERSION` export from `build/live/protocol.js`; focused `npm run build && node --test tests/phase-5-5-release-compatibility.test.mjs` passed 4/4, final `npm test` passed 174/174, `npm run smoke:non-live` passed with 350 tools, and `npm run smoke:live` passed with listener PID 22684 and Godot PID 20008. Godot headless editor smoke against `test_mcp_enhancements` exited 0 and `phase55_headless_editor.log` had 0 `SCRIPT ERROR`/`ERROR:` matches; Godot emitted the pre-existing nested-project and ObjectDB shutdown warnings. `git diff --check` exited 0 with Git CRLF warnings only. Direct Codex MCP namespace calls to `session_list`, `editor_state`, and `live_addon_status` returned `Transport closed`, so post-reload Phase 5.5 callable proof requires reloading the Codex MCP connector and reloading or re-enabling the Godot MCP Live addon so the new `protocol_version`/`addon_version` hello fields are active.
 
+## Phase 6 - Split The Non-Live Godot Operations Runner
+
+Goal: Reduce the editor, review, and LLM context cost of the 12k-line `src/scripts/godot_operations.gd` file without changing the public MCP tool surface, operation names, parameter shapes, or JSON result contracts.
+
+### 6.A Add A Modular Runner And Move Low-Risk Operation Families
+
+- [x] Keep `src/scripts/godot_operations.gd` as the stable CLI entrypoint for `godot --headless --script`.
+- [x] Move argument parsing, JSON decoding, error reporting, and final `quit()` behavior into a small runner flow.
+- [x] Add a `src/scripts/godot_ops/` module folder.
+- [x] Add shared operation infrastructure:
+  - `operation_context.gd` for logging, JSON output, path conversion, scene load/save helpers, resource save helpers, and common value parsers.
+  - `operation_registry.gd` for mapping operation names to module handlers.
+- [x] Update `scripts/build.js` to copy the whole `src/scripts` tree, not only `godot_operations.gd`, so module paths work from `build/scripts`.
+- [x] Move the smallest recent family first:
+  - `asset_batch_reimport`
+  - `_asset_pipeline_to_res_path`
+- [x] Move one medium cohesive family next, preferably camera or audio player workflow.
+- [x] Replace source-grep tests that assume handlers live in `godot_operations.gd` with tests that prove operation names are registered and callable through the runner.
+- [x] Preserve backwards compatibility for `src/index.ts` execution:
+  - Same `operationsScriptPath`.
+  - Same operation name strings.
+  - Same stdout JSON payload shape.
+  - Same stderr sanitization assumptions.
+- [x] Add focused tests for:
+  - runner rejects unknown operations with the existing failure shape
+  - registry exposes moved operation names
+  - build output contains `build/scripts/godot_operations.gd` and `build/scripts/godot_ops/**`
+  - moved asset pipeline operation still runs through `ctx.executeOperation`
+
+Acceptance:
+
+- [x] `godot_operations.gd` becomes a small runner/dispatcher instead of an implementation monolith.
+- [x] At least two operation families are loaded from `src/scripts/godot_ops/`.
+- [x] Existing TypeScript tools call the same operation names without code changes outside build/test plumbing.
+- [x] `npm run build` copies all required GDScript modules.
+- [x] `npm test` passes.
+- [x] `npm run smoke:non-live` passes against `test_mcp_enhancements`.
+- [x] A direct Godot headless operation smoke proves a moved operation works from `build/scripts`.
+- [x] `git diff --check` exits 0.
+
+Verification note, 2026-06-10: Phase 6.A added `docs/superpowers/plans/2026-06-10-phase-6-a-modular-godot-ops-runner.md`, split `src/scripts/godot_operations.gd` into a 43-line stable runner, added `src/scripts/godot_ops/operation_context.gd`, `operation_registry.gd`, `asset_pipeline_ops.gd`, `camera_ops.gd`, and `legacy_operations.gd`, and updated `scripts/build.js` to copy the full `src/scripts` tree into `build/scripts`. Focused RED first failed because the runner was still 12,348 lines and `godot_ops` modules were missing; after implementation, focused `npm run build && node --test tests/asset-pipeline.test.mjs tests/camera-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs` passed 14/14. Final `npm test` passed 178/178, and `npm run smoke:non-live` passed with 350 tools. Direct Godot headless smokes against `test_mcp_enhancements` through `build/scripts/godot_operations.gd` proved moved `asset_batch_reimport` returned success JSON for `res://icon.svg` and moved camera routing returned success JSON for `camera_list` on `res://tier1_test_scene.tscn`. The unknown-operation path still logs `[ERROR] Unknown operation: ...`; Godot 4.6.3 reports process exit `0` for that headless `--script` failure path, so compatibility is asserted on the existing log/error shape. Startup/live facts before implementation were one listener on `127.0.0.1:6010` owned by PID 5144 and one established Godot editor socket from PID 16400; direct Codex `session_list` returned `Transport closed`, so post-reload live namespace callability still requires Codex MCP connector reload plus Godot MCP Live addon/editor reload.
+
+### 6.B Migrate The Remaining Operation Families Incrementally
+
+- [ ] Move one cohesive operation family per pass, with focused tests and a smoke proof after each pass.
+- [ ] Prefer this migration order:
+  - design-to-scene operations
+  - gameplay system operations
+  - UI/theme workflow operations
+  - node refactor workflow operations
+  - resource workflow operations
+  - physics operations
+  - navigation operations
+  - visual QA operations
+  - signal operations
+  - script intelligence and script mutation operations
+  - animation, shader, TileMap, mesh, and older scene operations
+- [ ] Keep shared helpers in `operation_context.gd` only when multiple modules truly use them.
+- [ ] Keep family-specific helpers next to their family module.
+- [ ] Avoid adding new tool behavior during the migration unless a moved operation exposes an existing bug.
+- [ ] Add a lightweight operation registry audit test that compares expected non-live operation names against registered handlers.
+- [ ] Update safer-planning risk detection so changes under `src/scripts/godot_ops/**` trigger the same Godot operation verification guidance as changes to `src/scripts/godot_operations.gd`.
+- [ ] Update docs and verification templates to mention the modular script tree.
+- [ ] Consider deleting or shrinking any tests that only assert implementation placement once registry/callability tests cover the behavior.
+
+Acceptance:
+
+- [ ] No operation implementation families remain in the runner file.
+- [ ] `godot_operations.gd` is small enough to inspect comfortably in Godot and LLM contexts.
+- [ ] Each module has a clear operation family boundary and can be reviewed independently.
+- [ ] All non-live operations remain compatible with existing MCP clients.
+- [ ] `npm test` passes.
+- [ ] `npm run smoke:non-live` passes.
+- [ ] A headless Godot smoke against `test_mcp_enhancements` exits 0 with no `SCRIPT ERROR`/`ERROR:` matches except documented pre-existing Godot shutdown warnings.
+- [ ] Live bridge smoke still passes, proving the cleanup did not disturb the live addon/tooling path.
+- [ ] `git diff --check` exits 0.
+
 ## Cross-Phase Tooling Ideas To Keep In View
 
 These are not all first-pass requirements, but they are strong candidates for making Codex more autonomous in Godot:

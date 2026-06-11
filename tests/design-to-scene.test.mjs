@@ -139,8 +139,10 @@ test('design-to-scene workflow tools register with the tool registry', () => {
   }
 });
 
-test('design-to-scene GDScript dispatcher targets implemented Phase 4.1 handlers', async () => {
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+test('design-to-scene GDScript legacy module targets implemented Phase 4.1 handlers', async () => {
+  const runner = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+  assert.match(runner, /OperationRegistry/);
   for (const operation of [
     'design_generate_scene_from_brief',
     'design_generate_level_blockout',

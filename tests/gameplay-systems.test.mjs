@@ -126,8 +126,10 @@ test('gameplay system tools register with the tool registry', () => {
   }
 });
 
-test('gameplay system dispatcher targets implemented Phase 4.2 handlers', async () => {
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+test('gameplay system legacy module targets implemented Phase 4.2 handlers', async () => {
+  const runner = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+  assert.match(runner, /OperationRegistry/);
   for (const operation of [
     'gameplay_create_state_machine',
     'gameplay_add_state',
@@ -145,7 +147,7 @@ test('gameplay system dispatcher targets implemented Phase 4.2 handlers', async 
 });
 
 test('add_state keeps the scene root name before freeing the edited scene', async () => {
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
   assert.match(source, /var root_name := root\.name/);
   assert.doesNotMatch(
     source,

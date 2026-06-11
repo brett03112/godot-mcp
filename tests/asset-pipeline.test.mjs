@@ -310,8 +310,11 @@ test('usage, size budget, and license tools report project asset metadata', asyn
   });
 });
 
-test('asset pipeline GDScript dispatcher targets Phase 4.5 reimport handler', async () => {
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
-  assert.match(source, /"asset_batch_reimport":\r?\n\s+asset_batch_reimport\(params\)/);
-  assert.match(source, /func asset_batch_reimport\(params: Dictionary\) -> void:/);
+test('asset pipeline GDScript registry targets Phase 4.5 reimport handler', async () => {
+  const runner = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+  const assetOps = await readFile(join(process.cwd(), 'src/scripts/godot_ops/asset_pipeline_ops.gd'), 'utf8');
+  assert.match(runner, /OperationRegistry/);
+  assert.match(registry, /"asset_batch_reimport"/);
+  assert.match(assetOps, /func asset_batch_reimport\(params: Dictionary\) -> void:/);
 });
