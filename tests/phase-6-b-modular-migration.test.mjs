@@ -58,6 +58,18 @@ const NODE_REFACTOR_OPERATIONS = [
   'scene_dependency_report',
 ];
 
+const RESOURCE_WORKFLOW_OPERATIONS = [
+  'resource_create_gradient_texture',
+  'resource_create_noise_texture',
+  'resource_create_curve',
+  'resource_set_curve_points',
+  'resource_create_environment',
+  'resource_create_physics_material',
+  'resource_assign',
+  'resource_autofit_physics_shape',
+  'resource_convert_format',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -230,6 +242,52 @@ test('Phase 6.B pass 4 removes node refactor dispatch cases from legacy fallback
 
 test('build output copies the Phase 6.B node refactor module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/node_refactor_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 5 has a dedicated resource workflow operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/resource_workflow_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.match(source, /func _load_scene_for_edit\(scene_path: String\) -> Dictionary:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  assert.match(source, /func _curve_apply_points\(curve: Curve, points: Array\) -> void:/);
+  assert.match(source, /func _gradient_from_points\(points: Array\) -> Gradient:/);
+  assert.match(source, /func _resource_apply_shape_size\(shape_node: Node, params: Dictionary, is_3d: bool, shape_size\) -> bool:/);
+  for (const operation of RESOURCE_WORKFLOW_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved resource workflow operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const ResourceWorkflowOps = preload\("resource_workflow_ops\.gd"\)/);
+  assert.match(registry, /func _register_resource_workflow\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_resource_workflow()') < registry.indexOf('func dispatch'), 'resource workflow registration should happen during initialization');
+  for (const operation of RESOURCE_WORKFLOW_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 5 removes resource workflow dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of RESOURCE_WORKFLOW_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+  assert.doesNotMatch(legacy, /# --- Phase 1\.4: Resource workflow/);
+  assert.doesNotMatch(legacy, /func _curve_apply_points\(curve: Curve, points: Array\) -> void:/);
+  assert.doesNotMatch(legacy, /func _gradient_from_points\(points: Array\) -> Gradient:/);
+});
+
+test('build output copies the Phase 6.B resource workflow module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/resource_workflow_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });

@@ -7,6 +7,7 @@ const DesignToSceneOps = preload("design_to_scene_ops.gd")
 const GameplayOps = preload("gameplay_ops.gd")
 const UiThemeOps = preload("ui_theme_ops.gd")
 const NodeRefactorOps = preload("node_refactor_ops.gd")
+const ResourceWorkflowOps = preload("resource_workflow_ops.gd")
 
 var _context
 var _handlers := {}
@@ -24,6 +25,7 @@ func _init(context) -> void:
     _register_gameplay()
     _register_ui_theme()
     _register_node_refactor()
+    _register_resource_workflow()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -130,3 +132,20 @@ func _register_node_refactor() -> void:
         "scene_dependency_report",
     ]:
         _handlers[operation] = Callable(node_ops, operation)
+
+func _register_resource_workflow() -> void:
+    var resource_ops = ResourceWorkflowOps.new()
+    resource_ops.setup(_context, _legacy)
+    _modules.append(resource_ops)
+    for operation in [
+        "resource_create_gradient_texture",
+        "resource_create_noise_texture",
+        "resource_create_curve",
+        "resource_set_curve_points",
+        "resource_create_environment",
+        "resource_create_physics_material",
+        "resource_assign",
+        "resource_autofit_physics_shape",
+        "resource_convert_format",
+    ]:
+        _handlers[operation] = Callable(resource_ops, operation)

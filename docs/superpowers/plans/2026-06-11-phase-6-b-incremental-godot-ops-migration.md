@@ -159,3 +159,45 @@ Overall Phase 6.B remains IN PROGRESS. This pass moved only the node refactor wo
 - `git diff --check` exited 0 with CRLF warnings only.
 - Initial direct Codex MCP namespace calls returned `Transport closed`; after Codex reload, startup recovery stopped old listener PID 16936 and confirmed reloaded Codex MCP PID 10860 owned `127.0.0.1:6010`.
 - Post-reload Codex namespace proof passed for `session_list`, `editor_state`, `toolset_status`, `live_addon_status`, and moved node refactor tools `node_find` and `scene_find_references`.
+
+## Pass 5 Plan, 2026-06-11
+
+Scope:
+
+- Move the next preferred family, resource workflow operations, into `src/scripts/godot_ops/resource_workflow_ops.gd`.
+- Register the moved `resource_*` operation names in `operation_registry.gd` before the legacy fallback.
+- Keep resource-specific Curve, Gradient, conversion, assignment, and autofit helpers with the resource workflow module.
+- Preserve the existing MCP tool names and operation names from `src/tools/resource-workflow.ts`.
+- Avoid new resource workflow behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/resource-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for a moved resource operation.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved resource tools while the Codex namespace requires reload.
+9. Post-reload MCP namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 5 Status, 2026-06-11
+
+Phase 6.B pass 5 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the resource workflow operation family; the remaining families listed in `Enhancements_TODO.md` still need their own migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing resource workflow module, missing registry preload, legacy dispatch cases, and missing build output.
+- Focused `npm run build; node --test tests/resource-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 30/30.
+- Final `npm test` passed 200/200.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd resource_create_curve` returned success JSON for `res://resources/mcp_phase6b_pass5_curve.tres` with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 10860 and open Godot editor PID 20720 connected.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `create_curve_resource`, `set_curve_points`, `resource_convert_format`, and `toolset_status`.
+- `git diff --check` exited 0 with CRLF warnings only.
+- Direct Codex MCP namespace calls returned `Transport closed` before implementation, so post-reload proof still requires reloading Codex, then calling `session_list` plus moved resource workflow tools from the Codex namespace.
+- After Codex reload, `session_list` reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state.
+- Post-reload Codex namespace proof passed for `session_list`, `editor_state`, `toolset_status`, `live_addon_status`, and moved resource workflow tools `create_curve_resource`, `set_curve_points`, and `resource_convert_format`; temporary proof resources were removed afterward.
