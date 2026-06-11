@@ -976,7 +976,7 @@ Verification note, 2026-06-10: Phase 6.A added `docs/superpowers/plans/2026-06-1
 
 ### 6.B Migrate The Remaining Operation Families Incrementally
 
-Status, 2026-06-11: Phase 6.B pass 7 is code-complete and locally verified. Overall Phase 6.B remains IN PROGRESS until the remaining operation families below are migrated out of `legacy_operations.gd`.
+Status, 2026-06-11: Phase 6.B pass 8 is code-complete and locally verified. Overall Phase 6.B remains IN PROGRESS until the remaining operation families below are migrated out of `legacy_operations.gd`.
 
 - [x] Move one cohesive operation family per pass, with focused tests and a smoke proof after each pass.
 - [ ] Prefer this migration order:
@@ -987,7 +987,7 @@ Status, 2026-06-11: Phase 6.B pass 7 is code-complete and locally verified. Over
   - [x] resource workflow operations
   - [x] physics operations
   - [x] navigation operations
-  - [ ] visual QA operations
+  - [x] visual QA operations
   - [ ] signal operations
   - [ ] script intelligence and script mutation operations
   - [ ] animation, shader, TileMap, mesh, and older scene operations
@@ -1092,6 +1092,20 @@ Pass 7 acceptance, navigation family:
 - [x] Post-reload Codex MCP callable proof passed for the moved Phase 6.B pass 7 tools and representative live/non-live services.
 - [x] `git diff --check` exits 0.
 
+Pass 8 acceptance, visual QA family:
+
+- [x] `sprite_bounds_check` and related visual QA operations are registered from `src/scripts/godot_ops/visual_qa_ops.gd`.
+- [x] Visual QA dispatch cases and implementation helpers are removed from `src/scripts/godot_ops/legacy_operations.gd`.
+- [x] Focused Phase 6.B visual QA migration tests pass.
+- [x] `npm test` passed for this pass.
+- [x] `npm run smoke:non-live` passed for this pass.
+- [x] Direct Godot headless smokes proved moved visual QA operations work from `build/scripts`.
+- [x] A headless Godot editor smoke against `test_mcp_enhancements` exited 0 with no `SCRIPT ERROR`/`ERROR:` matches.
+- [x] Live socket smoke passed for the open editor connection.
+- [x] Fresh local stdio MCP callable proof passed for the moved Phase 6.B pass 8 tools.
+- [x] Post-reload Codex MCP callable proof passed for the moved Phase 6.B pass 8 tools and representative live/non-live services.
+- [x] `git diff --check` exits 0.
+
 Overall Phase 6.B acceptance, all remaining operation families:
 
 - [ ] No operation implementation families remain in the runner file.
@@ -1130,6 +1144,10 @@ Post-reload note, 2026-06-11: After Codex reload, startup recovery found old lis
 Verification note, 2026-06-11: Phase 6.B pass 7 moved the navigation operation family from the legacy fallback into `src/scripts/godot_ops/navigation_ops.gd`, registered `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, and `setup_navigation_server` from `src/scripts/godot_ops/operation_registry.gd`, and kept navigation-specific AStar and metadata helpers with the new module. The old navigation dispatch cases and implementation helpers were removed from `legacy_operations.gd`. RED first failed with the missing navigation module, missing registry preload, legacy dispatch cases, and missing build output. Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 30/30, and `node --test tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 34/34. Final `npm test` passed 208/208, `npm run smoke:non-live` passed with 350 tools, direct Godot headless smoke through `build/scripts/godot_operations.gd create_astar_grid` returned success JSON for `res://resources/mcp_phase6b_pass7_astar.tres`, headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `npm run smoke:live` passed with listener PID 25112 and connected Godot editor PID 21400. A fresh local stdio MCP proof listed 350 tools and successfully called `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, `setup_navigation_server`, `validate_scene`, and `toolset_status` against temporary pass 7 files that were removed afterward. `git diff --check` exited 0 with CRLF warnings only. Direct Codex MCP namespace proof returned `Transport closed`, so post-reload proof requires reloading Codex, then calling `session_list` plus moved navigation tools from the Codex namespace.
 
 Post-reload note, 2026-06-11: After Codex reload, startup recovery found old listener PID 25112 still owning `127.0.0.1:6010` while the reloaded Codex MCP process PID 21384 was not listening. PID 25112 was stopped, PID 21384 bound `127.0.0.1:6010`, and the open Godot editor PID 21400 reconnected from local port 52256. `session_list` then reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state. Callable proof passed for `session_list`, `editor_state`, `toolset_status`, `live_addon_status`, moved Phase 6.B pass 7 navigation tools `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, and `setup_navigation_server`, plus `validate_scene`; temporary `mcp_phase6b_pass7_codex` scene/resource files were removed afterward.
+
+Verification note, 2026-06-11: Phase 6.B pass 8 moved the visual QA operation family from the legacy fallback into `src/scripts/godot_ops/visual_qa_ops.gd`, registered `visual_sprite_bounds_check` and `visual_camera_framing_check` from `src/scripts/godot_ops/operation_registry.gd`, and kept sprite bounds, camera framing, rectangle, and Camera2D bounds helpers with the new module. The old visual QA dispatch cases and implementation helpers were removed from `legacy_operations.gd`. RED first failed with the missing visual QA module, missing registry preload, legacy dispatch cases, missing build output, and the old visual QA test still expecting legacy handlers. Focused `npm run build; node --test tests/visual-qa.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 45/45. Final `npm test` passed 212/212, `npm run smoke:non-live` passed with 350 tools, direct Godot headless smokes through `build/scripts/godot_operations.gd` proved `visual_sprite_bounds_check` on `res://tier1_test_scene.tscn` and `visual_camera_framing_check` on `res://test/tier2_projects/game2d_test/scenes/main.tscn`, headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `npm run smoke:live` passed with listener PID 21384 and connected Godot editor PID 21400. A fresh local stdio MCP proof listed 350 tools and successfully called `sprite_bounds_check`, `camera_framing_check`, `validate_scene`, and `toolset_status`. Final startup checks showed exactly one `127.0.0.1:6010` listener owned by PID 21384 and one established Godot editor socket from PID 21400 local port 52256. Direct Codex MCP namespace proof returned `Transport closed`, so post-reload proof requires reloading Codex, then calling `session_list` plus moved visual QA tools from the Codex namespace.
+
+Post-reload note, 2026-06-11: After Codex reload, startup recovery found old listener PID 21384 still owning `127.0.0.1:6010` while the reloaded Codex MCP process PID 9520 was not listening. PID 21384 was stopped, PID 9520 bound `127.0.0.1:6010`, and the open Godot editor PID 21400 reconnected from local port 51673. `session_list` then reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state. Callable proof passed for `editor_state`, `toolset_status`, `live_addon_status`, moved Phase 6.B pass 8 visual QA tools `sprite_bounds_check` and `camera_framing_check`, plus `validate_scene`; the visual fixture reported its expected two sprite-without-texture warnings.
 
 ## Cross-Phase Tooling Ideas To Keep In View
 

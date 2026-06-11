@@ -10,6 +10,7 @@ const NodeRefactorOps = preload("node_refactor_ops.gd")
 const ResourceWorkflowOps = preload("resource_workflow_ops.gd")
 const PhysicsOps = preload("physics_ops.gd")
 const NavigationOps = preload("navigation_ops.gd")
+const VisualQaOps = preload("visual_qa_ops.gd")
 
 var _context
 var _handlers := {}
@@ -30,6 +31,7 @@ func _init(context) -> void:
     _register_resource_workflow()
     _register_physics()
     _register_navigation()
+    _register_visual_qa()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -180,3 +182,13 @@ func _register_navigation() -> void:
         "setup_navigation_server",
     ]:
         _handlers[operation] = Callable(navigation_ops, operation)
+
+func _register_visual_qa() -> void:
+    var visual_ops = VisualQaOps.new()
+    visual_ops.setup(_context, _legacy)
+    _modules.append(visual_ops)
+    for operation in [
+        "visual_sprite_bounds_check",
+        "visual_camera_framing_check",
+    ]:
+        _handlers[operation] = Callable(visual_ops, operation)

@@ -87,6 +87,11 @@ const NAVIGATION_OPERATIONS = [
   'setup_navigation_server',
 ];
 
+const VISUAL_QA_OPERATIONS = [
+  'visual_sprite_bounds_check',
+  'visual_camera_framing_check',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -399,6 +404,54 @@ test('Phase 6.B pass 7 removes navigation dispatch cases from legacy fallback', 
 
 test('build output copies the Phase 6.B navigation module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/navigation_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 8 has a dedicated visual QA operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/visual_qa_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.match(source, /func _load_scene_for_edit\(scene_path: String\) -> Dictionary:/);
+  assert.match(source, /func _camera_load_scene_with_camera\(params: Dictionary\) -> Dictionary:/);
+  assert.match(source, /func _camera_2d_bounds_dict\(camera: Camera2D, viewport_size: Vector2\) -> Dictionary:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  assert.match(source, /func _visual_collect_sprite_bounds\(scene_root: Node, node: Node, viewport_rect: Rect2, include_hidden: bool, sprites: Array, issues: Array\) -> void:/);
+  assert.match(source, /func _visual_sprite_global_rect\(sprite: Sprite2D\) -> Rect2:/);
+  assert.match(source, /func _visual_rect_dict\(rect: Rect2\) -> Dictionary:/);
+  for (const operation of VISUAL_QA_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved visual QA operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const VisualQaOps = preload\("visual_qa_ops\.gd"\)/);
+  assert.match(registry, /func _register_visual_qa\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_visual_qa()') < registry.indexOf('func dispatch'), 'visual QA registration should happen during initialization');
+  for (const operation of VISUAL_QA_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 8 removes visual QA dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of VISUAL_QA_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+  assert.doesNotMatch(legacy, /# Phase 4\.4: Visual QA helpers/);
+  assert.doesNotMatch(legacy, /func _visual_collect_sprite_bounds\(scene_root: Node, node: Node, viewport_rect: Rect2, include_hidden: bool, sprites: Array, issues: Array\) -> void:/);
+  assert.doesNotMatch(legacy, /func _visual_rect_dict\(rect: Rect2\) -> Dictionary:/);
+});
+
+test('build output copies the Phase 6.B visual QA module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/visual_qa_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });

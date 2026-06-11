@@ -307,3 +307,55 @@ Phase 6.B pass 7 post-reload Codex proof is PASSED.
 - Direct Codex MCP calls passed for moved navigation tools `generate_navmesh`, `add_navigation_agent`, `add_navigation_link`, `configure_navigation_obstacle`, `create_astar_grid`, and `setup_navigation_server`.
 - `validate_scene` passed on the temporary proof scene with 0 errors and 0 warnings.
 - Temporary `mcp_phase6b_pass7_codex` scene/resource proof files were removed afterward.
+
+## Pass 8 Plan, 2026-06-11
+
+Scope:
+
+- Move the next preferred family, visual QA operations, into `src/scripts/godot_ops/visual_qa_ops.gd`.
+- Register `visual_sprite_bounds_check` and `visual_camera_framing_check` from `operation_registry.gd` before the legacy fallback.
+- Keep visual-specific sprite bounds, camera framing, rectangle, and target summary helpers with the visual QA module.
+- Preserve existing MCP tool names and operation names from `src/tools/visual-qa.ts`.
+- Avoid new visual QA behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs tests/visual-qa.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/visual-qa.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for a moved visual QA operation.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved visual QA tools if the Codex namespace requires reload.
+9. Post-reload MCP namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 8 Status, 2026-06-11
+
+Phase 6.B pass 8 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the visual QA operation family; the remaining families listed in `Enhancements_TODO.md` still need their own migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing visual QA module, missing registry preload, legacy dispatch cases, missing build output, and the old visual QA test still expecting legacy handlers.
+- `src/scripts/godot_ops/visual_qa_ops.gd` now owns `visual_sprite_bounds_check` and `visual_camera_framing_check`.
+- Focused `npm run build; node --test tests/visual-qa.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 45/45.
+- Final `npm test` passed 212/212.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smokes through `build/scripts/godot_operations.gd` proved `visual_sprite_bounds_check` and `visual_camera_framing_check`.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 21384 and open Godot editor PID 21400 connected.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `sprite_bounds_check`, `camera_framing_check`, `validate_scene`, and `toolset_status`.
+- Final startup checks found one MCP listener on `127.0.0.1:6010`, owned by PID 21384, and one established Godot socket from PID 21400 local port 52256.
+- Direct Codex MCP namespace calls returned `Transport closed`, so post-reload proof still requires reloading Codex, then calling `session_list` plus moved visual QA tools from the Codex namespace.
+
+## Pass 8 Post-Reload Proof, 2026-06-11
+
+Phase 6.B pass 8 post-reload Codex proof is PASSED.
+
+- Startup recovery stopped old listener PID 21384 so reloaded Codex MCP process PID 9520 could bind `127.0.0.1:6010`.
+- The open Godot editor PID 21400 reconnected from local port 51673.
+- `session_list` reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state.
+- Direct Codex MCP calls passed for `editor_state`, `toolset_status`, and `live_addon_status`.
+- Direct Codex MCP calls passed for moved visual QA tools `sprite_bounds_check` and `camera_framing_check`.
+- `validate_scene` passed on `tier1_test_scene.tscn` with 0 errors and 2 expected sprite-without-texture warnings from the fixture.

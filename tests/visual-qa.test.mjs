@@ -290,15 +290,16 @@ test('capture wrappers delegate to existing editor and runtime capture tools', a
   });
 });
 
-test('visual QA GDScript legacy module targets Phase 4.4 handlers', async () => {
+test('visual QA GDScript module owns Phase 4.4 handlers', async () => {
   const runner = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/visual_qa_ops.gd'), 'utf8');
   assert.match(runner, /OperationRegistry/);
+  assert.match(registry, /VisualQaOps/);
   for (const operation of [
     'visual_sprite_bounds_check',
     'visual_camera_framing_check',
   ]) {
-    assert.match(source, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`));
     assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`));
   }
 });
