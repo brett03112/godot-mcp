@@ -78,3 +78,44 @@ Overall Phase 6.B remains IN PROGRESS. This pass moved only the gameplay system 
 - The Codex-provided `mcp__godot_mcp` namespace still returned `Transport closed`, so the post-reload proof used a fresh local stdio MCP client against `build/index.js` and closed it afterward.
 - After Codex reload, the Codex MCP namespace became callable. Live proof passed for `session_list`, `editor_state`, `live_config_status`, `create_state_machine`, `generate_inventory_system`, and `add_state`.
 - Reload proof found and fixed one real root-path bug where generated gameplay helper script paths could become `res:///...`; root paths now stay `res://...`.
+
+## Pass 3 Plan, 2026-06-11
+
+Scope:
+
+- Move the next preferred family, UI/theme workflow operations, into `src/scripts/godot_ops/ui_theme_ops.gd`.
+- Register the moved `ui_*` operation names in `operation_registry.gd` before the legacy fallback.
+- Keep UI-specific layout, theme, stylebox, safe-area, and inspection helpers with the UI/theme module.
+- Preserve the existing MCP tool names and operation names from `src/tools/ui-theme-workflow.ts`.
+- Avoid new UI/theme behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/ui-theme-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for a moved UI/theme operation.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Post-reload MCP namespace proof after Codex is reloaded.
+9. `git diff --check`
+
+## Pass 3 Status, 2026-06-11
+
+Phase 6.B pass 3 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the UI/theme workflow operation family; the remaining families listed in `Enhancements_TODO.md` still need their own migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing UI/theme module, missing registry preload, legacy dispatch cases, and missing build output.
+- Direct Godot smoke caught missing compatibility wrappers for `_ensure_resource_dir()` and `_make_unique_child_name()` after the move; focused regression coverage now checks for those wrappers.
+- Focused `npm run build; node --test tests/ui-theme-workflow.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 19/19.
+- Final `npm test` passed 192/192.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd ui_create_layout` returned success JSON with 0 `SCRIPT ERROR`/`ERROR:` log matches.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches.
+- `npm run smoke:live` passed with listener PID 7380 and open Godot editor PID 20720 connected.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `create_ui_layout`, `inspect_ui_layout`, and `toolset_status`.
+- `git diff --check` exited 0 with CRLF warnings only.
+- After Codex reload, direct Codex MCP calls were callable. Startup recovery stopped stale listener PID 7380, confirmed new listener PID 16936 with an established Godot editor socket from PID 20720, and `session_list` reported one compatible connected `test_mcp_enhancements` session.
+- Post-reload Codex namespace proof passed for `session_list`, `editor_state`, `toolset_status`, `live_addon_status`, and moved UI/theme tools `create_ui_layout`, `inspect_ui_layout`, and `validate_ui_safe_area`; the temporary Codex smoke scene was removed afterward.

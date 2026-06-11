@@ -29,6 +29,23 @@ const GAMEPLAY_OPERATIONS = [
   'gameplay_generate_settings_persistence',
 ];
 
+const UI_THEME_OPERATIONS = [
+  'ui_create_layout',
+  'ui_draw_recipe',
+  'ui_set_control_anchor_preset',
+  'ui_set_control_offsets',
+  'ui_set_control_text',
+  'ui_set_control_theme_override',
+  'ui_create_theme',
+  'ui_theme_set_color',
+  'ui_theme_set_constant',
+  'ui_theme_set_font_size',
+  'ui_theme_set_stylebox_flat',
+  'ui_apply_theme',
+  'ui_inspect_layout',
+  'ui_validate_safe_area',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -113,6 +130,50 @@ test('Phase 6.B pass 2 removes gameplay dispatch cases from legacy fallback', as
 
 test('build output copies the Phase 6.B gameplay module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/gameplay_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 3 has a dedicated UI/theme operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/ui_theme_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.match(source, /func _load_scene_for_edit\(scene_path: String\) -> Dictionary:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  assert.match(source, /func _ensure_resource_dir\(resource_path: String\) -> bool:/);
+  assert.match(source, /func _make_unique_child_name\(parent: Node, base_name: String\) -> String:/);
+  assert.match(source, /func _ui_make_stylebox_flat\(params: Dictionary\) -> StyleBoxFlat:/);
+  assert.match(source, /func _ui_collect_controls\(scene_root: Node, node: Node, parent_rect: Rect2, controls: Array\) -> void:/);
+  for (const operation of UI_THEME_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved UI/theme operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const UiThemeOps = preload\("ui_theme_ops\.gd"\)/);
+  assert.match(registry, /func _register_ui_theme\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_ui_theme()') < registry.indexOf('func dispatch'), 'UI/theme registration should happen during initialization');
+  for (const operation of UI_THEME_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 3 removes UI/theme dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of UI_THEME_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+  }
+  assert.doesNotMatch(legacy, /# --- Phase 1\.5: UI and theme workflow ---/);
+});
+
+test('build output copies the Phase 6.B UI/theme module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/ui_theme_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });

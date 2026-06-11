@@ -5,6 +5,7 @@ const AssetPipelineOps = preload("asset_pipeline_ops.gd")
 const CameraOps = preload("camera_ops.gd")
 const DesignToSceneOps = preload("design_to_scene_ops.gd")
 const GameplayOps = preload("gameplay_ops.gd")
+const UiThemeOps = preload("ui_theme_ops.gd")
 
 var _context
 var _handlers := {}
@@ -20,6 +21,7 @@ func _init(context) -> void:
     _register_camera()
     _register_design_to_scene()
     _register_gameplay()
+    _register_ui_theme()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -87,3 +89,25 @@ func _register_gameplay() -> void:
         "gameplay_generate_settings_persistence",
     ]:
         _handlers[operation] = Callable(gameplay_ops, "_" + operation)
+
+func _register_ui_theme() -> void:
+    var ui_ops = UiThemeOps.new()
+    ui_ops.setup(_context, _legacy)
+    _modules.append(ui_ops)
+    for operation in [
+        "ui_create_layout",
+        "ui_draw_recipe",
+        "ui_set_control_anchor_preset",
+        "ui_set_control_offsets",
+        "ui_set_control_text",
+        "ui_set_control_theme_override",
+        "ui_create_theme",
+        "ui_theme_set_color",
+        "ui_theme_set_constant",
+        "ui_theme_set_font_size",
+        "ui_theme_set_stylebox_flat",
+        "ui_apply_theme",
+        "ui_inspect_layout",
+        "ui_validate_safe_area",
+    ]:
+        _handlers[operation] = Callable(ui_ops, operation)
