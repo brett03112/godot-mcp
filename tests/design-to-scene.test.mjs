@@ -139,10 +139,13 @@ test('design-to-scene workflow tools register with the tool registry', () => {
   }
 });
 
-test('design-to-scene GDScript legacy module targets implemented Phase 4.1 handlers', async () => {
+test('design-to-scene GDScript module targets implemented Phase 4.1 handlers', async () => {
   const runner = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd'), 'utf8');
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
   assert.match(runner, /OperationRegistry/);
+  assert.match(registry, /DesignToSceneOps/);
   for (const operation of [
     'design_generate_scene_from_brief',
     'design_generate_level_blockout',
@@ -155,8 +158,9 @@ test('design-to-scene GDScript legacy module targets implemented Phase 4.1 handl
     'design_generate_enemy_archetype',
     'design_generate_pickup_archetype',
   ]) {
-    assert.match(source, new RegExp(`"${operation}":\\r?\\n\\s+_${operation}\\(params\\)`));
+    assert.match(registry, new RegExp(`"${operation}"`));
     assert.match(source, new RegExp(`func _${operation}\\(params: Dictionary\\) -> void:`));
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+_${operation}\\(params\\)`));
   }
   assert.doesNotMatch(source, /func _design_persist_script\(path: String, class_name:/);
   assert.doesNotMatch(source, /var class_name :=/);

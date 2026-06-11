@@ -754,8 +754,9 @@ function detectRisks(goal: string, changedFiles: string[], plannedActions: strin
   if (changedFiles.some((file) => file === 'src/index.ts' || file.startsWith('src/tools/'))) {
     risks.push(risk('mcp_catalog_reload', 'medium', 'MCP tool registration changes need build, tools/list, and connector reload proof.', changedFiles.filter((file) => file === 'src/index.ts' || file.startsWith('src/tools/'))));
   }
-  if (changedFiles.some((file) => file === 'src/scripts/godot_operations.gd')) {
-    risks.push(risk('godot_operation_handler', 'high', 'Godot operation handler changes need headless Godot proof, not only Node tests.', ['src/scripts/godot_operations.gd']));
+  const godotOperationFiles = changedFiles.filter(isGodotOperationScriptFile);
+  if (godotOperationFiles.length > 0) {
+    risks.push(risk('godot_operation_handler', 'high', 'Godot operation handler changes need headless Godot proof, not only Node tests.', godotOperationFiles));
   }
   if (combined.includes('delete') || combined.includes('remove')) {
     risks.push(risk('destructive_change', 'high', 'Remove/delete actions need explicit path containment and restoration proof.', changedFiles));
@@ -970,12 +971,12 @@ function reloadGuidance(changedFiles: string[], includeReloadGuidance: boolean):
   if (!includeReloadGuidance) return { required: false, reason: 'Reload guidance disabled by caller.', steps: [] };
   const touchesToolCatalog = changedFiles.some((file) => file === 'src/index.ts' || file.startsWith('src/tools/'));
   const touchesAddon = changedFiles.some((file) => file.includes('addons/godot_mcp_live'));
-  const touchesOperations = changedFiles.some((file) => file === 'src/scripts/godot_operations.gd');
+  const touchesOperations = changedFiles.some(isGodotOperationScriptFile);
   const required = touchesToolCatalog || touchesAddon || touchesOperations;
   const reasons: string[] = [];
   if (touchesToolCatalog) reasons.push('MCP connector catalog changed');
   if (touchesAddon) reasons.push('Godot live addon/editor code changed');
-  if (touchesOperations) reasons.push('Godot operation script changed');
+  if (touchesOperations) reasons.push('Godot operation script changed under src/scripts/godot_operations.gd or src/scripts/godot_ops/**');
   const steps = required
     ? [
       'Rebuild the MCP server.',
@@ -990,6 +991,10 @@ function reloadGuidance(changedFiles: string[], includeReloadGuidance: boolean):
     reason: reasons.join('; ') || 'No reload-sensitive files detected.',
     steps,
   };
+}
+
+function isGodotOperationScriptFile(file: string): boolean {
+  return file === 'src/scripts/godot_operations.gd' || file.startsWith('src/scripts/godot_ops/');
 }
 
 function commandPurpose(command: string): string {

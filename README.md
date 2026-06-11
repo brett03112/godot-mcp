@@ -1263,7 +1263,8 @@ src/
 │   ├── physics.ts                  # Physics materials, bodies, shapes, and joints (5 tools)
 │   └── navigation.ts               # Navigation agents, links, obstacles, navmesh, and AStar grid (6 tools)
 └── scripts/
-    └── godot_operations.gd         # GDScript operation handlers for Godot-backed tools
+    ├── godot_operations.gd         # Stable GDScript runner for Godot-backed tools
+    └── godot_ops/                  # Modular operation families plus legacy fallback
 ```
 
 The server uses a **hybrid dispatch** pattern:
@@ -1280,7 +1281,7 @@ The server uses a **hybrid dispatch** pattern:
 - **Operation Logger** (`logger.ts`) automatically logs all registry-dispatched tool calls with timestamps, duration, and sanitized parameters
 - **Per-tool Timeout** - optional `timeout` field on ToolDefinition, enforced via Promise.race in registry dispatch
 - **MCP Resources** expose server info, the active-profile tool catalog, runtime debug output, live resources when loaded, and one read-only resource for every loaded tool
-- **GDScript operations** (`godot_operations.gd`) handle operations requiring Godot's runtime: scene manipulation, particle creation, animation tree setup, networking helpers, physics, navigation, and more. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
+- **GDScript operations** (`godot_operations.gd` plus modules under `godot_ops/`) handle operations requiring Godot's runtime: scene manipulation, particle creation, animation tree setup, networking helpers, physics, navigation, and more. Read-only operations use the TypeScript TSCN parser for speed (no Godot process needed)
 
 ## Common Workflows
 

@@ -28,6 +28,7 @@ Verifier:
 - Command:
 - Result:
 - Tools called:
+- Modular script files touched (`src/scripts/godot_operations.gd` or `src/scripts/godot_ops/**`):
 - Notes:
 
 ## Live smoke

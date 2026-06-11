@@ -3,6 +3,7 @@ extends RefCounted
 const LegacyOperations = preload("legacy_operations.gd")
 const AssetPipelineOps = preload("asset_pipeline_ops.gd")
 const CameraOps = preload("camera_ops.gd")
+const DesignToSceneOps = preload("design_to_scene_ops.gd")
 
 var _context
 var _handlers := {}
@@ -16,6 +17,7 @@ func _init(context) -> void:
     _modules.append(_legacy)
     _register_asset_pipeline()
     _register_camera()
+    _register_design_to_scene()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -48,3 +50,21 @@ func _register_camera() -> void:
         "camera_preview_bounds",
     ]:
         _handlers[operation] = Callable(camera_ops, operation)
+
+func _register_design_to_scene() -> void:
+    var design_ops = DesignToSceneOps.new()
+    design_ops.setup(_context, _legacy)
+    _modules.append(design_ops)
+    for operation in [
+        "design_generate_scene_from_brief",
+        "design_generate_level_blockout",
+        "design_generate_menu_flow",
+        "design_generate_hud",
+        "design_generate_dialogue_scene",
+        "design_generate_settings_screen",
+        "design_generate_mobile_controls",
+        "design_generate_gameplay_prefab",
+        "design_generate_enemy_archetype",
+        "design_generate_pickup_archetype",
+    ]:
+        _handlers[operation] = Callable(design_ops, "_" + operation)
