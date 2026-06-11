@@ -6,6 +6,7 @@ const CameraOps = preload("camera_ops.gd")
 const DesignToSceneOps = preload("design_to_scene_ops.gd")
 const GameplayOps = preload("gameplay_ops.gd")
 const UiThemeOps = preload("ui_theme_ops.gd")
+const NodeRefactorOps = preload("node_refactor_ops.gd")
 
 var _context
 var _handlers := {}
@@ -22,6 +23,7 @@ func _init(context) -> void:
     _register_design_to_scene()
     _register_gameplay()
     _register_ui_theme()
+    _register_node_refactor()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -111,3 +113,20 @@ func _register_ui_theme() -> void:
         "ui_validate_safe_area",
     ]:
         _handlers[operation] = Callable(ui_ops, operation)
+
+func _register_node_refactor() -> void:
+    var node_ops = NodeRefactorOps.new()
+    node_ops.setup(_context, _legacy)
+    _modules.append(node_ops)
+    for operation in [
+        "node_find",
+        "node_rename",
+        "node_move",
+        "node_add_to_group",
+        "node_remove_from_group",
+        "node_replace_type",
+        "node_bulk_property_set",
+        "scene_find_references",
+        "scene_dependency_report",
+    ]:
+        _handlers[operation] = Callable(node_ops, operation)

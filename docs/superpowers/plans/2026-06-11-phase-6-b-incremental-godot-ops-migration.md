@@ -119,3 +119,43 @@ Overall Phase 6.B remains IN PROGRESS. This pass moved only the UI/theme workflo
 - `git diff --check` exited 0 with CRLF warnings only.
 - After Codex reload, direct Codex MCP calls were callable. Startup recovery stopped stale listener PID 7380, confirmed new listener PID 16936 with an established Godot editor socket from PID 20720, and `session_list` reported one compatible connected `test_mcp_enhancements` session.
 - Post-reload Codex namespace proof passed for `session_list`, `editor_state`, `toolset_status`, `live_addon_status`, and moved UI/theme tools `create_ui_layout`, `inspect_ui_layout`, and `validate_ui_safe_area`; the temporary Codex smoke scene was removed afterward.
+
+## Pass 4 Plan, 2026-06-11
+
+Scope:
+
+- Move the next preferred family, node refactor workflow operations, into `src/scripts/godot_ops/node_refactor_ops.gd`.
+- Register the moved node refactor operation names in `operation_registry.gd` before the legacy fallback.
+- Keep node refactor search, mutation, reference, dependency, and summary helpers with the node refactor module.
+- Preserve the existing MCP tool names and operation names from `src/tools/node-refactor-workflow.ts`.
+- Avoid new node refactor behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/node-refactor-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for a moved node refactor operation.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Post-reload MCP namespace proof after Codex is reloaded.
+9. `git diff --check`
+
+## Pass 4 Status, 2026-06-11
+
+Phase 6.B pass 4 is PASSED.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the node refactor workflow operation family; the remaining families listed in `Enhancements_TODO.md` still need their own migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing node refactor module, missing registry preload, legacy dispatch cases, and missing build output.
+- Focused `npm run build; node --test tests/node-refactor-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 26/26.
+- Final `npm test` passed 196/196.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd node_find` returned success JSON with one `TestSprite` match.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` log matches.
+- `npm run smoke:live` passed with listener PID 16936 and open Godot editor PID 20720 connected.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `node_find`, `scene_find_references`, and `toolset_status`.
+- `git diff --check` exited 0 with CRLF warnings only.
+- Initial direct Codex MCP namespace calls returned `Transport closed`; after Codex reload, startup recovery stopped old listener PID 16936 and confirmed reloaded Codex MCP PID 10860 owned `127.0.0.1:6010`.
+- Post-reload Codex namespace proof passed for `session_list`, `editor_state`, `toolset_status`, `live_addon_status`, and moved node refactor tools `node_find` and `scene_find_references`.

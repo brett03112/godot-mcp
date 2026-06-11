@@ -46,6 +46,18 @@ const UI_THEME_OPERATIONS = [
   'ui_validate_safe_area',
 ];
 
+const NODE_REFACTOR_OPERATIONS = [
+  'node_find',
+  'node_rename',
+  'node_move',
+  'node_add_to_group',
+  'node_remove_from_group',
+  'node_replace_type',
+  'node_bulk_property_set',
+  'scene_find_references',
+  'scene_dependency_report',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -174,6 +186,50 @@ test('Phase 6.B pass 3 removes UI/theme dispatch cases from legacy fallback', as
 
 test('build output copies the Phase 6.B UI/theme module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/ui_theme_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 4 has a dedicated node refactor operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/node_refactor_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.match(source, /func _load_scene_for_edit\(scene_path: String\) -> Dictionary:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  assert.match(source, /func _node_refactor_load_scene_with_node\(params: Dictionary\) -> Dictionary:/);
+  assert.match(source, /func _node_refactor_collect_find_matches\(scene_root: Node, node: Node, scene_path: String, params: Dictionary, include_properties: bool, include_connections: bool, max_results: int, matches: Array\) -> void:/);
+  assert.match(source, /func _node_refactor_update_nodepath_references\(scene_root: Node, old_path: String, new_path: String\) -> Array:/);
+  assert.match(source, /func _node_refactor_collect_dependencies\(scene_root: Node, node: Node, scene_path: String, include_scripts: bool, include_dependencies: bool, dependencies: Array, seen: Dictionary\) -> void:/);
+  for (const operation of NODE_REFACTOR_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved node refactor operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const NodeRefactorOps = preload\("node_refactor_ops\.gd"\)/);
+  assert.match(registry, /func _register_node_refactor\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_node_refactor()') < registry.indexOf('func dispatch'), 'node refactor registration should happen during initialization');
+  for (const operation of NODE_REFACTOR_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 4 removes node refactor dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of NODE_REFACTOR_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+  }
+  assert.doesNotMatch(legacy, /# --- Phase 1\.8: Scene search and node refactor workflow ---/);
+});
+
+test('build output copies the Phase 6.B node refactor module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/node_refactor_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });
