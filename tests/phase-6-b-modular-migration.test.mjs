@@ -70,6 +70,14 @@ const RESOURCE_WORKFLOW_OPERATIONS = [
   'resource_convert_format',
 ];
 
+const PHYSICS_OPERATIONS = [
+  'configure_physics_material',
+  'set_collision_config',
+  'create_physics_body',
+  'manage_collision_shape',
+  'setup_joint',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -288,6 +296,52 @@ test('Phase 6.B pass 5 removes resource workflow dispatch cases from legacy fall
 
 test('build output copies the Phase 6.B resource workflow module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/resource_workflow_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 6 has a dedicated physics operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/physics_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.match(source, /func _load_scene_for_edit\(scene_path: String\) -> Dictionary:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  assert.match(source, /func _create_collision_shape_resource\(shape_type: String, is_3d: bool, shape_size, shape_radius: float, shape_height: float\)/);
+  assert.match(source, /func _collect_physics_body_paths\(root: Node, node: Node, paths: Array\) -> void:/);
+  assert.match(source, /func _relative_joint_path\(body_path: String\) -> NodePath:/);
+  for (const operation of PHYSICS_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved physics operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const PhysicsOps = preload\("physics_ops\.gd"\)/);
+  assert.match(registry, /func _register_physics\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_physics()') < registry.indexOf('func dispatch'), 'physics registration should happen during initialization');
+  for (const operation of PHYSICS_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 6 removes physics dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of PHYSICS_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+  assert.doesNotMatch(legacy, /# --- Tier 14: Physics ---/);
+  assert.doesNotMatch(legacy, /func _create_collision_shape_resource\(shape_type: String, is_3d: bool, shape_size, shape_radius: float, shape_height: float\)/);
+  assert.doesNotMatch(legacy, /func _relative_joint_path\(body_path: String\) -> NodePath:/);
+});
+
+test('build output copies the Phase 6.B physics module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/physics_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });

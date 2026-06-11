@@ -976,7 +976,7 @@ Verification note, 2026-06-10: Phase 6.A added `docs/superpowers/plans/2026-06-1
 
 ### 6.B Migrate The Remaining Operation Families Incrementally
 
-Status, 2026-06-11: Phase 6.B pass 5 is code-complete and locally verified. Overall Phase 6.B remains IN PROGRESS until the remaining operation families below are migrated out of `legacy_operations.gd`.
+Status, 2026-06-11: Phase 6.B pass 6 is code-complete and locally verified. Overall Phase 6.B remains IN PROGRESS until the remaining operation families below are migrated out of `legacy_operations.gd`.
 
 - [x] Move one cohesive operation family per pass, with focused tests and a smoke proof after each pass.
 - [ ] Prefer this migration order:
@@ -985,7 +985,7 @@ Status, 2026-06-11: Phase 6.B pass 5 is code-complete and locally verified. Over
   - [x] UI/theme workflow operations
   - [x] node refactor workflow operations
   - [x] resource workflow operations
-  - [ ] physics operations
+  - [x] physics operations
   - [ ] navigation operations
   - [ ] visual QA operations
   - [ ] signal operations
@@ -1064,6 +1064,20 @@ Pass 5 acceptance, resource workflow family:
 - [x] Post-reload Codex MCP callable proof passed for the moved Phase 6.B pass 5 tools and representative live/non-live services.
 - [x] `git diff --check` exits 0.
 
+Pass 6 acceptance, physics family:
+
+- [x] `configure_physics_material` and related physics operations are registered from `src/scripts/godot_ops/physics_ops.gd`.
+- [x] Physics dispatch cases and implementation helpers are removed from `src/scripts/godot_ops/legacy_operations.gd`.
+- [x] Focused Phase 6.B physics migration tests pass.
+- [x] `npm test` passed for this pass.
+- [x] `npm run smoke:non-live` passed for this pass.
+- [x] A direct Godot headless smoke proved a moved physics operation works from `build/scripts`.
+- [x] A headless Godot editor smoke against `test_mcp_enhancements` exited 0 with no `SCRIPT ERROR`/`ERROR:` matches.
+- [x] Live socket smoke passed for the open editor connection.
+- [x] Fresh local stdio MCP callable proof passed for the moved Phase 6.B pass 6 tools.
+- [x] Post-reload Codex MCP callable proof passed for the moved Phase 6.B pass 6 tools and representative live/non-live services.
+- [x] `git diff --check` exits 0.
+
 Overall Phase 6.B acceptance, all remaining operation families:
 
 - [ ] No operation implementation families remain in the runner file.
@@ -1094,6 +1108,10 @@ Post-reload note, 2026-06-11: After Codex reload, startup recovery found the old
 Verification note, 2026-06-11: Phase 6.B pass 5 moved the resource workflow operation family from the legacy fallback into `src/scripts/godot_ops/resource_workflow_ops.gd`, registered the nine `resource_*` operation names from `src/scripts/godot_ops/operation_registry.gd`, and kept resource-specific Curve, Gradient, assignment, conversion, and autofit helpers with the new module. The old resource workflow dispatch cases and implementation functions were removed from `legacy_operations.gd`. RED first failed with the missing resource workflow module, missing registry preload, legacy dispatch cases, and missing build output. Focused `npm run build; node --test tests/resource-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 30/30. Final `npm test` passed 200/200, `npm run smoke:non-live` passed with 350 tools, direct Godot headless smoke through `build/scripts/godot_operations.gd resource_create_curve` returned success JSON for `res://resources/mcp_phase6b_pass5_curve.tres` with 0 `SCRIPT ERROR`/`ERROR:` matches, headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `npm run smoke:live` passed with listener PID 10860 and connected Godot editor PID 20720. A fresh local stdio MCP proof listed 350 tools and successfully called `create_curve_resource`, `set_curve_points`, `resource_convert_format`, and `toolset_status`. `git diff --check` exited 0 with CRLF warnings only. Direct Codex MCP namespace calls returned `Transport closed` before implementation, so post-reload proof still requires reloading Codex, then calling `session_list` plus moved resource workflow tools from the Codex namespace.
 
 Post-reload note, 2026-06-11: After Codex reload, startup recovery found one non-listening stale `godot-mcp` node process and stopped it. The first `session_list` call started the live transport, a retry reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, writable editor state, and editor PID 14904. Callable proof passed for `session_list`, `editor_state`, `toolset_status`, `live_addon_status`, and moved Phase 6.B pass 5 resource workflow tools `create_curve_resource`, `set_curve_points`, and `resource_convert_format`; temporary `mcp_phase6b_pass5_codex_curve` resources were removed afterward.
+
+Verification note, 2026-06-11: Phase 6.B pass 6 moved the physics operation family from the legacy fallback into `src/scripts/godot_ops/physics_ops.gd`, registered `configure_physics_material`, `set_collision_config`, `create_physics_body`, `manage_collision_shape`, and `setup_joint` from `src/scripts/godot_ops/operation_registry.gd`, and kept physics-specific collision shape/body/joint helpers with the new module. The old physics dispatch cases and implementation helpers were removed from `legacy_operations.gd`. RED first failed with the missing physics module, missing registry preload, legacy dispatch cases, and missing build output. Focused `npm run build; node --test tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 30/30. Final `npm test` passed 204/204, `npm run smoke:non-live` passed with 350 tools, direct Godot headless smoke through `build/scripts/godot_operations.gd create_physics_body` returned success JSON for `McpPhase6BPhysics` with a `CollisionShape`, headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `npm run smoke:live` passed with listener PID 14244 and connected Godot editor PID 14904. A fresh local stdio MCP proof listed 350 tools and successfully called `configure_physics_material`, `create_physics_body`, `set_collision_config`, `manage_collision_shape`, `setup_joint`, `validate_scene`, and `toolset_status` against temporary pass 6 files that were removed afterward. `git diff --check` exited 0 with CRLF warnings only. Direct Codex MCP namespace proof returned `Transport closed`, so post-reload proof requires reloading Codex, then calling `session_list` plus moved physics tools from the Codex namespace.
+
+Post-reload note, 2026-06-11: After Codex reload, startup recovery found old listener PID 14244 still owning `127.0.0.1:6010` and the reloaded Codex MCP process PID 25112 not listening. PID 14244 was stopped, PID 25112 bound `127.0.0.1:6010`, and the open Godot editor PID 14904 reconnected from local port 56593. `session_list` then reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state. Callable proof passed for `session_list`, `editor_state`, `live_config_status`, `toolset_status`, `live_addon_status`, moved Phase 6.B pass 6 physics tools `configure_physics_material`, `create_physics_body`, `set_collision_config`, `manage_collision_shape`, and `setup_joint`, plus `validate_scene`; temporary `mcp_phase6b_pass6_codex` scene/resource files were removed afterward.
 
 ## Cross-Phase Tooling Ideas To Keep In View
 

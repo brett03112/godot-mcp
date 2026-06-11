@@ -8,6 +8,7 @@ const GameplayOps = preload("gameplay_ops.gd")
 const UiThemeOps = preload("ui_theme_ops.gd")
 const NodeRefactorOps = preload("node_refactor_ops.gd")
 const ResourceWorkflowOps = preload("resource_workflow_ops.gd")
+const PhysicsOps = preload("physics_ops.gd")
 
 var _context
 var _handlers := {}
@@ -26,6 +27,7 @@ func _init(context) -> void:
     _register_ui_theme()
     _register_node_refactor()
     _register_resource_workflow()
+    _register_physics()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -149,3 +151,16 @@ func _register_resource_workflow() -> void:
         "resource_convert_format",
     ]:
         _handlers[operation] = Callable(resource_ops, operation)
+
+func _register_physics() -> void:
+    var physics_ops = PhysicsOps.new()
+    physics_ops.setup(_context, _legacy)
+    _modules.append(physics_ops)
+    for operation in [
+        "configure_physics_material",
+        "set_collision_config",
+        "create_physics_body",
+        "manage_collision_shape",
+        "setup_joint",
+    ]:
+        _handlers[operation] = Callable(physics_ops, operation)
