@@ -4,6 +4,7 @@ const LegacyOperations = preload("legacy_operations.gd")
 const AssetPipelineOps = preload("asset_pipeline_ops.gd")
 const CameraOps = preload("camera_ops.gd")
 const DesignToSceneOps = preload("design_to_scene_ops.gd")
+const GameplayOps = preload("gameplay_ops.gd")
 
 var _context
 var _handlers := {}
@@ -18,6 +19,7 @@ func _init(context) -> void:
     _register_asset_pipeline()
     _register_camera()
     _register_design_to_scene()
+    _register_gameplay()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -68,3 +70,20 @@ func _register_design_to_scene() -> void:
         "design_generate_pickup_archetype",
     ]:
         _handlers[operation] = Callable(design_ops, "_" + operation)
+
+func _register_gameplay() -> void:
+    var gameplay_ops = GameplayOps.new()
+    gameplay_ops.setup(_context, _legacy)
+    _modules.append(gameplay_ops)
+    for operation in [
+        "gameplay_create_state_machine",
+        "gameplay_add_state",
+        "gameplay_connect_state_transition",
+        "gameplay_generate_character_controller",
+        "gameplay_generate_interaction_system",
+        "gameplay_generate_inventory_system",
+        "gameplay_generate_dialogue_controller",
+        "gameplay_generate_save_load_system",
+        "gameplay_generate_settings_persistence",
+    ]:
+        _handlers[operation] = Callable(gameplay_ops, "_" + operation)

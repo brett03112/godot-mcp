@@ -6,6 +6,13 @@ Use this file at the start of every `C:\Users\brett\Desktop\godot-mcp` session.
 
 - Report only hard facts, failures, and questions.
 - Keep updates short.
+- Use simple language.
+- Say the needed action directly.
+- Do not explain transport, connector, namespace, or process details unless the user asks for them.
+- If Codex cannot call `mcp__godot_mcp.*` because it returns `Transport closed`, say: `Reload Codex now.`
+- Do not replace clear instructions with caveats.
+- Do not give long failure explanations. State what failed and what to do next.
+- Focus on fixing the problem, not describing every reason it failed.
 - Do not make the user manage connector/process diagnosis.
 - Do not ask the user to inspect the Godot UI when the state can be verified locally.
 - Do not recreate, restore, rely on, inspect, or use repo-root `.mcp.json`. It is obsolete, intentionally deleted, and must remain untracked/ignored.

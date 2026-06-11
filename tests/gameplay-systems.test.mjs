@@ -126,10 +126,12 @@ test('gameplay system tools register with the tool registry', () => {
   }
 });
 
-test('gameplay system legacy module targets implemented Phase 4.2 handlers', async () => {
+test('gameplay system module targets implemented Phase 4.2 handlers', async () => {
   const runner = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/gameplay_ops.gd'), 'utf8');
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
   assert.match(runner, /OperationRegistry/);
+  assert.match(registry, /const GameplayOps = preload\("gameplay_ops\.gd"\)/);
   for (const operation of [
     'gameplay_create_state_machine',
     'gameplay_add_state',
@@ -141,13 +143,13 @@ test('gameplay system legacy module targets implemented Phase 4.2 handlers', asy
     'gameplay_generate_save_load_system',
     'gameplay_generate_settings_persistence',
   ]) {
-    assert.match(source, new RegExp(`"${operation}":\\r?\\n\\s+_${operation}\\(params\\)`));
+    assert.match(registry, new RegExp(`"${operation}"`));
     assert.match(source, new RegExp(`func _${operation}\\(params: Dictionary\\) -> void:`));
   }
 });
 
 test('add_state keeps the scene root name before freeing the edited scene', async () => {
-  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/gameplay_ops.gd'), 'utf8');
   assert.match(source, /var root_name := root\.name/);
   assert.doesNotMatch(
     source,
