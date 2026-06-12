@@ -410,3 +410,56 @@ Phase 6.B pass 9 post-reload Codex proof is PASSED.
 - `toolset_status` reported 350 loaded tools.
 - Direct Codex MCP calls passed for moved signal tools `list_signals`, `list_connections`, `validate_connection`, `disconnect_signal`, and `connect_signal`.
 - The temporary Codex smoke scene was removed afterward.
+
+## Pass 10 Plan, 2026-06-12
+
+Scope:
+
+- Move the animation operation family into `src/scripts/godot_ops/animation_ops.gd`.
+- Register `create_animation_player`, `add_animation_track`, `add_keyframe`, `configure_animation_tree`, and `create_animation_library` from `operation_registry.gd` before the legacy fallback.
+- Remove the old animation dispatch cases and implementation functions from `legacy_operations.gd`.
+- Keep existing MCP tool names and operation names unchanged.
+- Avoid new animation behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for all five moved animation operations.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved animation tools if the Codex namespace requires reload.
+9. Post-reload MCP namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 10 Status, 2026-06-12
+
+Phase 6.B pass 10 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the animation operation family; the script-intelligence and older scene/shader/TileMap/mesh families still need migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing animation module, missing registry preload, legacy dispatch cases, and missing build output.
+- `src/scripts/godot_ops/animation_ops.gd` now owns `create_animation_player`, `add_animation_track`, `add_keyframe`, `configure_animation_tree`, and `create_animation_library`.
+- Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 42/42.
+- Final `npm test` passed 220/220.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd` passed for all five moved animation operations.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with only known warnings and no `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 16336 and connected Godot editor PID 3792.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `create_animation_player`, `add_animation_track`, `add_keyframe`, `configure_animation_tree`, `create_animation_library`, and `toolset_status` against temporary files that were removed afterward.
+- Direct Codex MCP namespace proof returned `Transport closed`, so post-reload proof requires reloading Codex and then calling `session_list` plus the moved animation tools.
+- `git diff --check` exited 0 with CRLF warnings only.
+
+## Pass 10 Post-Reload Proof, 2026-06-12
+
+Phase 6.B pass 10 post-reload Codex proof is PASSED.
+
+- Startup proof found stale listener PID 16336 still owning `127.0.0.1:6010` while reloaded connector PID 14576 was callable but not listening.
+- PID 16336 was stopped; PID 14576 bound `127.0.0.1:6010`; the open Godot editor PID 3792 reconnected from local port 61069.
+- `session_list` reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state.
+- `toolset_status` reported 350 loaded tools.
+- Direct Codex MCP calls passed for moved animation tools `create_animation_player`, `add_animation_track`, `add_keyframe`, `configure_animation_tree`, and `create_animation_library`.
+- Representative service calls passed for `editor_state`, `live_addon_status`, `project_settings_get`, `filesystem_search`, and `validate_scene`.
+- Temporary Codex smoke scene/resource files were removed afterward.

@@ -100,6 +100,14 @@ const SIGNAL_OPERATIONS = [
   'validate_connection',
 ];
 
+const ANIMATION_OPERATIONS = [
+  'create_animation_player',
+  'add_animation_track',
+  'add_keyframe',
+  'configure_animation_tree',
+  'create_animation_library',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -501,6 +509,49 @@ test('Phase 6.B pass 9 removes signal dispatch cases from legacy fallback', asyn
 
 test('build output copies the Phase 6.B signal module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/signal_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 10 has a dedicated animation operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/animation_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.match(source, /func _load_scene_for_animation\(scene_path: String\) -> Dictionary:/);
+  assert.match(source, /func _save_animation_scene\(scene_root: Node, full_scene_path: String\) -> bool:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  for (const operation of ANIMATION_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved animation operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const AnimationOps = preload\("animation_ops\.gd"\)/);
+  assert.match(registry, /func _register_animation\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_animation()') < registry.indexOf('func dispatch'), 'animation registration should happen during initialization');
+  for (const operation of ANIMATION_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 10 removes animation dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of ANIMATION_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params(?:: Dictionary)?\\)?`), operation);
+  }
+  assert.doesNotMatch(legacy, /# Add an AnimationPlayer node to a scene/);
+  assert.doesNotMatch(legacy, /# Tier 1: AnimationTree Configuration Operations/);
+});
+
+test('build output copies the Phase 6.B animation module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/animation_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });

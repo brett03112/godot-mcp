@@ -12,6 +12,7 @@ const PhysicsOps = preload("physics_ops.gd")
 const NavigationOps = preload("navigation_ops.gd")
 const VisualQaOps = preload("visual_qa_ops.gd")
 const SignalOps = preload("signal_ops.gd")
+const AnimationOps = preload("animation_ops.gd")
 
 var _context
 var _handlers := {}
@@ -34,6 +35,7 @@ func _init(context) -> void:
     _register_navigation()
     _register_visual_qa()
     _register_signals()
+    _register_animation()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -207,3 +209,16 @@ func _register_signals() -> void:
         "validate_connection",
     ]:
         _handlers[operation] = Callable(signal_ops, operation)
+
+func _register_animation() -> void:
+    var animation_ops = AnimationOps.new()
+    animation_ops.setup(_context, _legacy)
+    _modules.append(animation_ops)
+    for operation in [
+        "create_animation_player",
+        "add_animation_track",
+        "add_keyframe",
+        "configure_animation_tree",
+        "create_animation_library",
+    ]:
+        _handlers[operation] = Callable(animation_ops, operation)
