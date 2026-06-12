@@ -11,6 +11,7 @@ const ResourceWorkflowOps = preload("resource_workflow_ops.gd")
 const PhysicsOps = preload("physics_ops.gd")
 const NavigationOps = preload("navigation_ops.gd")
 const VisualQaOps = preload("visual_qa_ops.gd")
+const SignalOps = preload("signal_ops.gd")
 
 var _context
 var _handlers := {}
@@ -32,6 +33,7 @@ func _init(context) -> void:
     _register_physics()
     _register_navigation()
     _register_visual_qa()
+    _register_signals()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -192,3 +194,16 @@ func _register_visual_qa() -> void:
         "visual_camera_framing_check",
     ]:
         _handlers[operation] = Callable(visual_ops, operation)
+
+func _register_signals() -> void:
+    var signal_ops = SignalOps.new()
+    signal_ops.setup(_context, _legacy)
+    _modules.append(signal_ops)
+    for operation in [
+        "list_signals",
+        "list_connections",
+        "connect_signal",
+        "disconnect_signal",
+        "validate_connection",
+    ]:
+        _handlers[operation] = Callable(signal_ops, operation)

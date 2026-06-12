@@ -359,3 +359,54 @@ Phase 6.B pass 8 post-reload Codex proof is PASSED.
 - Direct Codex MCP calls passed for `editor_state`, `toolset_status`, and `live_addon_status`.
 - Direct Codex MCP calls passed for moved visual QA tools `sprite_bounds_check` and `camera_framing_check`.
 - `validate_scene` passed on `tier1_test_scene.tscn` with 0 errors and 2 expected sprite-without-texture warnings from the fixture.
+
+## Pass 9 Plan, 2026-06-12
+
+Scope:
+
+- Move the next preferred family, signal operations, into `src/scripts/godot_ops/signal_ops.gd`.
+- Register `list_signals`, `list_connections`, `connect_signal`, `disconnect_signal`, and `validate_connection` from `operation_registry.gd` before the legacy fallback.
+- Keep the signal-specific operation code with the signal module.
+- Keep the legacy `type_string()` helper in `legacy_operations.gd` for the remaining ClassDB/script-intelligence code, and copy a private `_type_string()` helper into the signal module.
+- Preserve existing MCP tool names and operation names from `src/index.ts`.
+- Avoid new signal behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for `list_signals`.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved signal tools if the Codex namespace requires reload.
+9. Post-reload MCP namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 9 Status, 2026-06-12
+
+Phase 6.B pass 9 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the signal operation family; the script-intelligence and older scene/animation/shader/TileMap/mesh families still need migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing signal module, missing registry preload, legacy dispatch cases, and missing build output.
+- `src/scripts/godot_ops/signal_ops.gd` now owns `list_signals`, `list_connections`, `connect_signal`, `disconnect_signal`, and `validate_connection`.
+- Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 38/38.
+- Final `npm test` passed 216/216.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd list_signals` returned 30 `Button` signals including `pressed`, with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` initially failed because no `127.0.0.1:6010` listener was active; direct Codex MCP `session_list` also returned `Transport closed`.
+- Fresh local stdio MCP proof listed 350 tools, restored a live socket to the open Godot editor PID 3792, and passed calls for `session_list`, `list_signals`, `list_connections`, `validate_connection`, `connect_signal`, and `disconnect_signal` against a temporary copied scene that was removed afterward.
+- Direct Codex MCP namespace proof passed after Codex reload.
+
+## Pass 9 Post-Reload Proof, 2026-06-12
+
+Phase 6.B pass 9 post-reload Codex proof is PASSED.
+
+- Startup proof found one listener on `127.0.0.1:6010`, owned by PID 16336, and one established Godot editor socket from PID 3792.
+- `session_list` reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state.
+- `toolset_status` reported 350 loaded tools.
+- Direct Codex MCP calls passed for moved signal tools `list_signals`, `list_connections`, `validate_connection`, `disconnect_signal`, and `connect_signal`.
+- The temporary Codex smoke scene was removed afterward.
