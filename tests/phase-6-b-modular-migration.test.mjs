@@ -128,6 +128,16 @@ const CAMERA_OPERATIONS = [
   'camera_preview_bounds',
 ];
 
+const AUDIO_PLAYER_OPERATIONS = [
+  'audio_player_create',
+  'audio_player_set_stream',
+  'audio_player_configure',
+  'audio_player_play',
+  'audio_player_stop',
+  'audio_player_list',
+  'audio_player_validate_routes',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -693,6 +703,49 @@ test('Phase 6.B pass 12 guards Camera2D make_current during offline scene edits'
 
 test('build output copies the Phase 6.B camera module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/camera_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 13 has a dedicated audio-player operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/audio_player_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.doesNotMatch(source, /_legacy\.audio_player/);
+  assert.match(source, /func _audio_player_load_scene_with_player\(params: Dictionary\) -> Dictionary:/);
+  assert.match(source, /func _audio_player_known_buses\(allowed_buses\) -> Array:/);
+  for (const operation of AUDIO_PLAYER_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B pass 13 keeps audio-player operations registered before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const AudioPlayerOps = preload\("audio_player_ops\.gd"\)/);
+  assert.match(registry, /func _register_audio_player\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_audio_player()') < registry.indexOf('func dispatch'), 'audio-player registration should happen during initialization');
+  for (const operation of AUDIO_PLAYER_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 13 removes audio-player dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of AUDIO_PLAYER_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+  assert.doesNotMatch(legacy, /# --- Phase 1\.7: Audio player workflow ---/);
+  assert.doesNotMatch(legacy, /func _audio_player_load_scene_with_player\(params: Dictionary\) -> Dictionary:/);
+});
+
+test('build output copies the Phase 6.B audio-player module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/audio_player_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });

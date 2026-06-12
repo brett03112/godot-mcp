@@ -549,3 +549,44 @@ Overall Phase 6.B remains IN PROGRESS. This pass moved only the camera workflow 
 - Direct Codex MCP proof passed after stale listener cleanup: `session_list` saw one connected compatible session, `toolset_status` reported 350 tools, and `create_camera` succeeded on a temporary scene that was removed afterward.
 - Temporary pass 12 scene/script proof files were removed afterward.
 - `git diff --check` exited 0 with CRLF warnings only.
+
+## Pass 13 Plan, 2026-06-12
+
+Scope:
+
+- Move the audio-player workflow operation family into `src/scripts/godot_ops/audio_player_ops.gd`.
+- Register `audio_player_create`, `audio_player_set_stream`, `audio_player_configure`, `audio_player_play`, `audio_player_stop`, `audio_player_list`, and `audio_player_validate_routes` from `operation_registry.gd` before the legacy fallback.
+- Remove the old audio-player dispatch cases and implementation helpers from `legacy_operations.gd`.
+- Keep existing MCP tool names and operation names unchanged.
+- Avoid new audio behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/audio-player-workflow.test.mjs tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for all seven moved audio-player operations.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved audio-player tools.
+9. Post-reload Codex namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 13 Status, 2026-06-12
+
+Phase 6.B pass 13 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the audio-player workflow operation family; shader, TileMap, mesh, and older scene operations still need migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing audio-player module, missing registry preload, legacy dispatch cases, and missing build output.
+- `src/scripts/godot_ops/audio_player_ops.gd` now owns `audio_player_create`, `audio_player_set_stream`, `audio_player_configure`, `audio_player_play`, `audio_player_stop`, `audio_player_list`, and `audio_player_validate_routes`.
+- Focused `npm run build; node --test tests/audio-player-workflow.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 60/60.
+- Final `npm test` passed 234/234.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd` passed all seven moved audio-player operations with `audio/test_sfx.wav`; the temporary scene was removed afterward.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 13604 and connected Godot editor PID 3792.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `create_audio_player`, `set_audio_stream`, `configure_audio_playback`, `play_audio_node`, `stop_audio_node`, `list_audio_players`, `validate_audio_routes`, and `toolset_status`; the temporary proof scene was removed afterward.
+- `git diff --check` exited 0 with CRLF warnings only.
+- Direct Codex MCP proof passed after Codex reload: exactly one `127.0.0.1:6010` listener owned by PID 18992, one established Godot editor socket from PID 3792 local port 50152, `session_list` returned one connected compatible `test_mcp_enhancements` session, `toolset_status` reported 350 loaded tools, and callable proof passed for `editor_state`, `live_addon_status`, plus all seven moved audio-player tools. The temporary Codex proof scene was removed afterward.

@@ -3,6 +3,7 @@ extends RefCounted
 const LegacyOperations = preload("legacy_operations.gd")
 const AssetPipelineOps = preload("asset_pipeline_ops.gd")
 const CameraOps = preload("camera_ops.gd")
+const AudioPlayerOps = preload("audio_player_ops.gd")
 const DesignToSceneOps = preload("design_to_scene_ops.gd")
 const GameplayOps = preload("gameplay_ops.gd")
 const UiThemeOps = preload("ui_theme_ops.gd")
@@ -27,6 +28,7 @@ func _init(context) -> void:
     _modules.append(_legacy)
     _register_asset_pipeline()
     _register_camera()
+    _register_audio_player()
     _register_design_to_scene()
     _register_gameplay()
     _register_ui_theme()
@@ -70,6 +72,21 @@ func _register_camera() -> void:
         "camera_preview_bounds",
     ]:
         _handlers[operation] = Callable(camera_ops, operation)
+
+func _register_audio_player() -> void:
+    var audio_ops = AudioPlayerOps.new()
+    audio_ops.setup(_context, _legacy)
+    _modules.append(audio_ops)
+    for operation in [
+        "audio_player_create",
+        "audio_player_set_stream",
+        "audio_player_configure",
+        "audio_player_play",
+        "audio_player_stop",
+        "audio_player_list",
+        "audio_player_validate_routes",
+    ]:
+        _handlers[operation] = Callable(audio_ops, operation)
 
 func _register_design_to_scene() -> void:
     var design_ops = DesignToSceneOps.new()
