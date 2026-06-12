@@ -1147,6 +1147,21 @@ Pass 11 acceptance, script intelligence and mutation family:
 - [x] Post-reload Codex MCP callable proof passed for the moved Phase 6.B pass 11 tools and representative live/non-live services.
 - [x] `git diff --check` exits 0.
 
+Pass 12 acceptance, camera workflow family:
+
+- [x] `create_camera`, `configure_camera`, `setup_camera_follow_2d`, `set_camera_limits_2d`, `set_camera_smoothing_2d`, `apply_camera_preset`, `list_cameras`, and `preview_camera_bounds` are registered from `src/scripts/godot_ops/camera_ops.gd`.
+- [x] Camera dispatch cases and implementation helpers are removed from `src/scripts/godot_ops/legacy_operations.gd`.
+- [x] Focused Phase 6.B camera migration tests pass.
+- [x] The offline `make_current` guard prevents detached Camera2D edits from emitting Godot errors.
+- [x] `npm test` passed for this pass.
+- [x] `npm run smoke:non-live` passed for this pass.
+- [x] Direct Godot headless smoke proved all eight moved camera operations work from `build/scripts`.
+- [x] A headless Godot editor smoke against `test_mcp_enhancements` exited 0 with no `SCRIPT ERROR`/`ERROR:` matches.
+- [x] Live socket smoke passed for the open editor connection.
+- [x] Fresh local stdio MCP callable proof passed for the moved Phase 6.B pass 12 tools.
+- [x] Direct Codex MCP callable proof passed for the moved Phase 6.B pass 12 tools and representative live/non-live services.
+- [x] `git diff --check` exits 0.
+
 Overall Phase 6.B acceptance, all remaining operation families:
 
 - [ ] No operation implementation families remain in the runner file.
@@ -1201,6 +1216,10 @@ Post-reload note, 2026-06-12: After Codex reload, startup proof found stale list
 Verification note, 2026-06-12: Phase 6.B pass 11 moved the script intelligence and mutation operation family from the legacy fallback into `src/scripts/godot_ops/script_ops.gd`, registered `analyze_script`, `create_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, and `attach_script` from `src/scripts/godot_ops/operation_registry.gd`, and removed the old script dispatch cases and implementation functions from `legacy_operations.gd`. RED first failed with the missing script module, missing registry preload, legacy dispatch cases, and missing build output. A fresh local MCP proof then exposed an existing Windows JSON quoting bug in `executeOperation`; `src/index.ts` now uses `execFile` argument arrays so quoted script bodies reach Godot unchanged. Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 47/47. Final `npm test` passed 225/225, `npm run smoke:non-live` passed with 350 tools, direct Godot headless smoke through `build/scripts/godot_operations.gd` passed for all six moved script operations, headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `npm run smoke:live` passed with listener PID 14576 and connected Godot editor PID 3792. A fresh local stdio MCP proof listed 350 tools and successfully called `create_script`, `analyze_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, `attach_script`, and `toolset_status`; temporary pass 11 files were removed afterward. Direct Codex MCP post-reload proof required reloading Codex/the Godot MCP connector.
 
 Post-reload note, 2026-06-12: After Codex reload, direct Codex MCP calls were callable. The first `session_list` call started the live transport; after a short wait, startup proof found exactly one listener on `127.0.0.1:6010` owned by PID 12892 and one established Godot editor socket from PID 3792. `session_list` then reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state. Callable proof passed for `session_list`, `editor_state`, `live_config_status`, `toolset_status`, `live_addon_status`, moved Phase 6.B pass 11 script tools `create_script`, `analyze_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, and `attach_script`, plus `project_settings_get`, `filesystem_search`, and `validate_scene`; temporary Codex smoke script and scene files were removed afterward.
+
+Verification note, 2026-06-12: Phase 6.B pass 12 moved the camera workflow operation family fully into `src/scripts/godot_ops/camera_ops.gd`, registered the existing camera operation names before the legacy fallback, and removed the old camera dispatch cases and implementation helpers from `legacy_operations.gd`. RED first failed because `camera_ops.gd` still delegated to legacy and legacy still owned the camera handlers. Direct Godot smoke then exposed an offline `Camera2D.make_current()` error on detached scene edits, so `camera_ops.gd` now uses `_camera_make_current()` to persist current/enabled state without calling `make_current()` unless the camera is inside the tree. Focused `npm run build; node --test tests/camera-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 60/60. Final `npm test` passed 230/230, `npm run smoke:non-live` passed with 350 tools, direct Godot headless smoke through `build/scripts/godot_operations.gd` passed all eight moved camera operations with 0 `SCRIPT ERROR`/`ERROR:` matches, headless editor smoke against `test_mcp_enhancements` exited 0 with no `SCRIPT ERROR`/`ERROR:` matches, and `npm run smoke:live` passed with listener PID 12892 and connected Godot editor PID 3792. A fresh local stdio MCP proof listed 350 tools and successfully called all eight camera tools plus `toolset_status`; temporary pass 12 scene/script proof files were removed afterward. `git diff --check` exited 0 with CRLF warnings only.
+
+Direct Codex MCP proof note, 2026-06-12: Direct Codex namespace proof passed after stale listener cleanup. Startup recovery stopped stale listener PID 12892 and duplicate non-listening PID 12664, leaving exactly one `127.0.0.1:6010` listener owned by PID 13604 with one connected Godot editor session PID 3792. `session_list` reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state. `toolset_status` reported 350 loaded tools. Direct Codex MCP `create_camera` succeeded on a temporary `mcp_phase6b_pass12_codex_camera.tscn` scene; the temporary scene was removed afterward.
 
 ## Cross-Phase Tooling Ideas To Keep In View
 

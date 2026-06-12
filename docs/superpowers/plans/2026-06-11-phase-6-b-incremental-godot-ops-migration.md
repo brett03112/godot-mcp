@@ -506,3 +506,46 @@ Overall Phase 6.B remains IN PROGRESS. This pass moved only the script intellige
 - Temporary pass 11 script and scene proof files were removed afterward.
 - Post-reload Codex MCP proof passed for `session_list`, `editor_state`, `live_config_status`, `toolset_status`, `live_addon_status`, moved script tools `create_script`, `analyze_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, and `attach_script`, plus `project_settings_get`, `filesystem_search`, and `validate_scene`.
 - Temporary post-reload Codex smoke script and scene files were removed afterward.
+
+## Pass 12 Plan, 2026-06-12
+
+Scope:
+
+- Move the camera workflow operation family fully into `src/scripts/godot_ops/camera_ops.gd`.
+- Register the existing camera operation names from `operation_registry.gd` before the legacy fallback.
+- Remove the old camera dispatch cases and implementation helpers from `legacy_operations.gd`.
+- Keep existing MCP tool names and operation names unchanged.
+- Fix offline camera current-state handling if direct Godot proof exposes detached-scene errors.
+
+Verification ladder:
+
+1. RED: `node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/camera-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for all eight moved camera operations.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved camera tools.
+9. Post-reload MCP namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 12 Status, 2026-06-12
+
+Phase 6.B pass 12 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the camera workflow operation family; shader, TileMap, mesh, audio-player, and older scene operations still need migration passes before overall acceptance can be checked.
+
+- RED first failed because `camera_ops.gd` still delegated to legacy and legacy still owned the camera dispatch cases and helpers.
+- `src/scripts/godot_ops/camera_ops.gd` now owns `camera_create`, `camera_configure`, `camera_setup_follow_2d`, `camera_set_limits_2d`, `camera_set_smoothing_2d`, `camera_apply_preset`, `camera_list`, and `camera_preview_bounds`.
+- Direct Godot smoke found offline `Camera2D.make_current()` error output; a focused RED now guards the detached-scene case, and `_camera_make_current()` only calls `make_current()` when the camera is inside the tree.
+- Focused `npm run build; node --test tests/camera-workflow.test.mjs tests/phase-6-a-modular-runner.test.mjs tests/phase-6-b-modular-migration.test.mjs` passed 60/60.
+- Final `npm test` passed 230/230.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd` passed all eight moved camera operations with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with no `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 12892 and connected Godot editor PID 3792.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for all eight camera tools plus `toolset_status`.
+- Direct Codex MCP proof passed after stale listener cleanup: `session_list` saw one connected compatible session, `toolset_status` reported 350 tools, and `create_camera` succeeded on a temporary scene that was removed afterward.
+- Temporary pass 12 scene/script proof files were removed afterward.
+- `git diff --check` exited 0 with CRLF warnings only.

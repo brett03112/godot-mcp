@@ -117,6 +117,17 @@ const SCRIPT_OPERATIONS = [
   'attach_script',
 ];
 
+const CAMERA_OPERATIONS = [
+  'camera_create',
+  'camera_configure',
+  'camera_setup_follow_2d',
+  'camera_set_limits_2d',
+  'camera_set_smoothing_2d',
+  'camera_apply_preset',
+  'camera_list',
+  'camera_preview_bounds',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -632,4 +643,56 @@ test('docs mention the modular Godot operation script tree', async () => {
 
   assert.match(readme, /godot_ops\//);
   assert.match(template, /src\/scripts\/godot_ops\/\*\*/);
+});
+
+test('Phase 6.B pass 12 has a fully moved camera operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/camera_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.doesNotMatch(source, /_legacy\.camera_/);
+  assert.match(source, /func _camera_load_scene_with_camera\(params: Dictionary\) -> Dictionary:/);
+  assert.match(source, /func _camera_follow_script_source\(\) -> String:/);
+  for (const operation of CAMERA_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B pass 12 keeps camera operations registered before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const CameraOps = preload\("camera_ops\.gd"\)/);
+  assert.match(registry, /func _register_camera\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_camera()') < registry.indexOf('func dispatch'), 'camera registration should happen during initialization');
+  for (const operation of CAMERA_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 12 removes camera dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of CAMERA_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+  assert.doesNotMatch(legacy, /# Phase 1\.6: Camera workflow/);
+  assert.doesNotMatch(legacy, /func _camera_load_scene_with_camera\(params: Dictionary\) -> Dictionary:/);
+});
+
+test('Phase 6.B pass 12 guards Camera2D make_current during offline scene edits', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/camera_ops.gd'), 'utf8');
+
+  assert.match(source, /func _camera_make_current\(camera: Node\) -> void:/);
+  assert.match(source, /is_inside_tree\(\)/);
+  assert.doesNotMatch(source, /camera\.make_current\(\)/);
+  assert.doesNotMatch(source, /camera\.call\("make_current"\)/);
+});
+
+test('build output copies the Phase 6.B camera module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/camera_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
 });
