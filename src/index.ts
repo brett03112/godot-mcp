@@ -10,7 +10,7 @@
 import { fileURLToPath } from 'url';
 import { join, dirname, basename, normalize } from 'path';
 import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, statSync, copyFileSync, unlinkSync, rmdirSync, createWriteStream } from 'fs';
-import { spawn, exec, execSync } from 'child_process';
+import { spawn, exec, execSync, execFile } from 'child_process';
 import { promisify } from 'util';
 import https from 'https';
 import { tmpdir } from 'os';
@@ -105,6 +105,7 @@ const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
 const GODOT_DEBUG_MODE: boolean = true; // Always use GODOT DEBUG MODE
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Derive __filename and __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -1119,45 +1120,35 @@ class GodotServer {
     }
 
     try {
-      // Serialize the snake_case parameters to a valid JSON string
       const paramsJson = JSON.stringify(operationParams);
-      // Escape single quotes in the JSON string to prevent command injection
-      const escapedParams = paramsJson.replace(/'/g, "'\\''");
-      // On Windows, cmd.exe does not strip single quotes, so we use
-      // double quotes and escape them to ensure the JSON is parsed
-      // correctly by Godot.
-      const isWindows = process.platform === 'win32';
-      const quotedParams = isWindows
-        ? `\"${paramsJson.replace(/\"/g, '\\"')}\"`
-        : `'${escapedParams}'`;
-
 
       // Add debug arguments if debug mode is enabled
       const debugArgs = GODOT_DEBUG_MODE ? ['--debug-godot'] : [];
       const logFilePath = join(tmpdir(), `godot-mcp-${operation}-${process.pid}-${Date.now()}.log`);
 
-      // Construct the command with the operation and JSON parameters
-      const cmd = [
-        `"${this.godotPath}"`,
+      const cmdArgs = [
         '--headless',
         '--log-file',
-        `"${logFilePath}"`,
+        logFilePath,
         '--path',
-        `"${projectPath}"`,
+        projectPath,
         '--script',
-        `"${this.operationsScriptPath}"`,
+        this.operationsScriptPath,
         operation,
-        quotedParams, // Pass the JSON string as a single argument
+        paramsJson,
         ...debugArgs,
-      ].join(' ');
+      ];
 
-      this.logDebug(`Command: ${cmd}`);
+      this.logDebug(`Command: ${this.godotPath} ${cmdArgs.join(' ')}`);
 
-      const { stdout, stderr } = await execAsync(cmd);
+      const { stdout, stderr } = await execFileAsync(this.godotPath, cmdArgs, {
+        windowsHide: true,
+        maxBuffer: 20 * 1024 * 1024,
+      });
 
       return { stdout, stderr: this.sanitizeGodotStderr(stderr) };
     } catch (error: unknown) {
-      // If execAsync throws, it still contains stdout/stderr
+      // If execFileAsync throws, it still contains stdout/stderr.
       if (error instanceof Error && 'stdout' in error && 'stderr' in error) {
         const execError = error as Error & { stdout: string; stderr: string };
         return {

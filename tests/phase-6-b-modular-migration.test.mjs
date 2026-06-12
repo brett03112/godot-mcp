@@ -108,6 +108,15 @@ const ANIMATION_OPERATIONS = [
   'create_animation_library',
 ];
 
+const SCRIPT_OPERATIONS = [
+  'analyze_script',
+  'create_script',
+  'modify_function',
+  'add_export_variable',
+  'extract_dependencies',
+  'attach_script',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -554,6 +563,59 @@ test('build output copies the Phase 6.B animation module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/animation_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 11 has a dedicated script operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/script_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.doesNotMatch(source, /_legacy\._/);
+  assert.match(source, /func generate_basic_template\(class_name_val: String, extends_class: String\) -> String:/);
+  assert.match(source, /func generate_character_controller_template\(class_name_val: String, extends_class: String\) -> String:/);
+  for (const operation of SCRIPT_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params(?:: Dictionary)?\\):`), operation);
+  }
+});
+
+test('Phase 6.B registry exposes moved script operation names before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const ScriptOps = preload\("script_ops\.gd"\)/);
+  assert.match(registry, /func _register_scripts\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_scripts()') < registry.indexOf('func dispatch'), 'script registration should happen during initialization');
+  for (const operation of SCRIPT_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 11 removes script dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of SCRIPT_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params\\)?`), operation);
+  }
+  assert.doesNotMatch(legacy, /# Analyze script operation - Parse GDScript and extract structure/);
+  assert.doesNotMatch(legacy, /func generate_basic_template\(class_name_val: String, extends_class: String\) -> String:/);
+});
+
+test('build output copies the Phase 6.B script module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/script_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 11 sends Godot operation JSON without shell re-quoting', async () => {
+  const source = await readFile(join(process.cwd(), 'src/index.ts'), 'utf8');
+
+  assert.match(source, /import \{ spawn, exec, execSync, execFile \} from 'child_process';/);
+  assert.match(source, /const execFileAsync = promisify\(execFile\);/);
+  assert.match(source, /const cmdArgs = \[/);
+  assert.match(source, /await execFileAsync\(this\.godotPath, cmdArgs/);
+  assert.doesNotMatch(source, /quotedParams/);
 });
 
 test('safer planning treats modular Godot operation changes as operation-handler risk', async () => {

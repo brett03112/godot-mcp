@@ -463,3 +463,46 @@ Phase 6.B pass 10 post-reload Codex proof is PASSED.
 - Direct Codex MCP calls passed for moved animation tools `create_animation_player`, `add_animation_track`, `add_keyframe`, `configure_animation_tree`, and `create_animation_library`.
 - Representative service calls passed for `editor_state`, `live_addon_status`, `project_settings_get`, `filesystem_search`, and `validate_scene`.
 - Temporary Codex smoke scene/resource files were removed afterward.
+
+## Pass 11 Plan, 2026-06-12
+
+Scope:
+
+- Move the script intelligence and mutation operation family into `src/scripts/godot_ops/script_ops.gd`.
+- Register `analyze_script`, `create_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, and `attach_script` from `operation_registry.gd` before the legacy fallback.
+- Remove the old script dispatch cases and implementation functions from `legacy_operations.gd`.
+- Keep existing MCP tool names and operation names unchanged.
+- Avoid new script behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for moved script operations.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved script tools if the Codex namespace requires reload.
+9. Post-reload MCP namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 11 Status, 2026-06-12
+
+Phase 6.B pass 11 is PASSED.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the script intelligence and mutation operation family; shader, TileMap, mesh, and older scene operations still need migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing script module, missing registry preload, legacy dispatch cases, and missing build output.
+- `src/scripts/godot_ops/script_ops.gd` now owns `analyze_script`, `create_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, and `attach_script`.
+- `src/index.ts` now sends Godot operation JSON through `execFile` argument arrays instead of shell re-quoting, fixing quoted `modify_function` bodies in the moved tool family.
+- Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 47/47.
+- Final `npm test` passed 225/225.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd` passed for all six moved script operations.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 14576 and connected Godot editor PID 3792.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `create_script`, `analyze_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, `attach_script`, and `toolset_status`.
+- Temporary pass 11 script and scene proof files were removed afterward.
+- Post-reload Codex MCP proof passed for `session_list`, `editor_state`, `live_config_status`, `toolset_status`, `live_addon_status`, moved script tools `create_script`, `analyze_script`, `modify_function`, `add_export_variable`, `extract_dependencies`, and `attach_script`, plus `project_settings_get`, `filesystem_search`, and `validate_scene`.
+- Temporary post-reload Codex smoke script and scene files were removed afterward.

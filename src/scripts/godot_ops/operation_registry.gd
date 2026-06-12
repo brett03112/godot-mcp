@@ -13,6 +13,7 @@ const NavigationOps = preload("navigation_ops.gd")
 const VisualQaOps = preload("visual_qa_ops.gd")
 const SignalOps = preload("signal_ops.gd")
 const AnimationOps = preload("animation_ops.gd")
+const ScriptOps = preload("script_ops.gd")
 
 var _context
 var _handlers := {}
@@ -36,6 +37,7 @@ func _init(context) -> void:
     _register_visual_qa()
     _register_signals()
     _register_animation()
+    _register_scripts()
 
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
@@ -222,3 +224,17 @@ func _register_animation() -> void:
         "create_animation_library",
     ]:
         _handlers[operation] = Callable(animation_ops, operation)
+
+func _register_scripts() -> void:
+    var script_ops = ScriptOps.new()
+    script_ops.setup(_context, _legacy)
+    _modules.append(script_ops)
+    for operation in [
+        "analyze_script",
+        "create_script",
+        "modify_function",
+        "add_export_variable",
+        "extract_dependencies",
+        "attach_script",
+    ]:
+        _handlers[operation] = Callable(script_ops, operation)
