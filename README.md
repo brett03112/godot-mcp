@@ -89,6 +89,30 @@ Toolset profiles reduce token load by exposing only the catalog slice needed for
 | `live_addon_enable` | Enable the Godot MCP Live addon in `project.godot` |
 | `live_addon_disable` | Disable the Godot MCP Live addon in `project.godot` |
 
+### Profile-First Startup (Recommended)
+
+Pick a profile before starting normal feature work. Profile-first startup keeps the visible MCP catalog small enough for LLM sessions while preserving the same tool/resource/dispatch behavior.
+
+1. Call `toolset_status` to see the current active profile, loaded count, hidden count, active toolsets, explicit tools, and config sources.
+2. Call `recommend_toolset_profile` with the feature request.
+3. Set `GODOT_MCP_PROFILE` for a built-in profile, or set `GODOT_MCP_TOOLSETS` / `GODOT_MCP_TOOLS` for a custom catalog.
+4. Reload/restart the MCP connector.
+5. Call `toolset_status` again before work begins.
+
+Changing `GODOT_MCP_TOOLSETS`, `GODOT_MCP_TOOLS`, or `GODOT_MCP_PROFILE` requires reloading the MCP connector. Full catalog mode exists for backward compatibility and broad audits, but should not be the default for normal feature work.
+
+Copy one built-in profile for the next MCP server process:
+
+```powershell
+$env:GODOT_MCP_PROFILE = "planning-readonly"
+$env:GODOT_MCP_PROFILE = "scene-edit"
+$env:GODOT_MCP_PROFILE = "live-editor"
+$env:GODOT_MCP_PROFILE = "runtime-debug"
+$env:GODOT_MCP_PROFILE = "playtest-loop"
+$env:GODOT_MCP_PROFILE = "visual-qa"
+$env:GODOT_MCP_PROFILE = "release-check"
+```
+
 ```powershell
 # Load a compact scene-editing catalog for the next MCP server process
 $env:GODOT_MCP_TOOLSETS = "core,project,scene,script,visual"

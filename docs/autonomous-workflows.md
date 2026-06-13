@@ -16,6 +16,19 @@ For a fresh-user setup, build the MCP server, configure the MCP client to run `n
 
 Phase 5.0 adds first-pass tool metadata and profile filtering. When no profile is configured, the MCP server exposes the full catalog for backward compatibility. When a profile is configured, the server filters `tools/list`, per-tool resources, catalog resources, and dispatch through the same active profile.
 
+## Pick A Profile First
+
+LLM sessions should start with a compact profile.
+
+1. Call `toolset_status` to see whether the current catalog is full or filtered.
+2. Call `recommend_toolset_profile` with the feature request.
+3. Set `GODOT_MCP_PROFILE` to the recommended built-in profile, or set `GODOT_MCP_TOOLSETS` / `GODOT_MCP_TOOLS` for a custom catalog.
+4. Reload/restart the MCP connector.
+5. Call `toolset_status` again and confirm the active profile, loaded count, hidden count, active toolsets, explicit tools, and config sources.
+6. Start the task using the smaller catalog.
+
+Changing `GODOT_MCP_TOOLSETS`, `GODOT_MCP_TOOLS`, or `GODOT_MCP_PROFILE` requires reloading the MCP connector. Full catalog mode exists for compatibility and broad audits, but is not the default for normal feature work.
+
 Available toolsets:
 
 - `core`: server status, profile recommendation, and planning support.
@@ -49,6 +62,18 @@ Use a built-in named profile:
 
 ```powershell
 $env:GODOT_MCP_PROFILE = "playtest-loop"
+```
+
+Copy one built-in profile for the next MCP server process:
+
+```powershell
+$env:GODOT_MCP_PROFILE = "planning-readonly"
+$env:GODOT_MCP_PROFILE = "scene-edit"
+$env:GODOT_MCP_PROFILE = "live-editor"
+$env:GODOT_MCP_PROFILE = "runtime-debug"
+$env:GODOT_MCP_PROFILE = "playtest-loop"
+$env:GODOT_MCP_PROFILE = "visual-qa"
+$env:GODOT_MCP_PROFILE = "release-check"
 ```
 
 Add `GODOT_MCP_PROJECT_PATH` when a project-local profile file should override the built-in profile:

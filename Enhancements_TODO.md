@@ -1322,28 +1322,30 @@ Post-reload note, 2026-06-13: After Codex reload, stale pre-reload listener PID 
 
 ### 7.5 Docs And User Workflow
 
-- [ ] Update `README.md` so profile-based startup is the recommended path.
-- [ ] Update `docs/autonomous-workflows.md` with the built-in example profiles.
-- [ ] Add a short "pick a profile first" workflow for LLM sessions.
-- [ ] Document that changing `GODOT_MCP_TOOLSETS`, `GODOT_MCP_TOOLS`, or `GODOT_MCP_PROFILE` requires reloading the MCP connector.
-- [ ] Document that full catalog mode exists for compatibility and broad audits, but should not be the default for normal feature work.
+- [x] Update `README.md` so profile-based startup is the recommended path.
+- [x] Update `docs/autonomous-workflows.md` with the built-in example profiles.
+- [x] Add a short "pick a profile first" workflow for LLM sessions.
+- [x] Document that changing `GODOT_MCP_TOOLSETS`, `GODOT_MCP_TOOLS`, or `GODOT_MCP_PROFILE` requires reloading the MCP connector.
+- [x] Document that full catalog mode exists for compatibility and broad audits, but should not be the default for normal feature work.
+
+Verification note, 2026-06-13: Phase 7.5 added `docs/superpowers/plans/2026-06-13-phase-7-5-docs-user-workflow.md`, a focused docs contract test in `tests/phase-7-5-docs-workflow.test.mjs`, a README `Profile-First Startup (Recommended)` workflow, and a `docs/autonomous-workflows.md` `Pick A Profile First` LLM workflow. RED first failed 0/3 because the exact workflow sections and all profile env snippets were missing; after the docs update, `node --test tests/phase-7-5-docs-workflow.test.mjs` passed 3/3. Profile/docs regression `npm run build; node --test tests/phase-7-5-docs-workflow.test.mjs tests/toolset-profiles.test.mjs tests/built-in-profiles.test.mjs tests/tool-metadata-audit.test.mjs` passed 22/22. Final `npm test` passed 267/267. `npm run smoke:non-live` passed in full mode with 350 loaded / 0 hidden and with `GODOT_MCP_PROFILE=scene-edit` at 241 loaded / 109 hidden. `npm run smoke:live` passed against listener PID 5148 and Godot editor PID 13144 on local port 59978. Direct filtered MCP proof with `GODOT_MCP_PROFILE=scene-edit` listed 241 tools, read a 241-tool catalog resource, confirmed `toolset_status` reported profile `scene-edit` with 241 loaded / 109 hidden, confirmed `recommend_toolset_profile` mapped a pause-menu request to `scene-edit`, and rejected hidden `run_automated_playtest` with `status: "disabled"`, required toolset `playtest`, and reload remediation. Headless Godot editor load against `test_mcp_enhancements` exited 0 with no `SCRIPT ERROR` / `ERROR:` matches. `git diff --check` exited 0 with CRLF warnings only. Direct Codex MCP post-reload proof requires reloading Codex/the Godot MCP connector.
 
 ### Phase 7 Acceptance Criteria
 
-- [ ] With no profile configured, the full catalog still loads for backward compatibility.
-- [ ] A filtered profile cuts the visible tool count significantly compared to the full catalog.
-- [ ] Hidden tools cannot be called through dispatch.
-- [ ] Hidden-tool responses explain exactly how to enable the missing tool.
-- [ ] Built-in example profiles exist for `planning-readonly`, `scene-edit`, `live-editor`, `runtime-debug`, `playtest-loop`, `visual-qa`, and `release-check`.
-- [ ] Example profiles are documented with copy/paste PowerShell env snippets.
-- [ ] Example profiles are documented with `.godot-mcp/toolsets.json` snippets.
-- [ ] `toolset_status` proves the active profile, loaded count, hidden count, active toolsets, explicit tools, and config sources after reload.
-- [ ] `recommend_toolset_profile` can map common requests to a compact profile and verification path.
-- [ ] Profile filtering is proven across `tools/list`, resources, and dispatch.
-- [ ] `npm test` passes.
-- [ ] `npm run smoke:non-live` passes with at least one filtered profile.
-- [ ] Direct MCP proof shows a filtered profile active and a hidden tool rejected with remediation.
-- [ ] `git diff --check` exits 0.
+- [x] With no profile configured, the full catalog still loads for backward compatibility.
+- [x] A filtered profile cuts the visible tool count significantly compared to the full catalog.
+- [x] Hidden tools cannot be called through dispatch.
+- [x] Hidden-tool responses explain exactly how to enable the missing tool.
+- [x] Built-in example profiles exist for `planning-readonly`, `scene-edit`, `live-editor`, `runtime-debug`, `playtest-loop`, `visual-qa`, and `release-check`.
+- [x] Example profiles are documented with copy/paste PowerShell env snippets.
+- [x] Example profiles are documented with `.godot-mcp/toolsets.json` snippets.
+- [x] `toolset_status` proves the active profile, loaded count, hidden count, active toolsets, explicit tools, and config sources after reload.
+- [x] `recommend_toolset_profile` can map common requests to a compact profile and verification path.
+- [x] Profile filtering is proven across `tools/list`, resources, and dispatch.
+- [x] `npm test` passes.
+- [x] `npm run smoke:non-live` passes with at least one filtered profile.
+- [x] Direct MCP proof shows a filtered profile active and a hidden tool rejected with remediation.
+- [x] `git diff --check` exits 0.
 
 ## Cross-Phase Tooling Ideas To Keep In View
 
