@@ -87,6 +87,10 @@ const CORE_SUPPORT_TOOLS = [
 const DEPRECATED_ALIASES: Record<string, Partial<ToolMetadata>> = {
   start_playtest_recording: {
     toolset: 'playtest',
+    risk: 'high',
+    mutates: true,
+    requires_live: false,
+    requires_display: true,
     deprecated: true,
     alias_for: 'playtest_recording',
     aliases: ['playtest_recording?action=start'],
@@ -94,6 +98,10 @@ const DEPRECATED_ALIASES: Record<string, Partial<ToolMetadata>> = {
   },
   stop_playtest_recording: {
     toolset: 'playtest',
+    risk: 'high',
+    mutates: true,
+    requires_live: false,
+    requires_display: true,
     deprecated: true,
     alias_for: 'playtest_recording',
     aliases: ['playtest_recording?action=stop'],
@@ -101,6 +109,10 @@ const DEPRECATED_ALIASES: Record<string, Partial<ToolMetadata>> = {
   },
   start_profiler: {
     toolset: 'quality',
+    risk: 'high',
+    mutates: true,
+    requires_live: false,
+    requires_display: true,
     deprecated: true,
     alias_for: 'profiler',
     aliases: ['profiler?action=start'],
@@ -108,6 +120,10 @@ const DEPRECATED_ALIASES: Record<string, Partial<ToolMetadata>> = {
   },
   get_profiling_data: {
     toolset: 'quality',
+    risk: 'low',
+    mutates: false,
+    requires_live: false,
+    requires_display: false,
     deprecated: true,
     alias_for: 'profiler',
     aliases: ['profiler?action=get'],
@@ -115,10 +131,66 @@ const DEPRECATED_ALIASES: Record<string, Partial<ToolMetadata>> = {
   },
   analyze_bottlenecks: {
     toolset: 'quality',
+    risk: 'low',
+    mutates: false,
+    requires_live: false,
+    requires_display: false,
     deprecated: true,
     alias_for: 'profiler',
     aliases: ['profiler?action=analyze'],
     deprecation_message: 'Use profiler with action "analyze".',
+  },
+};
+
+const EXPLICIT_TOOL_METADATA: Record<string, Partial<ToolMetadata>> = {
+  editor_screenshot: {
+    toolset: 'live',
+    risk: 'low',
+    mutates: false,
+    requires_live: true,
+    requires_display: true,
+  },
+  runtime_profile_capture: {
+    toolset: 'runtime',
+    risk: 'low',
+    mutates: false,
+    requires_live: true,
+    requires_display: true,
+  },
+  asset_library_install_addon: {
+    toolset: 'project',
+    risk: 'high',
+    mutates: true,
+    requires_live: false,
+    requires_display: false,
+  },
+  asset_library_update_addon: {
+    toolset: 'project',
+    risk: 'high',
+    mutates: true,
+    requires_live: false,
+    requires_display: false,
+  },
+  asset_library_remove_addon: {
+    toolset: 'project',
+    risk: 'high',
+    mutates: true,
+    requires_live: false,
+    requires_display: false,
+  },
+  filesystem_reimport: {
+    toolset: 'project',
+    risk: 'medium',
+    mutates: true,
+    requires_live: false,
+    requires_display: false,
+  },
+  live_addon_status: {
+    toolset: 'project',
+    risk: 'low',
+    mutates: false,
+    requires_live: false,
+    requires_display: false,
   },
 };
 
@@ -214,21 +286,22 @@ export function createActiveToolProfile(options: CreateActiveToolProfileOptions)
 
 export function getToolMetadata(name: string, explicit?: Partial<ToolMetadata>): ToolMetadata {
   const aliasMetadata = DEPRECATED_ALIASES[name] || {};
-  const toolset = normalizeToolset(String(explicit?.toolset || aliasMetadata.toolset || inferToolset(name)));
-  const mutates = explicit?.mutates ?? inferMutates(name);
-  const requiresLive = explicit?.requires_live ?? inferRequiresLive(name, toolset);
-  const requiresDisplay = explicit?.requires_display ?? inferRequiresDisplay(name, toolset);
+  const auditMetadata = EXPLICIT_TOOL_METADATA[name] || {};
+  const toolset = normalizeToolset(String(explicit?.toolset || auditMetadata.toolset || aliasMetadata.toolset || inferToolset(name)));
+  const mutates = explicit?.mutates ?? auditMetadata.mutates ?? aliasMetadata.mutates ?? inferMutates(name);
+  const requiresLive = explicit?.requires_live ?? auditMetadata.requires_live ?? aliasMetadata.requires_live ?? inferRequiresLive(name, toolset);
+  const requiresDisplay = explicit?.requires_display ?? auditMetadata.requires_display ?? aliasMetadata.requires_display ?? inferRequiresDisplay(name, toolset);
   return {
     toolset,
-    aliases: uniqueStrings([...(aliasMetadata.aliases || []), ...(explicit?.aliases || [])]),
-    risk: explicit?.risk || inferRisk(name, toolset, mutates),
+    aliases: uniqueStrings([...(aliasMetadata.aliases || []), ...(auditMetadata.aliases || []), ...(explicit?.aliases || [])]),
+    risk: explicit?.risk || auditMetadata.risk || aliasMetadata.risk || inferRisk(name, toolset, mutates),
     mutates,
     requires_live: requiresLive,
     requires_display: requiresDisplay,
-    requires_godot_version: explicit?.requires_godot_version || inferGodotVersion(name),
-    deprecated: explicit?.deprecated ?? aliasMetadata.deprecated ?? false,
-    alias_for: explicit?.alias_for || aliasMetadata.alias_for,
-    deprecation_message: explicit?.deprecation_message || aliasMetadata.deprecation_message,
+    requires_godot_version: explicit?.requires_godot_version || auditMetadata.requires_godot_version || aliasMetadata.requires_godot_version || inferGodotVersion(name),
+    deprecated: explicit?.deprecated ?? auditMetadata.deprecated ?? aliasMetadata.deprecated ?? false,
+    alias_for: explicit?.alias_for || auditMetadata.alias_for || aliasMetadata.alias_for,
+    deprecation_message: explicit?.deprecation_message || auditMetadata.deprecation_message || aliasMetadata.deprecation_message,
   };
 }
 

@@ -1261,6 +1261,82 @@ Direct Codex MCP proof note, 2026-06-12: After Codex reload, direct Codex MCP ca
 
 Verification note, 2026-06-12: Phase 6.B pass 14 moved the shader/material operation family from the legacy fallback into `src/scripts/godot_ops/shader_ops.gd`, registered `create_shader_material`, `apply_material`, and `set_shader_parameter` from `src/scripts/godot_ops/operation_registry.gd`, and removed the old shader/material dispatch cases and implementation helpers from `legacy_operations.gd`. RED first failed with the missing shader module, missing registry preload, legacy dispatch cases, and missing build output. Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 60/60. Final `npm test` passed 238/238, `npm run smoke:non-live` passed with 350 tools, direct Godot headless smoke through `build/scripts/godot_operations.gd` passed `create_shader_material`, `apply_material`, and `set_shader_parameter` against temporary shader/material/scene files that were removed afterward, headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches, and `npm run smoke:live` passed with listener PID 18992 and connected Godot editor PID 3792. A fresh local stdio MCP proof listed 350 tools and successfully called `create_shader_material`, `apply_material`, `set_shader_parameter`, and `toolset_status`; temporary proof files were removed afterward. `git diff --check` exited 0 with CRLF warnings only. Direct Codex MCP post-reload proof passed after stale listener cleanup: `session_list` returned one connected compatible `test_mcp_enhancements` session on listener PID 20808 with Godot editor PID 3792, `toolset_status` reported 350 loaded tools, `live_addon_status` was compatible and up to date, `editor_state` was connected and writable, and direct Codex calls passed for `create_shader_material`, `apply_material`, `set_shader_parameter`, and `validate_scene`; temporary Codex proof files were removed afterward.
 
+## Phase 7 - Toolset Profile Hardening And Final Catalog Audit
+
+The current MCP tool surface is too large to load by default in normal agent sessions. Loading the entire toolset is a token/context killer. Phase 7 should turn the existing Phase 5.0 profile layer into the default practical workflow for users and LLMs: select the smallest useful catalog, reload the connector, prove the active profile, then work.
+
+The first pass should keep full-catalog mode available for compatibility, but regular docs and examples should steer users toward profile-based startup.
+
+### 7.1 Audit Tool Metadata
+
+- [x] Audit every registered tool for correct `toolset` assignment.
+- [x] Audit every registered tool for correct `risk`.
+- [x] Audit every registered tool for correct `mutates`.
+- [x] Audit every registered tool for correct `requires_live`.
+- [x] Audit every registered tool for correct `requires_display`.
+- [x] Fix tools that are currently classified by weak name inference when explicit metadata is clearer.
+- [x] Keep deprecated aliases visible only where compatibility requires them.
+- [x] Add focused tests that catch representative metadata mistakes.
+
+Verification note, 2026-06-12: Phase 7.1 added `docs/superpowers/plans/2026-06-12-phase-7-1-tool-metadata-audit.md`, a catalog-level RED test in `tests/tool-metadata-audit.test.mjs`, and explicit metadata overrides in `src/toolsets.ts` for weak-inference cases including `editor_screenshot`, `runtime_profile_capture`, `start_profiler`, Asset Library addon tools, and `filesystem_reimport`. RED first failed on `editor_screenshot.risk`. Focused `npm run build; node --test tests/tool-metadata-audit.test.mjs` passed 2/2, profile regression `node --test tests/toolset-profiles.test.mjs tests/tool-metadata-audit.test.mjs` passed 10/10, and final `npm test` passed 254/254. `npm run smoke:non-live` passed with 350 tools. Live smoke passed against the open `test_mcp_enhancements` editor with listener PID 20476 and Godot PID 3792. Direct local MCP proof listed 350 tools, verified corrected metadata for `editor_screenshot`, `runtime_profile_capture`, and `start_profiler`, called `toolset_status`, `recommend_toolset_profile`, and `session_list`, and saw the live `test_mcp_enhancements` session. Headless Godot editor smoke exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+
+### 7.2 Add Built-In Example Profiles
+
+Example profiles are required. Add a first useful set now, then expand it as real MCP workflows expose better groupings.
+
+- [ ] Add a documented `planning-readonly` profile for project inspection, diagnostics, planning, and recommendation work.
+- [ ] Add a documented `scene-edit` profile for file-backed scene/script changes.
+- [ ] Add a documented `live-editor` profile for active editor state, selection, screenshots, and live scene work.
+- [ ] Add a documented `runtime-debug` profile for running-game inspection, runtime input, assertions, LSP, and DAP.
+- [ ] Add a documented `playtest-loop` profile for automated/manual playtests, runtime state, visual proof, fun metrics, and quality gates.
+- [ ] Add a documented `visual-qa` profile for screenshots, viewport capture, visual regression, sprite bounds, camera framing, overlap, and contrast checks.
+- [ ] Add a documented `release-check` profile for export validation, release/build tools, quality gates, diagnostics, and project metadata.
+- [ ] Make the examples copy/paste friendly for PowerShell and `.godot-mcp/toolsets.json`.
+- [ ] Include loaded/hidden tool count examples after each profile is proved.
+
+### 7.3 Improve Profile Recommendation
+
+- [ ] Make `recommend_toolset_profile` use the real tool catalog and metadata instead of relying mainly on keyword matching.
+- [ ] Return both broad toolsets and exact extra tools when a smaller catalog is better.
+- [ ] Return named-profile suggestions when a request matches a built-in example profile.
+- [ ] Return required MCP resources for the selected profile.
+- [ ] Return verification commands matched to the active profile.
+- [ ] Return reload instructions whenever env/profile changes are needed.
+
+### 7.4 Strengthen Runtime Behavior
+
+- [ ] Keep default startup backward-compatible with all tools loaded when no profile is configured.
+- [ ] Add a startup/status summary that clearly reports loaded tool count and hidden tool count.
+- [ ] Ensure `tools/list`, `godot-mcp://tools/catalog`, per-tool resources, and dispatch all use the same filtered catalog.
+- [ ] Ensure hidden known tools return a structured disabled response with the exact toolset or env var needed.
+- [ ] Ensure invalid toolset/profile names produce clear startup or status warnings.
+- [ ] Ensure full-catalog mode is explicitly marked as heavy and not the recommended normal session mode.
+
+### 7.5 Docs And User Workflow
+
+- [ ] Update `README.md` so profile-based startup is the recommended path.
+- [ ] Update `docs/autonomous-workflows.md` with the built-in example profiles.
+- [ ] Add a short "pick a profile first" workflow for LLM sessions.
+- [ ] Document that changing `GODOT_MCP_TOOLSETS`, `GODOT_MCP_TOOLS`, or `GODOT_MCP_PROFILE` requires reloading the MCP connector.
+- [ ] Document that full catalog mode exists for compatibility and broad audits, but should not be the default for normal feature work.
+
+### Phase 7 Acceptance Criteria
+
+- [ ] With no profile configured, the full catalog still loads for backward compatibility.
+- [ ] A filtered profile cuts the visible tool count significantly compared to the full catalog.
+- [ ] Hidden tools cannot be called through dispatch.
+- [ ] Hidden-tool responses explain exactly how to enable the missing tool.
+- [ ] Built-in example profiles exist for `planning-readonly`, `scene-edit`, `live-editor`, `runtime-debug`, `playtest-loop`, `visual-qa`, and `release-check`.
+- [ ] Example profiles are documented with copy/paste PowerShell env snippets.
+- [ ] Example profiles are documented with `.godot-mcp/toolsets.json` snippets.
+- [ ] `toolset_status` proves the active profile, loaded count, hidden count, active toolsets, explicit tools, and config sources after reload.
+- [ ] `recommend_toolset_profile` can map common requests to a compact profile and verification path.
+- [ ] Profile filtering is proven across `tools/list`, resources, and dispatch.
+- [ ] `npm test` passes.
+- [ ] `npm run smoke:non-live` passes with at least one filtered profile.
+- [ ] Direct MCP proof shows a filtered profile active and a hidden tool rejected with remediation.
+- [ ] `git diff --check` exits 0.
+
 ## Cross-Phase Tooling Ideas To Keep In View
 
 These are not all first-pass requirements, but they are strong candidates for making Codex more autonomous in Godot:
