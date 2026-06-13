@@ -1284,15 +1284,17 @@ Verification note, 2026-06-12: Phase 7.1 added `docs/superpowers/plans/2026-06-1
 
 Example profiles are required. Add a first useful set now, then expand it as real MCP workflows expose better groupings.
 
-- [ ] Add a documented `planning-readonly` profile for project inspection, diagnostics, planning, and recommendation work.
-- [ ] Add a documented `scene-edit` profile for file-backed scene/script changes.
-- [ ] Add a documented `live-editor` profile for active editor state, selection, screenshots, and live scene work.
-- [ ] Add a documented `runtime-debug` profile for running-game inspection, runtime input, assertions, LSP, and DAP.
-- [ ] Add a documented `playtest-loop` profile for automated/manual playtests, runtime state, visual proof, fun metrics, and quality gates.
-- [ ] Add a documented `visual-qa` profile for screenshots, viewport capture, visual regression, sprite bounds, camera framing, overlap, and contrast checks.
-- [ ] Add a documented `release-check` profile for export validation, release/build tools, quality gates, diagnostics, and project metadata.
-- [ ] Make the examples copy/paste friendly for PowerShell and `.godot-mcp/toolsets.json`.
-- [ ] Include loaded/hidden tool count examples after each profile is proved.
+- [x] Add a documented `planning-readonly` profile for project inspection, diagnostics, planning, and recommendation work.
+- [x] Add a documented `scene-edit` profile for file-backed scene/script changes.
+- [x] Add a documented `live-editor` profile for active editor state, selection, screenshots, and live scene work.
+- [x] Add a documented `runtime-debug` profile for running-game inspection, runtime input, assertions, LSP, and DAP.
+- [x] Add a documented `playtest-loop` profile for automated/manual playtests, runtime state, visual proof, fun metrics, and quality gates.
+- [x] Add a documented `visual-qa` profile for screenshots, viewport capture, visual regression, sprite bounds, camera framing, overlap, and contrast checks.
+- [x] Add a documented `release-check` profile for export validation, release/build tools, quality gates, diagnostics, and project metadata.
+- [x] Make the examples copy/paste friendly for PowerShell and `.godot-mcp/toolsets.json`.
+- [x] Include loaded/hidden tool count examples after each profile is proved.
+
+Verification note, 2026-06-13: Phase 7.2 added `docs/superpowers/plans/2026-06-13-phase-7-2-built-in-example-profiles.md`, built-in profile definitions in `src/toolsets.ts`, project-local override support, `getBuiltInToolsetProfiles`, and `toolset_status.built_in_profiles` with PowerShell snippets, `.godot-mcp/toolsets.json` snippets, resources, verification commands, and loaded/hidden count examples. The proved counts against the 350-tool catalog were `planning-readonly` 24/326, `scene-edit` 241/109, `live-editor` 211/139, `runtime-debug` 178/172, `playtest-loop` 160/190, `visual-qa` 240/110, and `release-check` 135/215. RED first failed because `build/toolsets.js` did not export `getBuiltInToolsetProfiles`. Focused `npm run build && node --test tests/built-in-profiles.test.mjs` passed 4/4. Profile regression `npm run build && node --test tests/built-in-profiles.test.mjs tests/toolset-profiles.test.mjs tests/tool-metadata-audit.test.mjs` passed 14/14. Final `npm test` passed 258/258. `npm run smoke:non-live` passed with 350 tools. `npm run smoke:live` passed against listener PID 3964 and Godot editor PID 3792. A fresh local stdio MCP proof with `GODOT_MCP_PROFILE=scene-edit` listed 241 filtered tools, confirmed `toolset_status` loaded 241 and hid 109, exposed all built-in profile examples, and rejected hidden `run_automated_playtest` with `status: "disabled"` plus playtest-toolset remediation. Direct Codex MCP namespace proof requires Codex/the Godot MCP connector reload because calls returned `Transport closed` before reload.
 
 ### 7.3 Improve Profile Recommendation
 

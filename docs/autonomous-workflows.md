@@ -45,27 +45,85 @@ Use exact tools for a very small surface:
 $env:GODOT_MCP_TOOLS = "script_patch,validate_scene"
 ```
 
-Use a project-local named profile when a workflow is repeated:
+Use a built-in named profile:
+
+```powershell
+$env:GODOT_MCP_PROFILE = "playtest-loop"
+```
+
+Add `GODOT_MCP_PROJECT_PATH` when a project-local profile file should override the built-in profile:
 
 ```powershell
 $env:GODOT_MCP_PROJECT_PATH = "C:\path\to\godot-project"
 $env:GODOT_MCP_PROFILE = "playtest-loop"
 ```
 
-Project file:
+Built-in profiles proved against the 350-tool catalog:
+
+| Profile | Use | Proved catalog count |
+| ------ | --- | -------------------- |
+| `planning-readonly` | Project inspection, diagnostics, planning, recommendations | 24 loaded / 326 hidden |
+| `scene-edit` | File-backed scene, script, resource, and quality work | 241 loaded / 109 hidden |
+| `live-editor` | Active editor state, selection, screenshots, live scene work | 211 loaded / 139 hidden |
+| `runtime-debug` | Running-game inspection, runtime input, assertions, LSP, DAP | 178 loaded / 172 hidden |
+| `playtest-loop` | Playtests, runtime state, visual proof, fun metrics, quality gates | 160 loaded / 190 hidden |
+| `visual-qa` | Screenshots, viewport capture, visual regression, bounds, framing, contrast | 240 loaded / 110 hidden |
+| `release-check` | Export validation, release/build tools, quality gates, diagnostics | 135 loaded / 215 hidden |
+
+Project file snippet:
 
 ```json
 {
   "profiles": {
-    "feature-scene-edit": {
-      "toolsets": ["core", "project", "scene", "script", "visual"],
-      "tools": ["filesystem_search"]
+    "planning-readonly": {
+      "toolsets": ["core"],
+      "tools": [
+        "get_godot_version",
+        "list_projects",
+        "get_project_info",
+        "project_settings_get",
+        "autoload_list",
+        "filesystem_search",
+        "dependency_graph",
+        "find_orphaned_assets",
+        "find_missing_uid_files",
+        "validate_scene",
+        "analyze_script",
+        "extract_dependencies",
+        "lsp_status",
+        "lsp_diagnostics",
+        "capability_matrix",
+        "recommend_next_tool",
+        "plan_feature_implementation",
+        "plan_test_strategy",
+        "risk_scan",
+        "preflight_project_health",
+        "postchange_verification_plan"
+      ]
+    },
+    "scene-edit": {
+      "toolsets": ["core", "project", "scene", "script", "assets", "quality"],
+      "tools": ["filesystem_search", "validate_scene", "script_patch"]
+    },
+    "live-editor": {
+      "toolsets": ["core", "project", "scene", "script", "live", "visual"],
+      "tools": ["session_list", "editor_state", "capture_editor_viewport"]
+    },
+    "runtime-debug": {
+      "toolsets": ["core", "project", "live", "runtime", "debug"],
+      "tools": ["session_list", "runtime_play_scene", "lsp_diagnostics", "dap_status"]
     },
     "playtest-loop": {
-      "toolsets": ["core", "playtest", "runtime", "visual", "quality"]
+      "toolsets": ["core", "project", "playtest", "runtime", "visual", "quality"],
+      "tools": ["run_automated_playtest", "analyze_playtest_session", "quality_gate_run"]
+    },
+    "visual-qa": {
+      "toolsets": ["core", "project", "scene", "live", "runtime", "visual", "quality"],
+      "tools": ["capture_editor_viewport", "screenshot_compare", "visual_regression_check"]
     },
     "release-check": {
-      "toolsets": ["core", "project", "quality", "release", "debug"]
+      "toolsets": ["core", "project", "quality", "release", "debug"],
+      "tools": ["validate_export", "quality_gate_run", "lsp_diagnostics"]
     }
   }
 }
@@ -100,12 +158,14 @@ Use `live_config_status` to verify the effective config. It redacts shared secre
 
 | Feature request | Recommended profile |
 | ------ | ------ |
-| Add a pause menu | `core,project,scene,script,visual,quality` |
-| Add a collectible or enemy | `core,project,scene,script,assets,quality` |
-| Run a playtest and reduce frustration | `core,playtest,runtime,visual,quality` |
-| Debug script errors or breakpoints | `core,project,script,debug` |
-| Prepare a release/export check | `core,project,quality,release,debug` |
-| Inspect live editor state only | `core,live` |
+| Add a pause menu | `scene-edit` |
+| Add a collectible or enemy | `scene-edit` |
+| Run a playtest and reduce frustration | `playtest-loop` |
+| Debug script errors or breakpoints | `runtime-debug` |
+| Prepare a release/export check | `release-check` |
+| Inspect live editor state only | `live-editor` |
+| Check screenshots or UI layout | `visual-qa` |
+| Plan before edits | `planning-readonly` |
 
 ## Session Setup Workflow
 
@@ -123,19 +183,19 @@ If a hidden-but-known tool is called, the server returns a structured `status: "
 For read-only planning, start with:
 
 ```powershell
-$env:GODOT_MCP_TOOLSETS = "core,project,debug"
+$env:GODOT_MCP_PROFILE = "planning-readonly"
 ```
 
 For file-backed scene/script edits, start with:
 
 ```powershell
-$env:GODOT_MCP_TOOLSETS = "core,project,scene,script,quality"
+$env:GODOT_MCP_PROFILE = "scene-edit"
 ```
 
 For live editor work, include `live` and confirm a session after reload:
 
 ```powershell
-$env:GODOT_MCP_TOOLSETS = "core,project,scene,script,live,visual"
+$env:GODOT_MCP_PROFILE = "live-editor"
 ```
 
 ## Caveats

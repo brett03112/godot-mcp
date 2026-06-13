@@ -68,6 +68,35 @@ export interface RecommendToolsetProfileArgs {
   include_optional?: boolean;
 }
 
+export interface BuiltInToolsetProfile {
+  name: string;
+  description: string;
+  toolsets: string[];
+  tools: string[];
+  resources: string[];
+  verification_commands: string[];
+  powershell: string;
+  toolsets_json: {
+    profiles: Record<string, {
+      description: string;
+      toolsets: string[];
+      tools: string[];
+    }>;
+  };
+  example_counts?: {
+    loaded_tool_count: number;
+    hidden_tool_count: number;
+  };
+}
+
+interface BuiltInToolsetProfileConfig {
+  description: string;
+  toolsets: string[];
+  tools: string[];
+  resources: string[];
+  verificationCommands: string[];
+}
+
 const CORE_SUPPORT_TOOLS = [
   'toolset_status',
   'recommend_toolset_profile',
@@ -83,6 +112,133 @@ const CORE_SUPPORT_TOOLS = [
   'preflight_project_health',
   'postchange_verification_plan',
 ];
+
+const BUILT_IN_TOOLSET_PROFILES: Record<string, BuiltInToolsetProfileConfig> = {
+  'planning-readonly': {
+    description: 'Read-only project inspection, diagnostics, planning, recommendation, and verification planning.',
+    toolsets: ['core'],
+    tools: [
+      'get_godot_version',
+      'list_projects',
+      'get_project_info',
+      'project_settings_get',
+      'autoload_list',
+      'filesystem_search',
+      'dependency_graph',
+      'find_orphaned_assets',
+      'find_missing_uid_files',
+      'validate_scene',
+      'analyze_script',
+      'extract_dependencies',
+      'lsp_status',
+      'lsp_diagnostics',
+      'capability_matrix',
+      'recommend_next_tool',
+      'plan_feature_implementation',
+      'plan_test_strategy',
+      'risk_scan',
+      'preflight_project_health',
+      'postchange_verification_plan',
+    ],
+    resources: [
+      'godot-mcp://server/info',
+      'godot-mcp://tools/catalog',
+    ],
+    verificationCommands: [
+      'toolset_status',
+      'recommend_toolset_profile(feature_request="inspect and plan this Godot task")',
+    ],
+  },
+  'scene-edit': {
+    description: 'File-backed scene, node, script, resource, and quality-gate changes without requiring a live editor session.',
+    toolsets: ['core', 'project', 'scene', 'script', 'assets', 'quality'],
+    tools: ['filesystem_search', 'validate_scene', 'script_patch'],
+    resources: [
+      'godot-mcp://server/info',
+      'godot-mcp://tools/catalog',
+    ],
+    verificationCommands: [
+      'toolset_status',
+      'validate_scene(project_path, scene_path)',
+      'npm test',
+    ],
+  },
+  'live-editor': {
+    description: 'Active editor state, selection, screenshots, filesystem refresh, and live scene work.',
+    toolsets: ['core', 'project', 'scene', 'script', 'live', 'visual'],
+    tools: ['session_list', 'editor_state', 'capture_editor_viewport'],
+    resources: [
+      'godot-mcp://server/info',
+      'godot-mcp://tools/catalog',
+      'godot-mcp://live/sessions',
+    ],
+    verificationCommands: [
+      'toolset_status',
+      'session_list(project_path)',
+      'editor_state(project_path)',
+    ],
+  },
+  'runtime-debug': {
+    description: 'Running-game inspection, runtime input, assertions, logs, LSP, and DAP debugging.',
+    toolsets: ['core', 'project', 'live', 'runtime', 'debug'],
+    tools: ['session_list', 'runtime_play_scene', 'lsp_diagnostics', 'dap_status'],
+    resources: [
+      'godot-mcp://server/info',
+      'godot-mcp://tools/catalog',
+      'godot-mcp://live/sessions',
+    ],
+    verificationCommands: [
+      'toolset_status',
+      'session_list(project_path)',
+      'lsp_status(project_path)',
+      'dap_status(project_path)',
+    ],
+  },
+  'playtest-loop': {
+    description: 'Automated and manual playtests, runtime state, visual proof, fun metrics, and quality gates.',
+    toolsets: ['core', 'project', 'playtest', 'runtime', 'visual', 'quality'],
+    tools: ['run_automated_playtest', 'analyze_playtest_session', 'quality_gate_run'],
+    resources: [
+      'godot-mcp://server/info',
+      'godot-mcp://tools/catalog',
+    ],
+    verificationCommands: [
+      'toolset_status',
+      'run_automated_playtest(project_path, duration_seconds=30)',
+      'quality_gate_run(project_path)',
+    ],
+  },
+  'visual-qa': {
+    description: 'Screenshots, viewport capture, visual regression, sprite bounds, camera framing, overlap, and contrast checks.',
+    toolsets: ['core', 'project', 'scene', 'live', 'runtime', 'visual', 'quality'],
+    tools: ['capture_editor_viewport', 'screenshot_compare', 'visual_regression_check'],
+    resources: [
+      'godot-mcp://server/info',
+      'godot-mcp://tools/catalog',
+      'godot-mcp://live/sessions',
+    ],
+    verificationCommands: [
+      'toolset_status',
+      'capture_editor_viewport(project_path)',
+      'ui_overlap_check(project_path, scene_path)',
+      'ui_contrast_check(project_path, scene_path)',
+    ],
+  },
+  'release-check': {
+    description: 'Export validation, release/build tools, quality gates, diagnostics, and project metadata.',
+    toolsets: ['core', 'project', 'quality', 'release', 'debug'],
+    tools: ['validate_export', 'quality_gate_run', 'lsp_diagnostics'],
+    resources: [
+      'godot-mcp://server/info',
+      'godot-mcp://tools/catalog',
+    ],
+    verificationCommands: [
+      'toolset_status',
+      'validate_export(project_path)',
+      'quality_gate_run(project_path)',
+    ],
+  },
+};
 
 const DEPRECATED_ALIASES: Record<string, Partial<ToolMetadata>> = {
   start_playtest_recording: {
@@ -225,7 +381,7 @@ export function createActiveToolProfile(options: CreateActiveToolProfileOptions)
   const envTools = parseList(env.GODOT_MCP_TOOLS);
   const projectPath = options.projectPath || env.GODOT_MCP_PROJECT_PATH || '';
   const namedProfile = env.GODOT_MCP_PROFILE || env.GODOT_MCP_TOOLSET_PROFILE || undefined;
-  const profileConfig = namedProfile && projectPath
+  const profileConfig = namedProfile
     ? readNamedProfile(projectPath, namedProfile, configSources, warnings)
     : null;
 
@@ -305,6 +461,34 @@ export function getToolMetadata(name: string, explicit?: Partial<ToolMetadata>):
   };
 }
 
+export function getBuiltInToolsetProfiles(allToolNames: string[] = []): BuiltInToolsetProfile[] {
+  return Object.entries(BUILT_IN_TOOLSET_PROFILES).map(([name, profile]) => {
+    const payload: BuiltInToolsetProfile = {
+      name,
+      description: profile.description,
+      toolsets: normalizeToolsets(profile.toolsets),
+      tools: uniqueStrings(profile.tools).sort(),
+      resources: uniqueStrings(profile.resources).sort(),
+      verification_commands: uniqueStrings(profile.verificationCommands),
+      powershell: builtInProfilePowerShell(name),
+      toolsets_json: builtInProfileJson(name, profile),
+    };
+
+    if (allToolNames.length > 0) {
+      const exampleProfile = createActiveToolProfile({
+        env: { GODOT_MCP_PROFILE: name },
+        allToolNames,
+      });
+      payload.example_counts = {
+        loaded_tool_count: exampleProfile.loadedToolNames.length,
+        hidden_tool_count: exampleProfile.hiddenToolNames.length,
+      };
+    }
+
+    return payload;
+  });
+}
+
 export function decorateToolDefinition<T extends ToolDefinitionLike>(tool: T): T & { metadata: ToolMetadata } {
   return {
     ...tool,
@@ -348,6 +532,7 @@ export function disabledToolResponse(toolName: string, profile: ActiveToolProfil
 export function toolsetStatusPayload(options: ToolsetStatusOptions): any {
   const decorated = options.allToolDefinitions.map((tool) => decorateToolDefinition(tool));
   const loaded = filterToolDefinitions(options.allToolDefinitions, options.profile);
+  const allToolNames = decorated.map((tool) => tool.name).sort();
   return {
     status: 'success',
     mode: options.profile.mode,
@@ -361,6 +546,7 @@ export function toolsetStatusPayload(options: ToolsetStatusOptions): any {
     config_sources: options.profile.configSources,
     warnings: options.profile.warnings,
     available_toolsets: [...TOOLSET_KEYS],
+    built_in_profiles: getBuiltInToolsetProfiles(allToolNames),
     resources: {
       catalog_filtered: options.profile.mode !== 'all',
       per_tool_resources_filtered: options.profile.mode !== 'all',
@@ -500,25 +686,62 @@ function inferGodotVersion(name: string): string | undefined {
 }
 
 function readNamedProfile(projectPath: string, profileName: string, configSources: string[], warnings: string[]): { toolsets?: any; tools?: any } | null {
-  const configPath = join(resolve(projectPath), '.godot-mcp', 'toolsets.json');
-  if (!existsSync(configPath)) {
-    warnings.push(`Named profile "${profileName}" requested, but ${configPath} does not exist.`);
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(readFileSync(configPath, 'utf8'));
-    const profile = parsed.profiles?.[profileName] || parsed[profileName];
-    configSources.push(configPath);
-    if (!profile) {
-      warnings.push(`Named profile "${profileName}" was not found in ${configPath}.`);
+  const builtInProfile = BUILT_IN_TOOLSET_PROFILES[profileName];
+
+  if (projectPath) {
+    const configPath = join(resolve(projectPath), '.godot-mcp', 'toolsets.json');
+    if (existsSync(configPath)) {
+      try {
+        const parsed = JSON.parse(readFileSync(configPath, 'utf8'));
+        const profile = parsed.profiles?.[profileName] || parsed[profileName];
+        if (profile) {
+          configSources.push(configPath);
+          if (Array.isArray(profile)) return { toolsets: profile };
+          return profile;
+        }
+      } catch (error: any) {
+        warnings.push(`Failed to read ${configPath}: ${error.message || String(error)}`);
+      }
+    } else if (!builtInProfile) {
+      warnings.push(`Named profile "${profileName}" requested, but ${configPath} does not exist.`);
       return null;
     }
-    if (Array.isArray(profile)) return { toolsets: profile };
-    return profile;
-  } catch (error: any) {
-    warnings.push(`Failed to read ${configPath}: ${error.message || String(error)}`);
-    return null;
   }
+
+  if (builtInProfile) {
+    configSources.push(`built-in:${profileName}`);
+    return {
+      toolsets: builtInProfile.toolsets,
+      tools: builtInProfile.tools,
+    };
+  }
+
+  if (projectPath) {
+    const configPath = join(resolve(projectPath), '.godot-mcp', 'toolsets.json');
+    warnings.push(`Named profile "${profileName}" was not found in ${configPath}.`);
+  } else {
+    warnings.push(`Named profile "${profileName}" was not found in built-in profiles and no GODOT_MCP_PROJECT_PATH was provided.`);
+  }
+  return null;
+}
+
+function builtInProfilePowerShell(name: string): string {
+  return [
+    `$env:GODOT_MCP_PROFILE = "${name}"`,
+    '# Reload/restart the MCP connector after changing this value.',
+  ].join('\n');
+}
+
+function builtInProfileJson(name: string, profile: BuiltInToolsetProfileConfig): BuiltInToolsetProfile['toolsets_json'] {
+  return {
+    profiles: {
+      [name]: {
+        description: profile.description,
+        toolsets: normalizeToolsets(profile.toolsets),
+        tools: uniqueStrings(profile.tools).sort(),
+      },
+    },
+  };
 }
 
 function normalizeRecommendArgs(rawArgs: RecommendToolsetProfileArgs): { featureRequest: string; projectFacts: Record<string, any>; includeOptional: boolean } {

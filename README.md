@@ -96,22 +96,80 @@ $env:GODOT_MCP_TOOLSETS = "core,project,scene,script,visual"
 # Or expose exact tools plus required core support tools
 $env:GODOT_MCP_TOOLS = "script_patch,validate_scene"
 
-# Or use a project-local named profile
+# Or use a built-in named profile
+$env:GODOT_MCP_PROFILE = "scene-edit"
+
+# Or let a project-local profile override the same name
 $env:GODOT_MCP_PROJECT_PATH = "C:\path\to\godot-project"
-$env:GODOT_MCP_PROFILE = "feature-scene-edit"
+$env:GODOT_MCP_PROFILE = "scene-edit"
 ```
 
-Project profiles live at `.godot-mcp/toolsets.json`:
+Built-in profiles are available with `GODOT_MCP_PROFILE`:
+
+| Profile | Use | Proved catalog count |
+| ------ | --- | -------------------- |
+| `planning-readonly` | Project inspection, diagnostics, planning, recommendations | 24 loaded / 326 hidden |
+| `scene-edit` | File-backed scene, script, resource, and quality work | 241 loaded / 109 hidden |
+| `live-editor` | Active editor state, selection, screenshots, live scene work | 211 loaded / 139 hidden |
+| `runtime-debug` | Running-game inspection, runtime input, assertions, LSP, DAP | 178 loaded / 172 hidden |
+| `playtest-loop` | Playtests, runtime state, visual proof, fun metrics, quality gates | 160 loaded / 190 hidden |
+| `visual-qa` | Screenshots, viewport capture, visual regression, bounds, framing, contrast | 240 loaded / 110 hidden |
+| `release-check` | Export validation, release/build tools, quality gates, diagnostics | 135 loaded / 215 hidden |
+
+Project profiles live at `.godot-mcp/toolsets.json` and can copy the built-in shapes:
 
 ```json
 {
   "profiles": {
-    "feature-scene-edit": {
-      "toolsets": ["core", "project", "scene", "script", "visual"],
-      "tools": ["filesystem_search"]
+    "planning-readonly": {
+      "toolsets": ["core"],
+      "tools": [
+        "get_godot_version",
+        "list_projects",
+        "get_project_info",
+        "project_settings_get",
+        "autoload_list",
+        "filesystem_search",
+        "dependency_graph",
+        "find_orphaned_assets",
+        "find_missing_uid_files",
+        "validate_scene",
+        "analyze_script",
+        "extract_dependencies",
+        "lsp_status",
+        "lsp_diagnostics",
+        "capability_matrix",
+        "recommend_next_tool",
+        "plan_feature_implementation",
+        "plan_test_strategy",
+        "risk_scan",
+        "preflight_project_health",
+        "postchange_verification_plan"
+      ]
+    },
+    "scene-edit": {
+      "toolsets": ["core", "project", "scene", "script", "assets", "quality"],
+      "tools": ["filesystem_search", "validate_scene", "script_patch"]
+    },
+    "live-editor": {
+      "toolsets": ["core", "project", "scene", "script", "live", "visual"],
+      "tools": ["session_list", "editor_state", "capture_editor_viewport"]
+    },
+    "runtime-debug": {
+      "toolsets": ["core", "project", "live", "runtime", "debug"],
+      "tools": ["session_list", "runtime_play_scene", "lsp_diagnostics", "dap_status"]
     },
     "playtest-loop": {
-      "toolsets": ["core", "playtest", "runtime", "visual", "quality"]
+      "toolsets": ["core", "project", "playtest", "runtime", "visual", "quality"],
+      "tools": ["run_automated_playtest", "analyze_playtest_session", "quality_gate_run"]
+    },
+    "visual-qa": {
+      "toolsets": ["core", "project", "scene", "live", "runtime", "visual", "quality"],
+      "tools": ["capture_editor_viewport", "screenshot_compare", "visual_regression_check"]
+    },
+    "release-check": {
+      "toolsets": ["core", "project", "quality", "release", "debug"],
+      "tools": ["validate_export", "quality_gate_run", "lsp_diagnostics"]
     }
   }
 }
