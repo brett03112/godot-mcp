@@ -40,28 +40,6 @@ Use this file at the start of every `C:\Users\brett\Desktop\godot-mcp` session.
    - Re-check listener ownership and the established Godot socket.
    - If a callable live tool exists, call it again after the wait.
 
-## Default Godot Target
-
-- Treat the open Godot editor on `test_mcp_enhancements` / `Test_MCP_Enhancements` as the intended proof target unless the user says otherwise.
-- If the user says the editor is open or the live bridge is connected, preserve and verify that session instead of switching to another project.
-- If a stale process is found, stop it.
-- If a proof needs the current scene running, run the current scene.
-
-## Phase Work
-
-- Start from `Enhancements_TODO.md`.
-- Add or update a dated plan under `docs/superpowers/plans/`.
-- Write a focused RED test first.
-- Implement through the existing repo patterns:
-  - `src/tools/*.ts`
-  - `src/index.ts`
-  - `src/scripts/godot_operations.gd`
-  - `test_mcp_enhancements/addons/godot_mcp_live/*` for live-editor/runtime phases
-- Run focused tests, then `npm test`.
-- Run a real Godot proof against `test_mcp_enhancements`.
-- Update `Enhancements_TODO.md` with checkboxes and a dated verification note.
-- Run `git diff --check`.
-
 ## Allowed Startup Commands
 
 Use PowerShell facts like:
