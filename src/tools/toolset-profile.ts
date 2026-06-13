@@ -19,7 +19,7 @@ export interface ToolsetProfileProvider {
 export function registerToolsetProfileTools(registry: ToolRegistry, ctx: ServerContext, provider: ToolsetProfileProvider): void {
   registry.registerAll([
     toolsetStatus(ctx, provider),
-    recommendToolsetProfileTool(ctx),
+    recommendToolsetProfileTool(ctx, provider),
   ]);
 }
 
@@ -54,7 +54,7 @@ function toolsetStatus(ctx: ServerContext, provider: ToolsetProfileProvider): To
   };
 }
 
-function recommendToolsetProfileTool(ctx: ServerContext): ToolDefinition {
+function recommendToolsetProfileTool(ctx: ServerContext, provider: ToolsetProfileProvider): ToolDefinition {
   return {
     name: 'recommend_toolset_profile',
     description: 'Recommend compact toolsets, individual tools, resources, env snippets, and verification commands for a Godot feature request.',
@@ -81,7 +81,9 @@ function recommendToolsetProfileTool(ctx: ServerContext): ToolDefinition {
       if (!featureRequest || typeof featureRequest !== 'string') {
         return failure('feature_request is required');
       }
-      return jsonResponse(recommendToolsetProfile(args));
+      return jsonResponse(recommendToolsetProfile(args, {
+        allToolDefinitions: provider.getAllToolDefinitions(),
+      }));
     },
   };
 }

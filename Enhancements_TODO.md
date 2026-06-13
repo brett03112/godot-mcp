@@ -1298,12 +1298,14 @@ Verification note, 2026-06-13: Phase 7.2 added `docs/superpowers/plans/2026-06-1
 
 ### 7.3 Improve Profile Recommendation
 
-- [ ] Make `recommend_toolset_profile` use the real tool catalog and metadata instead of relying mainly on keyword matching.
-- [ ] Return both broad toolsets and exact extra tools when a smaller catalog is better.
-- [ ] Return named-profile suggestions when a request matches a built-in example profile.
-- [ ] Return required MCP resources for the selected profile.
-- [ ] Return verification commands matched to the active profile.
-- [ ] Return reload instructions whenever env/profile changes are needed.
+- [x] Make `recommend_toolset_profile` use the real tool catalog and metadata instead of relying mainly on keyword matching.
+- [x] Return both broad toolsets and exact extra tools when a smaller catalog is better.
+- [x] Return named-profile suggestions when a request matches a built-in example profile.
+- [x] Return required MCP resources for the selected profile.
+- [x] Return verification commands matched to the active profile.
+- [x] Return reload instructions whenever env/profile changes are needed.
+
+Verification note, 2026-06-13: Phase 7.3 added `docs/superpowers/plans/2026-06-13-phase-7-3-profile-recommendation.md`, catalog-aware profile recommendation in `src/toolsets.ts`, provider-catalog wiring in `src/tools/toolset-profile.ts`, and focused coverage in `tests/toolset-profiles.test.mjs`. RED first failed 2/10 because `primary_named_profile` and catalog-backed recommendation fields were missing. Focused `npm run build && node --test tests/toolset-profiles.test.mjs` passed 10/10. Profile regression `npm run build && node --test tests/toolset-profiles.test.mjs tests/built-in-profiles.test.mjs tests/tool-metadata-audit.test.mjs` passed 16/16. Final `npm test` passed 260/260. `npm run smoke:non-live` passed with 350 tools. `npm run smoke:live` passed against listener PID 19904 and Godot editor PID 13144. A fresh local stdio MCP proof listed 350 tools and confirmed `recommend_toolset_profile` returned `primary_named_profile: live-editor`, exact tools including `capture_editor_viewport`, `editor_state`, `selection_get`, and `session_list`, live resources, profile verification commands, and reload instructions. The live session was connected on `127.0.0.1:6010` with Godot local port 51501, and direct Codex MCP calls to `session_list`, `editor_state`, and `selection_get` succeeded against `test_mcp_enhancements`. Post-reload direct Codex MCP proof confirmed the new Phase 7.3 recommendation shape, including `primary_named_profile: live-editor`, built-in named profile suggestions, exact extra tools, required MCP resources, verification commands, and reload instructions. Stale listener PID 19904 and extra non-listener `build/index.js` processes were stopped; the remaining listener was PID 16820 on `127.0.0.1:6010`, with Godot editor PID 13144 connected from local port 52857. Final direct calls to `toolset_status`, `session_list`, `editor_state`, and `selection_get` succeeded.
 
 ### 7.4 Strengthen Runtime Behavior
 

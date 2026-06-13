@@ -68,6 +68,10 @@ export interface RecommendToolsetProfileArgs {
   include_optional?: boolean;
 }
 
+export interface RecommendToolsetProfileOptions {
+  allToolDefinitions?: ToolDefinitionLike[];
+}
+
 export interface BuiltInToolsetProfile {
   name: string;
   description: string;
@@ -555,10 +559,12 @@ export function toolsetStatusPayload(options: ToolsetStatusOptions): any {
   };
 }
 
-export function recommendToolsetProfile(rawArgs: RecommendToolsetProfileArgs): any {
+export function recommendToolsetProfile(rawArgs: RecommendToolsetProfileArgs, options: RecommendToolsetProfileOptions = {}): any {
   const args = normalizeRecommendArgs(rawArgs);
   const request = args.featureRequest.toLowerCase();
   const projectFacts = args.projectFacts || {};
+  const catalog = decorateCatalog(options.allToolDefinitions || []);
+  const availableToolNames = new Set(catalog.map((tool) => tool.name));
   const toolsets = new Set<string>(['core', 'project']);
   const requiredTools = new Set<string>(['toolset_status', 'recommend_toolset_profile']);
   const optionalTools = new Set<string>();
@@ -579,7 +585,7 @@ export function recommendToolsetProfile(rawArgs: RecommendToolsetProfileArgs): a
     requiredTools.add('filesystem_search');
     optionalTools.add('resource_search');
   }
-  if (/(live|editor|selected|selection|open editor|viewport)/.test(request) || projectFacts.has_live_editor) {
+  if (/(live|editor|selected|selection|open editor|viewport|screenshot|capture)/.test(request) || projectFacts.has_live_editor) {
     toolsets.add('live');
     optionalTools.add('session_list');
     optionalTools.add('editor_state');
@@ -620,26 +626,232 @@ export function recommendToolsetProfile(rawArgs: RecommendToolsetProfileArgs): a
     verification.add('focused changed-test run');
   }
 
+  const catalogMatches = findCatalogMatches(catalog, request, toolsets, requiredTools, optionalTools);
+  const namedProfileSuggestions = scoreBuiltInProfiles({
+    request,
+    projectFacts,
+    toolsets,
+    requiredTools,
+    optionalTools,
+    resources,
+    catalogMatches,
+    allToolNames: Array.from(availableToolNames),
+  });
+  const primaryProfile = namedProfileSuggestions[0] || null;
+
+  if (primaryProfile) {
+    for (const toolset of primaryProfile.toolsets) toolsets.add(toolset);
+    for (const resource of primaryProfile.resources) resources.add(resource);
+    for (const command of primaryProfile.verification_commands) verification.add(command);
+  }
+
+  const requiredIndividualTools = filterKnownOrAll(Array.from(requiredTools), availableToolNames);
+  const optionalToolList = args.includeOptional
+    ? filterKnownOrAll(Array.from(optionalTools), availableToolNames)
+    : [];
+  const exactExtraTools = filterKnownOrAll(uniqueStrings([
+    ...requiredIndividualTools,
+    ...optionalToolList,
+    ...catalogMatches.map((tool) => tool.name),
+    ...(primaryProfile?.tools || []),
+  ]), availableToolNames);
   const recommendedToolsets = Array.from(toolsets).sort();
+  const profileName = primaryProfile?.name || null;
+
   return {
     status: 'success',
     feature_request: args.featureRequest,
+    primary_named_profile: profileName,
+    named_profile_suggestions: namedProfileSuggestions,
     recommended_toolsets: recommendedToolsets,
-    required_individual_tools: Array.from(requiredTools).sort(),
-    optional_tools: Array.from(optionalTools).sort(),
+    exact_extra_tools: exactExtraTools,
+    required_individual_tools: requiredIndividualTools,
+    optional_tools: optionalToolList,
+    available_tool_matches: catalogMatches.map(serializeToolMatch),
     needed_mcp_resources: Array.from(resources).sort(),
     env_snippet: `GODOT_MCP_TOOLSETS=${recommendedToolsets.join(',')}`,
+    profile_env_snippet: profileName ? `GODOT_MCP_PROFILE=${profileName}` : null,
     config_snippet: JSON.stringify({
       profiles: {
         'recommended-session': {
           toolsets: recommendedToolsets,
-          tools: Array.from(requiredTools).sort(),
+          tools: exactExtraTools,
         },
       },
     }, null, 2),
+    profile_config_snippet: primaryProfile ? JSON.stringify(primaryProfile.toolsets_json, null, 2) : null,
     verification_commands: Array.from(verification),
     reload_required: 'Reload/restart the MCP connector after changing profile env vars so tools/list is rebuilt.',
   };
+}
+
+function decorateCatalog(tools: ToolDefinitionLike[]): Array<ToolDefinitionLike & { metadata: ToolMetadata }> {
+  return tools.map((tool) => decorateToolDefinition(tool));
+}
+
+function findCatalogMatches(
+  catalog: Array<ToolDefinitionLike & { metadata: ToolMetadata }>,
+  request: string,
+  toolsets: Set<string>,
+  requiredTools: Set<string>,
+  optionalTools: Set<string>,
+): Array<ToolDefinitionLike & { metadata: ToolMetadata }> {
+  if (catalog.length === 0) return [];
+
+  const exactNames = new Set<string>([
+    ...requiredTools,
+    ...optionalTools,
+    ...semanticToolHints(request),
+  ]);
+  const requestTokens = tokenize(request);
+  const scored = catalog
+    .map((tool) => {
+      let score = 0;
+      const haystack = `${tool.name} ${tool.description}`.toLowerCase().replace(/[_-]+/g, ' ');
+      if (exactNames.has(tool.name)) score += 12;
+      if (toolsets.has(tool.metadata.toolset)) score += 2;
+      for (const token of requestTokens) {
+        if (haystack.includes(token)) score += 2;
+      }
+      return { tool, score };
+    })
+    .filter((entry) => entry.score >= 6)
+    .sort((a, b) => b.score - a.score || a.tool.name.localeCompare(b.tool.name));
+
+  return scored.slice(0, 24).map((entry) => entry.tool);
+}
+
+function semanticToolHints(request: string): string[] {
+  const hints = new Set<string>();
+  if (/(live|editor|open editor)/.test(request)) {
+    hints.add('session_list');
+    hints.add('editor_state');
+    hints.add('scene_current');
+  }
+  if (/(selected|selection|select)/.test(request)) {
+    hints.add('selection_get');
+    hints.add('selection_set');
+  }
+  if (/(screenshot|capture|viewport|visual)/.test(request)) {
+    hints.add('capture_editor_viewport');
+    hints.add('editor_screenshot');
+    hints.add('capture_runtime_viewport');
+    hints.add('screenshot_compare');
+  }
+  if (/(release|export|preset|build)/.test(request)) {
+    hints.add('validate_export');
+    hints.add('export_project');
+  }
+  if (/(diagnostic|lsp|debug|symbol|dap)/.test(request)) {
+    hints.add('lsp_diagnostics');
+    hints.add('lsp_status');
+    hints.add('dap_status');
+  }
+  if (/(playtest|frustrat|difficulty|death|heatmap)/.test(request)) {
+    hints.add('run_automated_playtest');
+    hints.add('analyze_playtest_session');
+    hints.add('playtest_recording');
+  }
+  if (/(runtime|running game|input|assert)/.test(request)) {
+    hints.add('runtime_play_scene');
+    hints.add('runtime_assert_no_errors');
+    hints.add('runtime_get_scene_tree');
+  }
+  if (/(scene|node|menu|hud|ui|button|level)/.test(request)) {
+    hints.add('validate_scene');
+    hints.add('script_patch');
+  }
+  return Array.from(hints);
+}
+
+function scoreBuiltInProfiles(options: {
+  request: string;
+  projectFacts: Record<string, any>;
+  toolsets: Set<string>;
+  requiredTools: Set<string>;
+  optionalTools: Set<string>;
+  resources: Set<string>;
+  catalogMatches: Array<ToolDefinitionLike & { metadata: ToolMetadata }>;
+  allToolNames: string[];
+}): any[] {
+  const exactTools = new Set<string>([
+    ...options.requiredTools,
+    ...options.optionalTools,
+    ...options.catalogMatches.map((tool) => tool.name),
+  ]);
+
+  return getBuiltInToolsetProfiles(options.allToolNames)
+    .map((profile) => {
+      let score = profileRequestBoost(profile.name, options.request, options.projectFacts);
+      for (const toolset of profile.toolsets) {
+        if (options.toolsets.has(toolset)) score += 3;
+      }
+      for (const tool of profile.tools) {
+        if (exactTools.has(tool)) score += 4;
+      }
+      for (const resource of profile.resources) {
+        if (options.resources.has(resource)) score += 2;
+      }
+      return {
+        name: profile.name,
+        score,
+        description: profile.description,
+        toolsets: profile.toolsets,
+        tools: profile.tools,
+        resources: profile.resources,
+        verification_commands: profile.verification_commands,
+        env_snippet: `GODOT_MCP_PROFILE=${profile.name}`,
+        powershell: profile.powershell,
+        toolsets_json: profile.toolsets_json,
+        example_counts: profile.example_counts,
+      };
+    })
+    .filter((profile) => profile.score > 0)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .slice(0, 3);
+}
+
+function profileRequestBoost(profileName: string, request: string, projectFacts: Record<string, any>): number {
+  switch (profileName) {
+    case 'planning-readonly':
+      return /(plan|inspect|audit|read.?only|catalog|metadata)/.test(request) ? 8 : 0;
+    case 'scene-edit':
+      return /(scene|node|menu|hud|ui|button|level|script)/.test(request) ? 8 : 0;
+    case 'live-editor':
+      return (/(live|editor|selected|selection|open editor|screenshot|viewport)/.test(request) || projectFacts.has_live_editor) ? 10 : 0;
+    case 'runtime-debug':
+      return /(runtime|running game|input|assert|debug|diagnostic|lsp|dap|stack|variable)/.test(request) ? 9 : 0;
+    case 'playtest-loop':
+      return /(playtest|frustrat|difficulty|less fun|death|heatmap|session)/.test(request) ? 10 : 0;
+    case 'visual-qa':
+      return /(visual|screenshot|capture|viewport|overlap|contrast|sprite|camera)/.test(request) ? 8 : 0;
+    case 'release-check':
+      return /(export|release|build|preset|ship|package)/.test(request) ? 10 : 0;
+    default:
+      return 0;
+  }
+}
+
+function serializeToolMatch(tool: ToolDefinitionLike & { metadata: ToolMetadata }): any {
+  return {
+    name: tool.name,
+    description: tool.description,
+    metadata: tool.metadata,
+  };
+}
+
+function filterKnownOrAll(names: string[], availableToolNames: Set<string>): string[] {
+  const unique = uniqueStrings(names).sort();
+  if (availableToolNames.size === 0) return unique;
+  return unique.filter((name) => availableToolNames.has(name));
+}
+
+function tokenize(value: string): string[] {
+  return uniqueStrings(value
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 4));
 }
 
 function inferToolset(name: string): string {

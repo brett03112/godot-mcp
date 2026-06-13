@@ -29,11 +29,13 @@ const SAMPLE_TOOLS = [
   tool('filesystem_search'),
   tool('resource_search'),
   tool('session_list'),
+  tool('selection_get'),
   tool('runtime_play_scene'),
   tool('run_automated_playtest'),
   tool('capture_editor_viewport'),
   tool('quality_gate_run'),
   tool('lsp_diagnostics'),
+  tool('validate_export'),
   tool('export_project'),
 ];
 
@@ -251,6 +253,49 @@ test('toolset_status and recommend_toolset_profile report active profile and set
   assert.equal(playtest.recommended_toolsets.includes('playtest'), true);
   assert.equal(playtest.recommended_toolsets.includes('runtime'), true);
   assert.equal(playtest.recommended_toolsets.includes('quality'), true);
+});
+
+test('recommend_toolset_profile uses catalog metadata and built-in profiles', () => {
+  const recommendation = recommendToolsetProfile({
+    featureRequest: 'inspect the open editor, verify selected nodes, and take a screenshot',
+    projectFacts: { has_live_editor: true },
+  }, { allToolDefinitions: SAMPLE_TOOLS });
+
+  assert.equal(recommendation.status, 'success');
+  assert.equal(recommendation.primary_named_profile, 'live-editor');
+  assert.equal(recommendation.named_profile_suggestions[0].name, 'live-editor');
+  assert.equal(recommendation.exact_extra_tools.includes('capture_editor_viewport'), true);
+  assert.equal(recommendation.exact_extra_tools.includes('selection_get'), true);
+  assert.equal(recommendation.needed_mcp_resources.includes('godot-mcp://live/sessions'), true);
+  assert.equal(recommendation.verification_commands.includes('session_list(project_path)'), true);
+  assert.match(recommendation.profile_env_snippet, /GODOT_MCP_PROFILE=live-editor/);
+  assert.match(recommendation.reload_required, /Reload/);
+
+  const selectionMatch = recommendation.available_tool_matches.find((entry) => entry.name === 'selection_get');
+  assert.ok(selectionMatch);
+  assert.equal(selectionMatch.metadata.toolset, 'live');
+  assert.equal(selectionMatch.metadata.requires_live, true);
+});
+
+test('registry recommend_toolset_profile passes the real provider catalog', async () => {
+  const profile = createActiveToolProfile({
+    env: {},
+    allToolNames: names(SAMPLE_TOOLS),
+  });
+  const registry = new ToolRegistry();
+  registerToolsetProfileTools(registry, createContext(), {
+    getActiveProfile: () => profile,
+    getAllToolDefinitions: () => SAMPLE_TOOLS,
+  });
+
+  const recommendation = parseResponse(await registry.dispatch('recommend_toolset_profile', {
+    feature_request: 'prepare a release export check with diagnostics',
+  }));
+
+  assert.equal(recommendation.primary_named_profile, 'release-check');
+  assert.equal(recommendation.exact_extra_tools.includes('validate_export'), true);
+  assert.equal(recommendation.available_tool_matches.some((entry) => entry.name === 'export_project' && entry.metadata.toolset === 'release'), true);
+  assert.equal(recommendation.verification_commands.includes('validate_export(project_path)'), true);
 });
 
 test('consolidated lifecycle tools validate actions and legacy names stay deprecated aliases', async () => {
