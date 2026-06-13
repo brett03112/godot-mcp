@@ -138,6 +138,12 @@ const AUDIO_PLAYER_OPERATIONS = [
   'audio_player_validate_routes',
 ];
 
+const SHADER_OPERATIONS = [
+  'create_shader_material',
+  'apply_material',
+  'set_shader_parameter',
+];
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -746,6 +752,49 @@ test('Phase 6.B pass 13 removes audio-player dispatch cases from legacy fallback
 
 test('build output copies the Phase 6.B audio-player module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/audio_player_ops.gd');
+  const stats = await stat(builtPath);
+  assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B pass 14 has a dedicated shader/material operation module', async () => {
+  const modulePath = join(process.cwd(), 'src/scripts/godot_ops/shader_ops.gd');
+  assert.equal(existsSync(modulePath), true);
+  const source = await readFile(modulePath, 'utf8');
+
+  assert.match(source, /extends RefCounted/);
+  assert.match(source, /func setup\(context, legacy\) -> void:/);
+  assert.doesNotMatch(source, /_legacy\.shader/);
+  assert.match(source, /func _shader_template\(template_name: String\) -> Dictionary:/);
+  assert.match(source, /func _shader_parameter_value\(value\)/);
+  for (const operation of SHADER_OPERATIONS) {
+    assert.match(source, new RegExp(`func ${operation}\\(params: Dictionary\\) -> void:`), operation);
+  }
+});
+
+test('Phase 6.B pass 14 keeps shader/material operations registered before legacy fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  assert.match(registry, /const ShaderOps = preload\("shader_ops\.gd"\)/);
+  assert.match(registry, /func _register_shader\(\) -> void:/);
+  assert.ok(registry.indexOf('_register_shader()') < registry.indexOf('func dispatch'), 'shader registration should happen during initialization');
+  for (const operation of SHADER_OPERATIONS) {
+    assert.match(registry, new RegExp(`"${operation}"`), operation);
+  }
+});
+
+test('Phase 6.B pass 14 removes shader/material dispatch cases from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of SHADER_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n\\s+${operation}\\(params\\)`), operation);
+    assert.doesNotMatch(legacy, new RegExp(`func ${operation}\\(params(?:: Dictionary)?\\)?`), operation);
+  }
+  assert.doesNotMatch(legacy, /# Get shader template code/);
+  assert.doesNotMatch(legacy, /# Tier 1: Shader Pipeline Completion Operations/);
+});
+
+test('build output copies the Phase 6.B shader/material module', async () => {
+  const builtPath = join(process.cwd(), 'build/scripts/godot_ops/shader_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
 });

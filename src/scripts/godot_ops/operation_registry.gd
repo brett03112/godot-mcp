@@ -4,6 +4,7 @@ const LegacyOperations = preload("legacy_operations.gd")
 const AssetPipelineOps = preload("asset_pipeline_ops.gd")
 const CameraOps = preload("camera_ops.gd")
 const AudioPlayerOps = preload("audio_player_ops.gd")
+const ShaderOps = preload("shader_ops.gd")
 const DesignToSceneOps = preload("design_to_scene_ops.gd")
 const GameplayOps = preload("gameplay_ops.gd")
 const UiThemeOps = preload("ui_theme_ops.gd")
@@ -29,6 +30,7 @@ func _init(context) -> void:
     _register_asset_pipeline()
     _register_camera()
     _register_audio_player()
+    _register_shader()
     _register_design_to_scene()
     _register_gameplay()
     _register_ui_theme()
@@ -87,6 +89,17 @@ func _register_audio_player() -> void:
         "audio_player_validate_routes",
     ]:
         _handlers[operation] = Callable(audio_ops, operation)
+
+func _register_shader() -> void:
+    var shader_ops = ShaderOps.new()
+    shader_ops.setup(_context, _legacy)
+    _modules.append(shader_ops)
+    for operation in [
+        "create_shader_material",
+        "apply_material",
+        "set_shader_parameter",
+    ]:
+        _handlers[operation] = Callable(shader_ops, operation)
 
 func _register_design_to_scene() -> void:
     var design_ops = DesignToSceneOps.new()

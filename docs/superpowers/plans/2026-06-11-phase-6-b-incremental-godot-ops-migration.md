@@ -590,3 +590,44 @@ Overall Phase 6.B remains IN PROGRESS. This pass moved only the audio-player wor
 - Fresh local stdio MCP proof listed 350 tools and passed calls for `create_audio_player`, `set_audio_stream`, `configure_audio_playback`, `play_audio_node`, `stop_audio_node`, `list_audio_players`, `validate_audio_routes`, and `toolset_status`; the temporary proof scene was removed afterward.
 - `git diff --check` exited 0 with CRLF warnings only.
 - Direct Codex MCP proof passed after Codex reload: exactly one `127.0.0.1:6010` listener owned by PID 18992, one established Godot editor socket from PID 3792 local port 50152, `session_list` returned one connected compatible `test_mcp_enhancements` session, `toolset_status` reported 350 loaded tools, and callable proof passed for `editor_state`, `live_addon_status`, plus all seven moved audio-player tools. The temporary Codex proof scene was removed afterward.
+
+## Pass 14 Plan, 2026-06-12
+
+Scope:
+
+- Move the shader/material operation family into `src/scripts/godot_ops/shader_ops.gd`.
+- Register `create_shader_material`, `apply_material`, and `set_shader_parameter` from `operation_registry.gd` before the legacy fallback.
+- Remove the old shader/material dispatch cases and helpers from `legacy_operations.gd`.
+- Keep existing MCP tool names and operation names unchanged.
+- Avoid new shader behavior; this is a compatibility-preserving placement change.
+
+Verification ladder:
+
+1. RED: `node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for the moved shader/material operations.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Fresh local stdio MCP proof for moved shader tools.
+9. Post-reload Codex namespace proof after Codex is reloaded.
+10. `git diff --check`
+
+## Pass 14 Status, 2026-06-12
+
+Phase 6.B pass 14 is code-complete and locally verified.
+
+Overall Phase 6.B remains IN PROGRESS. This pass moved only the shader/material operation family; TileMap, mesh, and older scene operations still need migration passes before overall acceptance can be checked.
+
+- RED first failed with the missing shader module, missing registry preload, legacy dispatch cases, and missing build output.
+- `src/scripts/godot_ops/shader_ops.gd` now owns `create_shader_material`, `apply_material`, and `set_shader_parameter`.
+- Focused `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs` passed 60/60.
+- Final `npm test` passed 238/238.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd` passed `create_shader_material`, `apply_material`, and `set_shader_parameter`; temporary shader/material/scene proof files were removed afterward.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 18992 and connected Godot editor PID 3792.
+- Fresh local stdio MCP proof listed 350 tools and passed calls for `create_shader_material`, `apply_material`, `set_shader_parameter`, and `toolset_status`.
+- `git diff --check` exited 0 with CRLF warnings only.
+- Direct Codex MCP proof passed after stale listener cleanup: `session_list` returned one connected compatible `test_mcp_enhancements` session on listener PID 20808 with Godot editor PID 3792, `toolset_status` reported 350 loaded tools, `live_addon_status` was compatible and up to date, `editor_state` was connected and writable, and direct Codex calls passed for `create_shader_material`, `apply_material`, `set_shader_parameter`, and `validate_scene`.
