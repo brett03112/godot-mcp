@@ -148,11 +148,20 @@ async function main() {
     const toolset = parseToolContent(await callTool(child, 6, 'toolset_status', {
       project_path: PROJECT_PATH,
     }));
-    if (toolset.loaded_tool_count < 300) {
-      throw new Error('toolset_status loaded_tool_count was unexpectedly low: ' + JSON.stringify(toolset));
+    if (toolset.loaded_tool_count !== toolNames.length) {
+      throw new Error('tools/list and toolset_status loaded counts disagree: ' + JSON.stringify(toolset));
+    }
+    if (toolset.hidden_tool_count < 0) {
+      throw new Error('toolset_status hidden_tool_count was invalid: ' + JSON.stringify(toolset));
+    }
+    if (toolset.mode === 'all' && toolset.loaded_tool_count < 300) {
+      throw new Error('full-catalog toolset_status loaded_tool_count was unexpectedly low: ' + JSON.stringify(toolset));
+    }
+    if (toolset.mode !== 'all' && toolset.hidden_tool_count === 0) {
+      throw new Error('filtered toolset_status did not hide any tools: ' + JSON.stringify(toolset));
     }
 
-    console.log(`Phase 5.4 non-live smoke passed with ${toolNames.length} tools; called project_settings_get, filesystem_search, validate_scene, and toolset_status.`);
+    console.log(`Phase 5.4 non-live smoke passed with ${toolNames.length} tools (${toolset.mode}, hidden=${toolset.hidden_tool_count}); called project_settings_get, filesystem_search, validate_scene, and toolset_status.`);
   } finally {
     cleanupProcess();
   }

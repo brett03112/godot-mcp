@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -17,6 +18,8 @@ import {
 import { registerToolsetProfileTools } from '../build/tools/toolset-profile.js';
 import { registerPlaytestTools } from '../build/tools/playtest.js';
 import { registerProfilingTools } from '../build/tools/profiling.js';
+
+const BUILD_INDEX = join(process.cwd(), 'build', 'index.js');
 
 const SAMPLE_TOOLS = [
   tool('toolset_status'),
@@ -54,6 +57,96 @@ function names(tools) {
 function parseResponse(response) {
   assert.equal(response.content.length, 1);
   return JSON.parse(response.content[0].text);
+}
+
+function send(child, message) {
+  child.stdin.write(JSON.stringify(message) + '\n');
+}
+
+function waitForId(child, id, timeoutMs = 30000) {
+  return new Promise((resolve, reject) => {
+    let buffer = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for response id ${id}. stderr=${stderr}`));
+    }, timeoutMs);
+    timer.unref?.();
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      child.stdout.off('data', onData);
+      child.stderr.off('data', onStderr);
+      child.off('error', onError);
+      child.off('exit', onExit);
+    };
+    const onStderr = (chunk) => {
+      stderr += chunk.toString('utf8');
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const onExit = (code) => {
+      cleanup();
+      reject(new Error(`MCP server exited before response id ${id}. code=${code} stderr=${stderr}`));
+    };
+    const onData = (chunk) => {
+      buffer += chunk.toString('utf8');
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const message = JSON.parse(line);
+        if (message.id === id) {
+          cleanup();
+          resolve(message);
+          return;
+        }
+      }
+    };
+
+    child.stdout.on('data', onData);
+    child.stderr.on('data', onStderr);
+    child.once('error', onError);
+    child.once('exit', onExit);
+  });
+}
+
+async function request(child, message, timeoutMs) {
+  const response = waitForId(child, message.id, timeoutMs);
+  send(child, message);
+  return response;
+}
+
+async function withMcpServer(env, fn) {
+  const child = spawn(process.execPath, [BUILD_INDEX], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      GODOT_PATH: process.env.GODOT_PATH || 'C:/Users/brett/Desktop/Godot/Godot.exe',
+      ...env,
+    },
+    windowsHide: true,
+  });
+
+  try {
+    const initialize = await request(child, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'phase-7-4-runtime-behavior', version: '1.0.0' },
+      },
+    });
+    assert.equal(initialize.error, undefined);
+    send(child, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
+    await fn(child);
+  } finally {
+    child.kill();
+  }
 }
 
 function createContext() {
@@ -117,6 +210,42 @@ test('default profile exposes every tool with registry metadata', () => {
   assert.equal(decorated.metadata.toolset, 'script');
   assert.equal(decorated.metadata.mutates, true);
   assert.equal(decorated.metadata.risk, 'medium');
+});
+
+test('default full-catalog mode is marked heavy but remains backward-compatible', () => {
+  const profile = createActiveToolProfile({
+    env: {},
+    allToolNames: names(SAMPLE_TOOLS),
+  });
+  const status = toolsetStatusPayload({
+    profile,
+    allToolDefinitions: SAMPLE_TOOLS,
+  });
+
+  assert.equal(status.mode, 'all');
+  assert.equal(status.loaded_tool_count, SAMPLE_TOOLS.length);
+  assert.equal(status.hidden_tool_count, 0);
+  assert.equal(status.catalog_summary.loaded_tool_count, SAMPLE_TOOLS.length);
+  assert.equal(status.catalog_summary.hidden_tool_count, 0);
+  assert.equal(status.full_catalog.heavy, true);
+  assert.equal(status.full_catalog.recommended_normal_mode, false);
+});
+
+test('invalid profile config reports startup/status warnings', () => {
+  const profile = createActiveToolProfile({
+    env: {
+      GODOT_MCP_TOOLSETS: 'core,bad-set',
+      GODOT_MCP_TOOLS: 'missing_tool',
+      GODOT_MCP_PROFILE: 'missing-profile',
+    },
+    allToolNames: names(SAMPLE_TOOLS),
+  });
+  const warningText = profile.warnings.join('\n');
+
+  assert.equal(profile.mode, 'filtered');
+  assert.match(warningText, /bad-set/);
+  assert.match(warningText, /missing_tool/);
+  assert.match(warningText, /missing-profile/);
 });
 
 test('GODOT_MCP_TOOLSETS filters tools and leaves remediation for hidden known tools', () => {
@@ -345,4 +474,49 @@ test('status payloads include catalog/resource filtering facts', () => {
   assert.equal(status.resources.catalog_filtered, true);
   assert.equal(status.disabled_tool_remediation.includes('GODOT_MCP_TOOLSETS'), true);
   assert.equal(status.available_toolsets.includes('debug'), true);
+});
+
+test('stdio tools, resources, and dispatch use the same filtered catalog', async () => {
+  await withMcpServer({ GODOT_MCP_TOOLSETS: 'core,script' }, async (child) => {
+    const listed = await request(child, { jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    assert.equal(listed.error, undefined);
+    const listedNames = listed.result.tools.map((tool) => tool.name);
+    assert.equal(listedNames.includes('script_patch'), true);
+    assert.equal(listedNames.includes('run_automated_playtest'), false);
+
+    const catalog = await request(child, {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'resources/read',
+      params: { uri: 'godot-mcp://tools/catalog' },
+    });
+    assert.equal(catalog.error, undefined);
+    const catalogPayload = JSON.parse(catalog.result.contents[0].text);
+    const catalogNames = catalogPayload.tools.map((tool) => tool.name);
+    assert.equal(catalogNames.includes('script_patch'), true);
+    assert.equal(catalogNames.includes('run_automated_playtest'), false);
+
+    const hiddenResource = await request(child, {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'resources/read',
+      params: { uri: 'godot-mcp://tools/run_automated_playtest' },
+    });
+    assert.ok(hiddenResource.error);
+    assert.match(hiddenResource.error.message, /not found/i);
+
+    const hiddenCall = await request(child, {
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: {
+        name: 'run_automated_playtest',
+        arguments: { project_path: 'C:/tmp/project' },
+      },
+    });
+    assert.equal(hiddenCall.error, undefined);
+    const disabled = JSON.parse(hiddenCall.result.content[0].text);
+    assert.equal(disabled.status, 'disabled');
+    assert.match(disabled.remediation.env.GODOT_MCP_TOOLSETS, /playtest/);
+  });
 });

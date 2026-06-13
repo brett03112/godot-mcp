@@ -1309,12 +1309,16 @@ Verification note, 2026-06-13: Phase 7.3 added `docs/superpowers/plans/2026-06-1
 
 ### 7.4 Strengthen Runtime Behavior
 
-- [ ] Keep default startup backward-compatible with all tools loaded when no profile is configured.
-- [ ] Add a startup/status summary that clearly reports loaded tool count and hidden tool count.
-- [ ] Ensure `tools/list`, `godot-mcp://tools/catalog`, per-tool resources, and dispatch all use the same filtered catalog.
-- [ ] Ensure hidden known tools return a structured disabled response with the exact toolset or env var needed.
-- [ ] Ensure invalid toolset/profile names produce clear startup or status warnings.
-- [ ] Ensure full-catalog mode is explicitly marked as heavy and not the recommended normal session mode.
+- [x] Keep default startup backward-compatible with all tools loaded when no profile is configured.
+- [x] Add a startup/status summary that clearly reports loaded tool count and hidden tool count.
+- [x] Ensure `tools/list`, `godot-mcp://tools/catalog`, per-tool resources, and dispatch all use the same filtered catalog.
+- [x] Ensure hidden known tools return a structured disabled response with the exact toolset or env var needed.
+- [x] Ensure invalid toolset/profile names produce clear startup or status warnings.
+- [x] Ensure full-catalog mode is explicitly marked as heavy and not the recommended normal session mode.
+
+Verification note, 2026-06-13: Phase 7.4 added `docs/superpowers/plans/2026-06-13-phase-7-4-runtime-behavior.md`, full/filtered catalog summaries in `toolset_status`, invalid profile/toolset/tool warnings, stronger hidden-tool remediation, and profile-aware `smoke:non-live` count checks. RED first failed because `catalog_summary`/`full_catalog` were missing and invalid `GODOT_MCP_TOOLSETS`/`GODOT_MCP_TOOLS` values did not warn; the filtered smoke also exposed the old full-catalog-only count check. Focused `npm run build; node --test tests/toolset-profiles.test.mjs` passed 13/13. Harness focused `npm run build; node --test tests/phase-5-4-verification-harness.test.mjs` passed 7/7. Profile regression `npm run build; node --test tests/toolset-profiles.test.mjs tests/built-in-profiles.test.mjs tests/tool-metadata-audit.test.mjs` passed 19/19. Final `npm test` passed 264/264. `npm run smoke:non-live` passed in full mode with 350 loaded / 0 hidden and with `GODOT_MCP_PROFILE=scene-edit` at 241 loaded / 109 hidden. `npm run smoke:live` passed against listener PID 16820 and Godot editor PID 13144. Direct Codex MCP namespace proof requires Codex/the Godot MCP connector reload because calls returned `Transport closed` before reload.
+
+Post-reload note, 2026-06-13: After Codex reload, stale pre-reload listener PID 16820 was stopped, leaving the reloaded connector PID 5148 to bind `127.0.0.1:6010`; Godot editor PID 13144 reconnected from local port 59978. Direct Codex MCP calls passed for `session_list`, `toolset_status`, `editor_state`, `live_addon_status`, `recommend_toolset_profile`, `project_settings_get`, and `validate_scene`. `toolset_status` reported full-catalog compatibility mode with 350 loaded / 0 hidden, `startup_summary` and `catalog_summary` present, and full catalog marked heavy/not normal recommended mode. `session_list` reported one compatible connected `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, active scene `res://test_animation_with_anim.tscn`, and writable editor state.
 
 ### 7.5 Docs And User Workflow
 

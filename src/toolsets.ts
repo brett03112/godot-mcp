@@ -381,18 +381,30 @@ export function createActiveToolProfile(options: CreateActiveToolProfileOptions)
   const allToolNames = uniqueStrings(options.allToolNames).sort();
   const configSources: string[] = [];
   const warnings: string[] = [];
-  const envToolsets = parseList(env.GODOT_MCP_TOOLSETS);
-  const envTools = parseList(env.GODOT_MCP_TOOLS);
+  const rawEnvToolsets = parseList(env.GODOT_MCP_TOOLSETS);
+  const rawEnvTools = parseList(env.GODOT_MCP_TOOLS);
   const projectPath = options.projectPath || env.GODOT_MCP_PROJECT_PATH || '';
   const namedProfile = env.GODOT_MCP_PROFILE || env.GODOT_MCP_TOOLSET_PROFILE || undefined;
   const profileConfig = namedProfile
     ? readNamedProfile(projectPath, namedProfile, configSources, warnings)
     : null;
 
-  const profileToolsets = normalizeToolsets(profileConfig?.toolsets || []);
+  warnInvalidToolsets('GODOT_MCP_TOOLSETS', rawEnvToolsets, warnings);
+  const rawProfileToolsets = parseList(profileConfig?.toolsets || []);
+  if (rawProfileToolsets.length > 0) {
+    warnInvalidToolsets(`profile "${namedProfile}" toolsets`, rawProfileToolsets, warnings);
+  }
+
+  const envToolsets = normalizeToolsets(rawEnvToolsets);
+  const envTools = rawEnvTools;
+  const profileToolsets = normalizeToolsets(rawProfileToolsets);
   const profileTools = parseList(profileConfig?.tools || []);
   const activeToolsets = normalizeToolsets([...envToolsets, ...profileToolsets]);
   const explicitTools = uniqueStrings([...envTools, ...profileTools]);
+  warnUnknownTools('GODOT_MCP_TOOLS', envTools, allToolNames, warnings);
+  if (configSources.some((source) => !source.startsWith('built-in:'))) {
+    warnUnknownTools(`profile "${namedProfile}" tools`, profileTools, allToolNames, warnings);
+  }
   const filterConfigured = activeToolsets.length > 0 || explicitTools.length > 0 || Boolean(profileConfig);
 
   if (!filterConfigured) {
@@ -524,6 +536,9 @@ export function disabledToolResponse(toolName: string, profile: ActiveToolProfil
     config_sources: profile.configSources,
     remediation: {
       summary: `Reload the MCP server with toolset "${metadata.toolset}" or explicitly add "${toolName}".`,
+      required_toolset: metadata.toolset,
+      required_tool: toolName,
+      reload_required: true,
       env: {
         GODOT_MCP_TOOLSETS: toolsets || metadata.toolset,
         GODOT_MCP_TOOLS: tools || toolName,
@@ -537,6 +552,8 @@ export function toolsetStatusPayload(options: ToolsetStatusOptions): any {
   const decorated = options.allToolDefinitions.map((tool) => decorateToolDefinition(tool));
   const loaded = filterToolDefinitions(options.allToolDefinitions, options.profile);
   const allToolNames = decorated.map((tool) => tool.name).sort();
+  const hiddenTools = decorated.filter((tool) => !isToolEnabled(tool.name, options.profile)).map((tool) => tool.name).sort();
+  const isFullCatalog = options.profile.mode === 'all';
   return {
     status: 'success',
     mode: options.profile.mode,
@@ -544,9 +561,26 @@ export function toolsetStatusPayload(options: ToolsetStatusOptions): any {
     explicit_tools: options.profile.explicitTools,
     named_profile: options.profile.namedProfile || null,
     loaded_tool_count: loaded.length,
-    hidden_tool_count: Math.max(0, decorated.length - loaded.length),
+    hidden_tool_count: hiddenTools.length,
     loaded_tools: loaded.map((tool) => tool.name).sort(),
-    hidden_tools: decorated.filter((tool) => !isToolEnabled(tool.name, options.profile)).map((tool) => tool.name).sort(),
+    hidden_tools: hiddenTools,
+    startup_summary: `${loaded.length} tools loaded, ${hiddenTools.length} hidden (${isFullCatalog ? 'full catalog; heavy' : 'filtered profile'}).`,
+    catalog_summary: {
+      mode: options.profile.mode,
+      total_tool_count: decorated.length,
+      loaded_tool_count: loaded.length,
+      hidden_tool_count: hiddenTools.length,
+      filtered: !isFullCatalog,
+      config_sources: options.profile.configSources,
+    },
+    full_catalog: {
+      enabled: isFullCatalog,
+      heavy: isFullCatalog,
+      recommended_normal_mode: false,
+      guidance: isFullCatalog
+        ? 'Full catalog mode is backward-compatible and heavy; use GODOT_MCP_PROFILE for normal sessions.'
+        : 'Filtered profile mode is the recommended normal session mode.',
+    },
     config_sources: options.profile.configSources,
     warnings: options.profile.warnings,
     available_toolsets: [...TOOLSET_KEYS],
@@ -554,6 +588,7 @@ export function toolsetStatusPayload(options: ToolsetStatusOptions): any {
     resources: {
       catalog_filtered: options.profile.mode !== 'all',
       per_tool_resources_filtered: options.profile.mode !== 'all',
+      filtered_by_active_profile: options.profile.mode !== 'all',
     },
     disabled_tool_remediation: 'Use GODOT_MCP_TOOLSETS to add a toolset, GODOT_MCP_TOOLS to add exact tool names, or GODOT_MCP_PROFILE with GODOT_MCP_PROJECT_PATH for .godot-mcp/toolsets.json.',
   };
@@ -965,12 +1000,30 @@ function normalizeRecommendArgs(rawArgs: RecommendToolsetProfileArgs): { feature
 }
 
 function normalizeToolsets(values: string[]): string[] {
-  return uniqueStrings(values.map(normalizeToolset).filter(Boolean)).sort();
+  return uniqueStrings(values.map(normalizeToolset).filter(isKnownToolset)).sort();
 }
 
 function normalizeToolset(value: string): string {
   const key = value.trim().toLowerCase().replace(/[-\s]+/g, '_');
   return TOOLSET_KEYS.includes(key as ToolsetKey) ? key : key;
+}
+
+function isKnownToolset(value: string): boolean {
+  return TOOLSET_KEYS.includes(value as ToolsetKey);
+}
+
+function warnInvalidToolsets(label: string, values: string[], warnings: string[]): void {
+  const invalid = values.filter((value) => !isKnownToolset(normalizeToolset(value)));
+  if (invalid.length === 0) return;
+  warnings.push(`Invalid ${label} entries ignored: ${invalid.join(', ')}. Known toolsets: ${TOOLSET_KEYS.join(', ')}.`);
+}
+
+function warnUnknownTools(label: string, values: string[], allToolNames: string[], warnings: string[]): void {
+  if (allToolNames.length === 0) return;
+  const knownTools = new Set(allToolNames);
+  const unknown = values.filter((value) => !knownTools.has(value));
+  if (unknown.length === 0) return;
+  warnings.push(`Unknown ${label} entries are not loaded: ${unknown.join(', ')}.`);
 }
 
 function parseList(value: any): string[] {

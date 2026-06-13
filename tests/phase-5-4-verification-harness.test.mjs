@@ -77,6 +77,14 @@ test('Phase 5.4 exposes repeatable smoke scripts through package scripts', async
   }
 });
 
+test('non-live smoke harness accepts filtered profile counts', async () => {
+  const nonLive = await text('scripts/smoke-non-live.mjs');
+
+  assert.doesNotMatch(nonLive, /if \(toolset\.loaded_tool_count < 300\)/);
+  assert.match(nonLive, /toolset\.loaded_tool_count !== toolNames\.length/);
+  assert.match(nonLive, /toolset\.mode === 'all'/);
+});
+
 test('Phase 5.4 manual verification note template captures local proof details', async () => {
   const template = await text('docs/templates/manual-verification-note.md');
 
