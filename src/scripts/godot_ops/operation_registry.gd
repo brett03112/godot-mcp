@@ -2,6 +2,15 @@ extends RefCounted
 
 const LegacyOperations = preload("legacy_operations.gd")
 const AssetPipelineOps = preload("asset_pipeline_ops.gd")
+const SceneCoreOps = preload("scene_core_ops.gd")
+const MeshLibraryOps = preload("mesh_library_ops.gd")
+const ResourceMaintenanceOps = preload("resource_maintenance_ops.gd")
+const TestSuiteOps = preload("test_suite_ops.gd")
+const TilemapOps = preload("tilemap_ops.gd")
+const ParticleOps = preload("particle_ops.gd")
+const IntrospectionOps = preload("introspection_ops.gd")
+const AudioBusOps = preload("audio_bus_ops.gd")
+const MultiplayerOps = preload("multiplayer_ops.gd")
 const CameraOps = preload("camera_ops.gd")
 const AudioPlayerOps = preload("audio_player_ops.gd")
 const ShaderOps = preload("shader_ops.gd")
@@ -28,6 +37,15 @@ func _init(context) -> void:
     _legacy.setup(context)
     _modules.append(_legacy)
     _register_asset_pipeline()
+    _register_scene_core()
+    _register_mesh_library()
+    _register_resource_maintenance()
+    _register_test_suite()
+    _register_tilemap()
+    _register_particles()
+    _register_introspection()
+    _register_audio_bus()
+    _register_multiplayer()
     _register_camera()
     _register_audio_player()
     _register_shader()
@@ -46,7 +64,12 @@ func _init(context) -> void:
 func dispatch(operation: String, params: Dictionary) -> bool:
     if _handlers.has(operation):
         var handler: Callable = _handlers[operation]
+        var target = handler.get_object()
+        if target != null and target.has_method("reset_exit_code"):
+            target.reset_exit_code()
         handler.call(params)
+        if target != null and target.has_method("get_exit_code"):
+            return int(target.get_exit_code()) == 0
         return true
     return _legacy.run(operation, params)
 
@@ -58,6 +81,88 @@ func _register_asset_pipeline() -> void:
     asset_ops.setup(_context)
     _modules.append(asset_ops)
     _handlers["asset_batch_reimport"] = Callable(asset_ops, "asset_batch_reimport")
+
+func _register_scene_core() -> void:
+    var scene_ops = SceneCoreOps.new()
+    scene_ops.setup(_context, _legacy)
+    _modules.append(scene_ops)
+    for operation in [
+        "create_scene",
+        "add_node",
+        "load_sprite",
+        "save_scene",
+        "modify_node_property",
+        "duplicate_node",
+        "reparent_node",
+    ]:
+        _handlers[operation] = Callable(scene_ops, operation)
+    _handlers["remove_node"] = Callable(scene_ops, "remove_node_op")
+
+func _register_mesh_library() -> void:
+    var mesh_ops = MeshLibraryOps.new()
+    mesh_ops.setup(_context, _legacy)
+    _modules.append(mesh_ops)
+    _handlers["export_mesh_library"] = Callable(mesh_ops, "export_mesh_library")
+
+func _register_resource_maintenance() -> void:
+    var resource_ops = ResourceMaintenanceOps.new()
+    resource_ops.setup(_context, _legacy)
+    _modules.append(resource_ops)
+    for operation in [
+        "get_uid",
+        "resave_resources",
+    ]:
+        _handlers[operation] = Callable(resource_ops, operation)
+
+func _register_test_suite() -> void:
+    var test_ops = TestSuiteOps.new()
+    test_ops.setup(_context, _legacy)
+    _modules.append(test_ops)
+    _handlers["create_test_suite"] = Callable(test_ops, "create_test_suite")
+
+func _register_tilemap() -> void:
+    var tilemap_ops = TilemapOps.new()
+    tilemap_ops.setup(_context, _legacy)
+    _modules.append(tilemap_ops)
+    for operation in [
+        "create_tilemap",
+        "paint_tiles",
+        "configure_tileset",
+    ]:
+        _handlers[operation] = Callable(tilemap_ops, operation)
+
+func _register_particles() -> void:
+    var particle_ops = ParticleOps.new()
+    particle_ops.setup(_context, _legacy)
+    _modules.append(particle_ops)
+    for operation in [
+        "create_particle_system",
+        "apply_particle_preset",
+    ]:
+        _handlers[operation] = Callable(particle_ops, operation)
+
+func _register_introspection() -> void:
+    var introspection_ops = IntrospectionOps.new()
+    introspection_ops.setup(_context, _legacy)
+    _modules.append(introspection_ops)
+    _handlers["get_class_info"] = Callable(introspection_ops, "get_class_info")
+
+func _register_audio_bus() -> void:
+    var audio_bus_ops = AudioBusOps.new()
+    audio_bus_ops.setup(_context, _legacy)
+    _modules.append(audio_bus_ops)
+    _handlers["configure_audio_bus"] = Callable(audio_bus_ops, "configure_audio_bus")
+
+func _register_multiplayer() -> void:
+    var multiplayer_ops = MultiplayerOps.new()
+    multiplayer_ops.setup(_context, _legacy)
+    _modules.append(multiplayer_ops)
+    for operation in [
+        "setup_multiplayer_peer",
+        "configure_rpc",
+        "manage_multiplayer_spawner",
+    ]:
+        _handlers[operation] = Callable(multiplayer_ops, operation)
 
 func _register_camera() -> void:
     var camera_ops = CameraOps.new()

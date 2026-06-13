@@ -631,3 +631,58 @@ Overall Phase 6.B remains IN PROGRESS. This pass moved only the shader/material 
 - Fresh local stdio MCP proof listed 350 tools and passed calls for `create_shader_material`, `apply_material`, `set_shader_parameter`, and `toolset_status`.
 - `git diff --check` exited 0 with CRLF warnings only.
 - Direct Codex MCP proof passed after stale listener cleanup: `session_list` returned one connected compatible `test_mcp_enhancements` session on listener PID 20808 with Godot editor PID 3792, `toolset_status` reported 350 loaded tools, `live_addon_status` was compatible and up to date, `editor_state` was connected and writable, and direct Codex calls passed for `create_shader_material`, `apply_material`, `set_shader_parameter`, and `validate_scene`.
+
+## Final Pass Plan, 2026-06-12
+
+Scope:
+
+- Move every remaining non-live operation family out of `src/scripts/godot_ops/legacy_operations.gd`.
+- Add focused modules for core scene edits, mesh library export, resource maintenance, test suite generation, TileMap edits, particles, ClassDB introspection, audio bus setup, and multiplayer setup.
+- Register every remaining operation from `operation_registry.gd` before the legacy fallback.
+- Leave `legacy_operations.gd` as shared compatibility helpers only.
+- Keep existing MCP tool names, operation names, parameters, and JSON results unchanged.
+
+Verification ladder:
+
+1. RED: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+2. GREEN focused: `npm run build; node --test tests/phase-6-b-modular-migration.test.mjs`
+3. Full: `npm test`
+4. Non-live smoke: `npm run smoke:non-live`
+5. Direct Godot headless smoke through `build/scripts/godot_operations.gd` for representative moved final-pass operations.
+6. Headless editor smoke against `test_mcp_enhancements`.
+7. Live socket smoke against the open editor.
+8. Post-reload Codex namespace proof after Codex is reloaded.
+9. `git diff --check`
+
+## Final Pass Status, 2026-06-13
+
+Phase 6.B final pass is code-complete, locally verified, and post-reload verified.
+
+Overall Phase 6.B acceptance is complete, including direct Codex namespace proof after the final reload.
+
+- RED first failed with remaining final-pass operations still owned by `legacy_operations.gd`.
+- `src/scripts/godot_ops/scene_core_ops.gd` now owns core scene edit operations.
+- `src/scripts/godot_ops/mesh_library_ops.gd`, `resource_maintenance_ops.gd`, `test_suite_ops.gd`, `tilemap_ops.gd`, `particle_ops.gd`, `introspection_ops.gd`, `audio_bus_ops.gd`, and `multiplayer_ops.gd` now own the remaining final-pass families.
+- `legacy_operations.gd` now keeps compatibility helpers only; unknown operations fall through cleanly.
+- Direct Godot smoke found cleanup leaks in `create_tilemap` and `export_mesh_library`; focused regressions now cover both.
+- Focused `node --test tests\phase-6-b-modular-migration.test.mjs` passed 72/72.
+- Final `npm test` passed 250/250.
+- `npm run smoke:non-live` passed with 350 tools.
+- Direct Godot headless smoke through `build/scripts/godot_operations.gd` passed representative final-pass operations with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- Headless editor smoke against `test_mcp_enhancements` exited 0 with 0 `SCRIPT ERROR`/`ERROR:` matches.
+- `npm run smoke:live` passed with listener PID 20808 and connected Godot editor PID 3792.
+- Final reload proof completed for `session_list`, `toolset_status`, `editor_state`, `live_addon_status`, `update_project_uids`, and `manage_multiplayer_spawner` from the Codex MCP namespace.
+
+Post-reload proof:
+
+- Stale listener PID 20808 was stopped after Codex reload.
+- Reloaded MCP listener bound `127.0.0.1:6010` as PID 8476.
+- `session_list` reported one connected compatible `test_mcp_enhancements` session with Godot `4.6.3-stable`, addon `0.1.0`, protocol `1.0.0`, writable editor state, and editor PID 3792.
+- `toolset_status` reported 350 loaded tools.
+- `editor_state` and `live_addon_status` passed.
+- Direct Codex MCP calls passed for final-pass tools: `create_scene`, `add_node`, `load_sprite`, `modify_node_property`, `duplicate_node`, `reparent_node`, `remove_node`, `save_scene`, `get_uid`, `get_class_info`, `create_tilemap`, `paint_tiles`, `configure_tileset`, `create_particle_system`, `apply_particle_preset`, `create_test_suite`, `configure_audio_bus`, `export_mesh_library`, `setup_multiplayer_peer`, `configure_rpc`, and `manage_multiplayer_spawner`.
+- Post-reload proof caught and fixed a Godot 4.6 incompatibility where `manage_multiplayer_spawner` assigned unsupported `MultiplayerSpawner.replication_interval`; focused regression coverage now guards the property before setting it.
+- Post-reload proof also caught and fixed `update_project_uids` passing the absolute project path into `resave_resources`; focused regression coverage now keeps that operation scanning the active Godot project root.
+- `update_project_uids` was proved against a temporary copy of `test_mcp_enhancements`, scanning 57 scenes without touching the real fixture.
+- Temporary proof scene, test suite, audio bus, multiplayer helper script, TileSet, mesh-library output files, and temporary project copy were removed afterward.
+- After the second Codex reload, direct namespace proof used the final `src/index.ts` fix: listener PID 10812 connected to Godot editor PID 3792, `session_list`, `toolset_status`, `editor_state`, and `live_addon_status` passed, `update_project_uids` scanned 57 scenes in a temporary project copy, and `manage_multiplayer_spawner` passed with `replication_interval: 0.1`; temporary proof scene and project copy were removed afterward.

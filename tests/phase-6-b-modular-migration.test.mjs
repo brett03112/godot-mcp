@@ -144,6 +144,69 @@ const SHADER_OPERATIONS = [
   'set_shader_parameter',
 ];
 
+const CORE_SCENE_OPERATIONS = [
+  'create_scene',
+  'add_node',
+  'load_sprite',
+  'save_scene',
+  'modify_node_property',
+  'remove_node',
+  'duplicate_node',
+  'reparent_node',
+];
+
+const MESH_LIBRARY_OPERATIONS = [
+  'export_mesh_library',
+];
+
+const RESOURCE_MAINTENANCE_OPERATIONS = [
+  'get_uid',
+  'resave_resources',
+];
+
+const TEST_SUITE_OPERATIONS = [
+  'create_test_suite',
+];
+
+const TILEMAP_OPERATIONS = [
+  'create_tilemap',
+  'paint_tiles',
+  'configure_tileset',
+];
+
+const PARTICLE_OPERATIONS = [
+  'create_particle_system',
+  'apply_particle_preset',
+];
+
+const INTROSPECTION_OPERATIONS = [
+  'get_class_info',
+];
+
+const AUDIO_BUS_OPERATIONS = [
+  'configure_audio_bus',
+];
+
+const MULTIPLAYER_OPERATIONS = [
+  'setup_multiplayer_peer',
+  'configure_rpc',
+  'manage_multiplayer_spawner',
+];
+
+const FINAL_PASS_MODULES = [
+  ['scene_core_ops.gd', 'SceneCoreOps', '_register_scene_core', CORE_SCENE_OPERATIONS],
+  ['mesh_library_ops.gd', 'MeshLibraryOps', '_register_mesh_library', MESH_LIBRARY_OPERATIONS],
+  ['resource_maintenance_ops.gd', 'ResourceMaintenanceOps', '_register_resource_maintenance', RESOURCE_MAINTENANCE_OPERATIONS],
+  ['test_suite_ops.gd', 'TestSuiteOps', '_register_test_suite', TEST_SUITE_OPERATIONS],
+  ['tilemap_ops.gd', 'TilemapOps', '_register_tilemap', TILEMAP_OPERATIONS],
+  ['particle_ops.gd', 'ParticleOps', '_register_particles', PARTICLE_OPERATIONS],
+  ['introspection_ops.gd', 'IntrospectionOps', '_register_introspection', INTROSPECTION_OPERATIONS],
+  ['audio_bus_ops.gd', 'AudioBusOps', '_register_audio_bus', AUDIO_BUS_OPERATIONS],
+  ['multiplayer_ops.gd', 'MultiplayerOps', '_register_multiplayer', MULTIPLAYER_OPERATIONS],
+];
+
+const FINAL_PASS_OPERATIONS = FINAL_PASS_MODULES.flatMap(([, , , operations]) => operations);
+
 test('Phase 6.B has a dedicated design-to-scene operation module', async () => {
   const modulePath = join(process.cwd(), 'src/scripts/godot_ops/design_to_scene_ops.gd');
   assert.equal(existsSync(modulePath), true);
@@ -797,4 +860,151 @@ test('build output copies the Phase 6.B shader/material module', async () => {
   const builtPath = join(process.cwd(), 'build/scripts/godot_ops/shader_ops.gd');
   const stats = await stat(builtPath);
   assert.equal(stats.isFile(), true);
+});
+
+test('Phase 6.B final pass has focused modules for every remaining legacy operation family', async () => {
+  for (const [fileName, , , operations] of FINAL_PASS_MODULES) {
+    const modulePath = join(process.cwd(), 'src/scripts/godot_ops', fileName);
+    assert.equal(existsSync(modulePath), true, fileName);
+    const source = await readFile(modulePath, 'utf8');
+
+    assert.match(source, /extends RefCounted/, fileName);
+    assert.match(source, /func setup\(context, legacy\) -> void:/, fileName);
+    assert.doesNotMatch(source, /_legacy\.[a-zA-Z0-9_]+\(params\)/, fileName);
+    for (const operation of operations) {
+      const escaped = operation === 'remove_node' ? 'remove_node_op' : operation;
+      assert.match(source, new RegExp(`func ${escaped}\\(params(?:: Dictionary)?\\)?`), `${fileName} ${operation}`);
+    }
+  }
+});
+
+test('Phase 6.B final pass create_scene does not assign the root node as its own owner', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/scene_core_ops.gd'), 'utf8');
+
+  assert.doesNotMatch(source, /scene_root\.owner\s*=\s*scene_root/);
+});
+
+test('Phase 6.B final pass load_sprite frees the edited scene after saving', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/scene_core_ops.gd'), 'utf8');
+  const loadSprite = source.slice(source.indexOf('func load_sprite'), source.indexOf('func save_scene'));
+
+  assert.match(loadSprite, /scene_root\.free\(\)/);
+});
+
+test('Phase 6.B final pass add_node frees the edited scene after saving', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/scene_core_ops.gd'), 'utf8');
+  const addNode = source.slice(source.indexOf('func add_node'), source.indexOf('func load_sprite'));
+
+  assert.match(addNode, /scene_root\.free\(\)/);
+});
+
+test('Phase 6.B final pass save_scene frees the edited scene after saving', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/scene_core_ops.gd'), 'utf8');
+  const saveScene = source.slice(source.indexOf('func save_scene'), source.indexOf('func modify_node_property'));
+
+  assert.match(saveScene, /scene_root\.free\(\)/);
+});
+
+test('Phase 6.B final pass reparent_node captures old parent path before detach', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/scene_core_ops.gd'), 'utf8');
+  const reparentNode = source.slice(source.indexOf('func reparent_node'), source.indexOf('# Helper: recursively set owner'));
+
+  assert.match(reparentNode, /var old_parent_path := _scene_core_relative_path\(scene_root, old_parent\)/);
+  assert.ok(reparentNode.indexOf('var old_parent_path := _scene_core_relative_path(scene_root, old_parent)') < reparentNode.indexOf('old_parent.remove_child(target_node)'));
+  assert.doesNotMatch(reparentNode, /old_parent\.get_path\(\)/);
+  assert.match(reparentNode, /"old_parent": old_parent_path/);
+  assert.match(source, /func _scene_core_relative_path\(scene_root: Node, node: Node\) -> String:/);
+});
+
+test('Phase 6.B final pass tilemap scene edits free the edited scene after saving', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/tilemap_ops.gd'), 'utf8');
+  const createTilemap = source.slice(source.indexOf('func create_tilemap'), source.indexOf('# Paint tiles in a TileMap'));
+  const paintTiles = source.slice(source.indexOf('func paint_tiles'), source.indexOf('# Configure TileSet properties'));
+
+  assert.match(createTilemap, /scene_root\.free\(\)/);
+  assert.match(paintTiles, /scene_root\.free\(\)/);
+});
+
+test('Phase 6.B final pass mesh-library export frees the instantiated scene', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/mesh_library_ops.gd'), 'utf8');
+  const exportMeshLibrary = source.slice(source.indexOf('func export_mesh_library'), source.indexOf('# Find files with a specific extension recursively'));
+
+  assert.match(exportMeshLibrary, /scene_root\.free\(\)/);
+});
+
+test('Phase 6.B final pass multiplayer spawner does not assign unsupported replication_interval', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_ops/multiplayer_ops.gd'), 'utf8');
+  const manageSpawner = source.slice(source.indexOf('func manage_multiplayer_spawner'), source.indexOf('# --- Tier 14/16 shared helpers ---'));
+
+  assert.doesNotMatch(manageSpawner, /spawner\.replication_interval\s*=/);
+  assert.match(manageSpawner, /if replication_interval > 0 and _has_property\(spawner, "replication_interval"\):/);
+});
+
+test('Phase 6.B final pass update_project_uids scans the active project root', async () => {
+  const source = await readFile(join(process.cwd(), 'src/index.ts'), 'utf8');
+  const handler = source.slice(source.indexOf('private async handleUpdateProjectUids'), source.indexOf('private async handleListSignals'));
+
+  assert.match(handler, /const params = \{\s*\};/s);
+  assert.doesNotMatch(handler, /projectPath: args\.projectPath/);
+});
+
+test('Phase 6.B final pass registers every remaining legacy operation before fallback', async () => {
+  const registry = await readFile(join(process.cwd(), 'src/scripts/godot_ops/operation_registry.gd'), 'utf8');
+
+  for (const [fileName, className, registerName, operations] of FINAL_PASS_MODULES) {
+    assert.match(registry, new RegExp(`const ${className} = preload\\("${fileName.replace('.', '\\.')}"\\)`), fileName);
+    assert.match(registry, new RegExp(`func ${registerName}\\(\\) -> void:`), registerName);
+    assert.ok(registry.indexOf(`${registerName}()`) < registry.indexOf('func dispatch'), `${registerName} should run during initialization`);
+    for (const operation of operations) {
+      assert.match(registry, new RegExp(`"${operation}"`), operation);
+    }
+  }
+});
+
+test('Phase 6.B final pass removes all remaining operation implementations from legacy fallback', async () => {
+  const legacy = await readFile(join(process.cwd(), 'src/scripts/godot_ops/legacy_operations.gd'), 'utf8');
+
+  for (const operation of FINAL_PASS_OPERATIONS) {
+    assert.doesNotMatch(legacy, new RegExp(`"${operation}":\\r?\\n`), operation);
+    const functionName = operation === 'remove_node' ? 'remove_node_op' : operation;
+    assert.doesNotMatch(legacy, new RegExp(`func ${functionName}\\(params(?:: Dictionary)?\\)?`), operation);
+  }
+  assert.doesNotMatch(legacy, /func find_files\(path, extension\):/);
+  assert.doesNotMatch(legacy, /func _add_bus_effects\(bus_idx: int, effects: Array\) -> void:/);
+  assert.doesNotMatch(legacy, /func _multiplayer_peer_script_source\(\) -> String:/);
+  assert.doesNotMatch(legacy, /func asset_batch_reimport\(params: Dictionary\) -> void:/);
+});
+
+test('Phase 6.B final pass keeps the public runner inspectable', async () => {
+  const source = await readFile(join(process.cwd(), 'src/scripts/godot_operations.gd'), 'utf8');
+  const implementationNames = [
+    ...FINAL_PASS_OPERATIONS,
+    ...DESIGN_OPERATIONS,
+    ...GAMEPLAY_OPERATIONS,
+    ...UI_THEME_OPERATIONS,
+    ...NODE_REFACTOR_OPERATIONS,
+    ...RESOURCE_WORKFLOW_OPERATIONS,
+    ...PHYSICS_OPERATIONS,
+    ...NAVIGATION_OPERATIONS,
+    ...VISUAL_QA_OPERATIONS,
+    ...SIGNAL_OPERATIONS,
+    ...ANIMATION_OPERATIONS,
+    ...SCRIPT_OPERATIONS,
+    ...CAMERA_OPERATIONS,
+    ...AUDIO_PLAYER_OPERATIONS,
+    ...SHADER_OPERATIONS,
+  ];
+
+  assert.ok(source.split(/\r?\n/).length <= 80);
+  for (const operation of implementationNames) {
+    assert.doesNotMatch(source, new RegExp(`func ${operation}\\(`), operation);
+  }
+});
+
+test('build output copies the Phase 6.B final pass modules', async () => {
+  for (const [fileName] of FINAL_PASS_MODULES) {
+    const builtPath = join(process.cwd(), 'build/scripts/godot_ops', fileName);
+    const stats = await stat(builtPath);
+    assert.equal(stats.isFile(), true, fileName);
+  }
 });

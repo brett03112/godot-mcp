@@ -4913,10 +4913,9 @@ class GodotServer {
         );
       }
 
-      // Prepare parameters for the operation (already in camelCase)
-      const params = {
-        projectPath: args.projectPath,
-      };
+      // Resave the active Godot project root. Do not pass the absolute
+      // filesystem path into GDScript as a resource subpath.
+      const params = {};
 
       // Execute the operation
       const { stdout, stderr } = await this.executeOperation('resave_resources', params, args.projectPath);
